@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+<ruleset name="UniversalGeoContext">
+	<description>Coding standards for the Universal Geo Context plugin.</description>
+
+	<file>universal-geo-context.php</file>
+	<file>uninstall.php</file>
+	<file>src</file>
+	<file>tests</file>
+
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/tests/tmp/*</exclude-pattern>
+
+	<arg value="sp"/>
+	<arg name="extensions" value="php"/>
+	<arg name="parallel" value="4"/>
+
+	<config name="minimum_wp_version" value="6.5"/>
+	<config name="testVersion" value="8.1-"/>
+
+	<rule ref="WordPress-Extra">
+		<!-- PSR-4 class files (src/Plugin.php) instead of class-plugin.php. -->
+		<exclude name="WordPress.Files.FileName"/>
+	</rule>
+
+	<rule ref="WooCommerce-Core">
+		<exclude name="WordPress.Files.FileName"/>
+	</rule>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="universal-geo-context"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="universal_geo"/>
+				<element value="UNIVERSAL_GEO"/>
+				<element value="UniversalGeo"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Test method names are self-describing; don't demand full docblocks
+	     there. Data-provider annotations still require a docblock, so relax the
+	     short-description and param-tag requirements for test files only. -->
+	<rule ref="Squiz.Commenting.FunctionComment.Missing">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Squiz.Commenting.FunctionComment.MissingParamTag">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Generic.Commenting.DocComment.MissingShort">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<!-- Tests legitimately fire hooks (apply_filters/do_action) to exercise the
+	     plugin's callbacks, and group methods under short section banner
+	     comments; neither needs a hook docblock or a full function docblock. -->
+	<rule ref="WooCommerce.Commenting.CommentHooks.MissingHookComment">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Squiz.Commenting.FunctionComment.WrongStyle">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.PHP.DiscouragedPHPFunctions">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+
+	<!-- Test files legitimately override globals and load files dynamically. -->
+	<rule ref="WordPress.WP.GlobalVariablesOverride">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+
+	<!-- Structural tests read local source files directly. -->
+	<rule ref="WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents">
+		<exclude-pattern>*/tests/*</exclude-pattern>
+	</rule>
+
+	<!-- These three files set $_SERVER['REMOTE_ADDR'] fixtures directly to
+	     exercise RemoteAddrOnlyResolver-backed resolution; there is no
+	     WordPress request object to sanitize through, and wp_unslash() is
+	     unavailable in the WordPress-free unit bootstrap. Scoped to exactly
+	     these files, not the whole tests tree, so an unrelated future test
+	     that carelessly handles raw input is still caught. -->
+	<rule ref="WordPress.Security.ValidatedSanitizedInput">
+		<exclude-pattern>*/tests/unit/Http/RemoteAddrOnlyResolverTest.php</exclude-pattern>
+		<exclude-pattern>*/tests/unit/PluginTest.php</exclude-pattern>
+		<exclude-pattern>*/tests/unit/ApiTest.php</exclude-pattern>
+	</rule>
+
+	<!-- The pure domain layer runs without WordPress loaded, so esc_html()
+	     and other output functions are unavailable. Exception messages
+	     built in these files are developer diagnostics, never echoed to
+	     the browser. Narrowed to the one file that actually throws:
+	     VisitorContext. GeoCandidate, both Contracts interfaces,
+	     ResolvedClientIp, RemoteAddrOnlyResolver, and IpUtils all raise
+	     nothing (RemoteAddrOnlyResolver and IpUtils::normalize() signal
+	     failure by returning null, not by throwing), so none of them need
+	     an exclusion. GeoValidator does not exist yet; no exclusion is
+	     reserved for it here — one will be added if and when that file is
+	     built and demonstrates a real need. -->
+	<rule ref="WordPress.Security.EscapeOutput.ExceptionNotEscaped">
+		<exclude-pattern>*src/Model/VisitorContext.php</exclude-pattern>
+	</rule>
+</ruleset>

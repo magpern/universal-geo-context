@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  phpcs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        id: setup-php
+        with:
+          php-version: '8.3'
+          coverage: none
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-
+      - run: composer install --prefer-dist --no-progress
+      - run: composer phpcs
+
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The PHP floor, the current development version and the ceiling one
+        # minor ahead of it. Unit tests never load WordPress (see
+        # tests/unit/bootstrap.php), so this is the PHP axis in isolation.
+        php: ['8.1', '8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        id: setup-php
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-
+      - run: composer install --prefer-dist --no-progress
+      - run: composer test:unit
+
+  integration:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The lowest supported corner. The only leg that can substantiate
+          # the declared floors.
+          - leg: floor
+            php: '8.1'
+            wp_phpunit: '6.5.*'
+            wc: '10.9.4'
+          # Today's coordinate.
+          - leg: current
+            php: '8.3'
+            wp_phpunit: ''
+            wc: '10.9.4'
+          # Isolates the PHP axis: floor PHP against the current WP/WC pair.
+          - leg: mixed-php-floor
+            php: '8.1'
+            wp_phpunit: ''
+            wc: '10.9.4'
+          # Isolates the WordPress axis: floor WP against current PHP/WC.
+          - leg: mixed-wp-floor
+            php: '8.3'
+            wp_phpunit: '6.5.*'
+            wc: '10.9.4'
+          # Early warning on upstream drift. Deliberately floats on the
+          # latest WooCommerce release; never blocks a merge.
+          - leg: ceiling
+            php: '8.4'
+            wp_phpunit: ''
+            wc: 'latest'
+    continue-on-error: ${{ matrix.leg == 'ceiling' }}
+    services:
+      mysql:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: wordpress_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      WC_VERSION: ${{ matrix.wc }}
+      WP_DB_HOST: 127.0.0.1
+      WP_DB_NAME: wordpress_test
+      WP_DB_USER: root
+      WP_DB_PASS: root
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        id: setup-php
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mysqli
+          coverage: none
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-${{ hashFiles('composer.lock') }}-${{ matrix.wp_phpunit }}
+          restore-keys: |
+            ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-${{ hashFiles('composer.lock') }}-
+      - uses: actions/cache@v4
+        if: matrix.wc != 'latest'
+        with:
+          path: tests/tmp/wordpress
+          key: ${{ runner.os }}-wp-install-${{ matrix.wp_phpunit }}-${{ matrix.wc }}-${{ hashFiles('tests/bin/install-wp.sh') }}
+      - run: composer install --prefer-dist --no-progress
+      - name: Pin the WordPress test library
+        if: matrix.wp_phpunit != ''
+        run: composer update "wp-phpunit/wp-phpunit:${{ matrix.wp_phpunit }}" --with-all-dependencies --no-progress
+      - run: bash tests/bin/install-wp.sh
+      - run: composer test:integration
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        id: setup-php
+        with:
+          php-version: '8.1'
+          coverage: none
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-
+      - run: composer install --no-dev --prefer-dist --no-progress --optimize-autoloader
+      - run: bash bin/build-zip.sh
+      - uses: actions/upload-artifact@v5
+        with:
+          name: universal-geo-context
+          path: dist/universal-geo-context-*.zip

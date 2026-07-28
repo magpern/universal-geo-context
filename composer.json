@@ -1,0 +1,45 @@
+{
+    "name": "magpern/universal-geo-context",
+    "description": "Visitor geolocation detection — evidence-based, privacy-respecting, easily extensible.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=8.1"
+    },
+    "require-dev": {
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+        "phpunit/phpunit": "^9.6",
+        "woocommerce/woocommerce-sniffs": "^1.0",
+        "wp-coding-standards/wpcs": "^3.1",
+        "wp-phpunit/wp-phpunit": "^6.5 || ^7.0",
+        "yoast/phpunit-polyfills": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "UniversalGeo\\": "src/"
+        },
+        "files": [
+            "src/api.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "UniversalGeo\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "phpcs": "phpcs",
+        "phpcbf": "phpcbf",
+        "test:unit": "phpunit -c phpunit.xml.dist",
+        "test:integration": "phpunit -c phpunit-integration.xml.dist"
+    },
+    "config": {
+        "platform": {
+            "php": "8.1.99"
+        },
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "sort-packages": true
+    }
+}

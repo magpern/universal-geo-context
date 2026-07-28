@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+
+      - name: Verify tag matches plugin version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VER="$(sed -n 's/^ \* Version: //p' universal-geo-context.php | tr -d '[:space:]')"
+          if [ "$TAG" != "$VER" ]; then
+            echo "Tag ${TAG} does not match plugin header version ${VER}." >&2
+            exit 1
+          fi
+
+      - name: Install production dependencies
+        run: composer install --no-dev --prefer-dist --no-progress --optimize-autoloader
+
+      - name: Build plugin zip
+        run: bash bin/build-zip.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/universal-geo-context-*.zip
+          generate_release_notes: true
