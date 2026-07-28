@@ -1,8 +1,12 @@
 # Compatibility Matrix
 
-**Status: M1 Step 0 (bootstrap). This document will be completed in M5.**
+**Status: M2 complete.** Version-header parity (header, `UNIVERSAL_GEO_VERSION`,
+and this document) is checked manually until M5's automated release tests
+land.
 
-## Version support (v1.0.0+)
+**Current plugin version: `0.2.0`**
+
+## Version support
 
 | Axis | Minimum | Tested up to |
 |---|---|---|
@@ -25,5 +29,5 @@ Per-site operation, no network-wide settings. Network activation is supported bu
 
 ## Known compatibility notes
 
-See the plan for environment findings and known limitations:
-/home/magpern/.claude/plans/you-are-the-lead-encapsulated-riddle.md § 3, § 25
+See `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, and `docs/PRIVACY.md` for
+environment findings and known limitations.

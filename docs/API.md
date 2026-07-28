@@ -1,11 +1,9 @@
 # Public API
 
-**Status: M1 Step 0 (bootstrap). This document will be completed in M1 Step 6.**
+**Status: M2 complete.** The six functions and one value object below are
+the frozen, permanent public surface as of v0.1.0 and are unchanged in M2.
 
-The public API contract is defined in the approved Revision 3 plan, § 13:
-/home/magpern/.claude/plans/you-are-the-lead-encapsulated-riddle.md
-
-## What will ship in M1
+## Public surface
 
 Six functions and one value object:
 

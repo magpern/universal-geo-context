@@ -58,7 +58,7 @@ final class GeoCacheTest extends TestCase {
 		$this->assertSame( 'string', (string) $parameters[2]->getType() );
 	}
 
-	public function test_public_api_is_exactly_get_and_set(): void {
+	public function test_public_api_is_exactly_get_set_and_bump_epoch(): void {
 		$names = array_values(
 			array_diff(
 				array_map(
@@ -70,7 +70,7 @@ final class GeoCacheTest extends TestCase {
 		);
 
 		sort( $names );
-		$this->assertSame( array( 'get', 'set' ), $names );
+		$this->assertSame( array( 'bump_epoch', 'get', 'set' ), $names );
 	}
 
 	// ---- Enabled / disabled / no-op degradation ------------------------------
@@ -380,6 +380,49 @@ final class GeoCacheTest extends TestCase {
 		$this->assertSame( 'AB', $result->region_code );
 		$this->assertSame( 'cloudflare', $result->source );
 		$this->assertSame( 0.95, $result->confidence );
+	}
+
+	// ---- bump_epoch() ---------------------------------------------------------
+
+	public function test_bump_epoch_increments_from_the_default_when_unset(): void {
+		// DEFAULT_EPOCH (1) is the implicit baseline before any bump has
+		// ever happened; bumping once moves past it to 2.
+		GeoCache::bump_epoch();
+		$this->assertSame( 2, $GLOBALS['universal_geo_test_options']['universal_geo_cache_epoch'] );
+	}
+
+	public function test_bump_epoch_increments_an_existing_value(): void {
+		$GLOBALS['universal_geo_test_options']['universal_geo_cache_epoch'] = 5;
+
+		GeoCache::bump_epoch();
+
+		$this->assertSame( 6, $GLOBALS['universal_geo_test_options']['universal_geo_cache_epoch'] );
+	}
+
+	public function test_bump_epoch_called_twice_increments_twice(): void {
+		GeoCache::bump_epoch();
+		GeoCache::bump_epoch();
+
+		$this->assertSame( 3, $GLOBALS['universal_geo_test_options']['universal_geo_cache_epoch'] );
+	}
+
+	public function test_bump_epoch_invalidates_previously_cached_entries(): void {
+		$cache = new GeoCache( true, 900, 'sig' );
+		$cache->set( '203.0.113.1', $this->known_context() );
+
+		$this->assertNotNull( $cache->get( '203.0.113.1' ) );
+
+		GeoCache::bump_epoch();
+
+		$this->assertNull( $cache->get( '203.0.113.1' ) );
+	}
+
+	public function test_bump_epoch_treats_a_non_int_existing_value_as_the_default(): void {
+		$GLOBALS['universal_geo_test_options']['universal_geo_cache_epoch'] = 'not-an-int';
+
+		GeoCache::bump_epoch();
+
+		$this->assertSame( 2, $GLOBALS['universal_geo_test_options']['universal_geo_cache_epoch'] );
 	}
 
 	// ---- Isolation ----------------------------------------------------------

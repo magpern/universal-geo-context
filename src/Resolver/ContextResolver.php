@@ -81,18 +81,30 @@ final class ContextResolver {
 	private ?VisitorContext $memo = null;
 
 	/**
+	 * Invoked whenever a provider's resolve() throws — from both resolve()
+	 * and probe(). `callable` cannot be a typed property in PHP, so this is
+	 * assigned in the constructor body rather than promoted like the other
+	 * three dependencies.
+	 *
+	 * @var callable|null fn(string $provider_id, string $reason): void
+	 */
+	private $on_provider_failed;
+
+	/**
 	 * Stores the injected dependencies and validates every provider.
 	 *
-	 * @param ClientIpResolverInterface $client_ip_resolver Resolves the current request's client IP.
-	 * @param GeoProviderInterface[]    $providers           Providers in resolution order.
-	 * @param GeoCache                  $cache               The derived-context cache.
+	 * @param ClientIpResolverInterface $client_ip_resolver  Resolves the current request's client IP.
+	 * @param GeoProviderInterface[]    $providers            Providers in resolution order.
+	 * @param GeoCache                  $cache                The derived-context cache.
+	 * @param callable|null             $on_provider_failed   fn(string $provider_id, string $reason): void — called for every provider Throwable, from both resolve() and probe(). Optional: null (the default) fires nothing, so this class stays usable without WordPress. $reason is the exception's class and message only — a provider author must never put a client IP in an exception message; ContextResolver does not (and cannot generically) scrub one out.
 	 *
 	 * @throws InvalidArgumentException When any provider element does not implement GeoProviderInterface.
 	 */
 	public function __construct(
 		private readonly ClientIpResolverInterface $client_ip_resolver,
 		array $providers,
-		private readonly GeoCache $cache
+		private readonly GeoCache $cache,
+		?callable $on_provider_failed = null
 	) {
 		foreach ( $providers as $provider ) {
 			if ( ! $provider instanceof GeoProviderInterface ) {
@@ -100,7 +112,8 @@ final class ContextResolver {
 			}
 		}
 
-		$this->providers = array_values( $providers );
+		$this->providers          = array_values( $providers );
+		$this->on_provider_failed = $on_provider_failed;
 	}
 
 	/**
@@ -227,7 +240,8 @@ final class ContextResolver {
 
 			try {
 				$candidate = $provider->resolve( $ip );
-			} catch ( Throwable ) {
+			} catch ( Throwable $e ) {
+				$this->notify_provider_failed( $provider, $e );
 				continue;
 			}
 
@@ -278,7 +292,9 @@ final class ContextResolver {
 
 		try {
 			$candidate = $provider->resolve( $ip );
-		} catch ( Throwable ) {
+		} catch ( Throwable $e ) {
+			$this->notify_provider_failed( $provider, $e );
+
 			return array(
 				'provider'     => $provider_id,
 				'available'    => true,
@@ -317,5 +333,23 @@ final class ContextResolver {
 			'region_code'  => GeoValidator::region( $candidate->region_code, $country ),
 			'reason'       => 'ok',
 		);
+	}
+
+	/**
+	 * Invokes the injected on_provider_failed callable, when one was given.
+	 * A no-op otherwise, so this class stays fully usable — and, per its own
+	 * class docblock, WordPress-free — without one.
+	 *
+	 * @param GeoProviderInterface $provider The provider whose resolve() threw.
+	 * @param Throwable            $e        The exception it threw.
+	 *
+	 * @return void
+	 */
+	private function notify_provider_failed( GeoProviderInterface $provider, Throwable $e ): void {
+		if ( null === $this->on_provider_failed ) {
+			return;
+		}
+
+		( $this->on_provider_failed )( $provider->get_id(), get_class( $e ) . ': ' . $e->getMessage() );
 	}
 }

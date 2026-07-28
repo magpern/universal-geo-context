@@ -42,6 +42,10 @@
 				<element value="UniversalGeo"/>
 			</property>
 		</properties>
+		<!-- tests/wp-tests-config.php defines WordPress core's own
+		     test-suite constants (DB_NAME, ABSPATH, WP_TESTS_DOMAIN, etc.) —
+		     names WordPress itself mandates and this plugin cannot prefix. -->
+		<exclude-pattern>*/tests/wp-tests-config.php</exclude-pattern>
 	</rule>
 
 	<!-- Test method names are self-describing; don't demand full docblocks
@@ -79,14 +83,14 @@
 		<exclude-pattern>*/tests/*</exclude-pattern>
 	</rule>
 
-	<!-- These three files set $_SERVER['REMOTE_ADDR'] fixtures directly to
-	     exercise RemoteAddrOnlyResolver-backed resolution; there is no
-	     WordPress request object to sanitize through, and wp_unslash() is
-	     unavailable in the WordPress-free unit bootstrap. Scoped to exactly
-	     these files, not the whole tests tree, so an unrelated future test
-	     that carelessly handles raw input is still caught. -->
+	<!-- These two files set $_SERVER fixtures ($_SERVER['REMOTE_ADDR'] and
+	     friends) directly to exercise ClientIpResolver-backed resolution;
+	     there is no WordPress request object to sanitize through, and
+	     wp_unslash() is unavailable in the WordPress-free unit bootstrap.
+	     Scoped to exactly these files, not the whole tests tree, so an
+	     unrelated future test that carelessly handles raw input is still
+	     caught. -->
 	<rule ref="WordPress.Security.ValidatedSanitizedInput">
-		<exclude-pattern>*/tests/unit/Http/RemoteAddrOnlyResolverTest.php</exclude-pattern>
 		<exclude-pattern>*/tests/unit/PluginTest.php</exclude-pattern>
 		<exclude-pattern>*/tests/unit/ApiTest.php</exclude-pattern>
 	</rule>

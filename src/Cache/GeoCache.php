@@ -24,12 +24,13 @@ use UniversalGeo\Model\VisitorContext;
  * caller (ContextResolver, after ClientIpResolverInterface::resolve());
  * this class does not call IpUtils itself.
  *
- * Salt and epoch are read directly via get_option()/update_option() —
- * salt is "32 random bytes, generated on first use" (§9): lazily created
- * and persisted the first time it's needed, never eagerly, matching the
+ * Salt and epoch are read directly via get_option()/update_option() — salt
+ * is "32 random bytes, generated on first use" (§9): lazily created and
+ * persisted the first time it's needed, never eagerly, matching the
  * plugin-wide lazy-resolution principle. Epoch is "an autoloaded integer
- * option bumped on every settings save" by other code (the future admin
- * save handler) — this class only reads it, never mutates it.
+ * option bumped on every settings save" (§9); GeoCache owns the option name
+ * exclusively (bump_epoch(), M2) — every instance's own get()/set() calls
+ * only ever read it, never mutate it.
  *
  * Negative results (VisitorContext::is_known() === false) get a fixed,
  * internal 300s TTL rather than the configured TTL, so a failing provider
@@ -196,8 +197,10 @@ final class GeoCache {
 	}
 
 	/**
-	 * Reads the current invalidation epoch. Never writes it — bumping the
-	 * epoch belongs to the future settings-save handler, not this class.
+	 * Reads the current invalidation epoch. This instance-level read path
+	 * never writes it — bumping belongs to bump_epoch() alone, called by
+	 * the admin settings-save handler (M2), never by an instance's own
+	 * get()/set() calls.
 	 *
 	 * @return int
 	 */
@@ -205,5 +208,25 @@ final class GeoCache {
 		$epoch = get_option( self::EPOCH_OPTION, self::DEFAULT_EPOCH );
 
 		return is_int( $epoch ) ? $epoch : self::DEFAULT_EPOCH;
+	}
+
+	/**
+	 * Bumps the invalidation epoch by one, so no derived-cache entry
+	 * written under the old settings can be served after a settings save.
+	 * GeoCache remains the sole owner of the epoch option name (Revision 3
+	 * §9); callers never read or write EPOCH_OPTION directly.
+	 *
+	 * Static, not an instance method: bumping the epoch is a one-shot,
+	 * request-independent action (the admin save handler calls it once per
+	 * save), not part of any single GeoCache instance's get()/set()
+	 * lifecycle.
+	 *
+	 * @return void
+	 */
+	public static function bump_epoch(): void {
+		$current = get_option( self::EPOCH_OPTION, self::DEFAULT_EPOCH );
+		$current = is_int( $current ) ? $current : self::DEFAULT_EPOCH;
+
+		update_option( self::EPOCH_OPTION, $current + 1 );
 	}
 }

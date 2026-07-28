@@ -11,8 +11,11 @@ namespace UniversalGeo\Http;
 
 /**
  * One pure static class for every IP address manipulation the plugin
- * performs, outside of CIDR trust matching (TrustedProxies' job, M2). No
- * WordPress dependency.
+ * performs, including CIDR trust matching: `cidr_match()` is the plugin's
+ * single canonical matcher, used both internally (by `is_public()`, against
+ * its own hardcoded range table) and externally (by `TrustedProxies`,
+ * against admin-configured CIDRs and the bundled Cloudflare ranges, M2).
+ * No WordPress dependency.
  *
  * Every method handles a single address token per call — never a
  * comma-separated forwarding-header list, never a hostname, never a
@@ -59,6 +62,41 @@ final class IpUtils {
 	);
 
 	/**
+	 * Human-readable classification labels for describe(), aligned index-for
+	 * -index with IPV4_NON_PUBLIC_RANGES. Purely cosmetic — is_public()'s own
+	 * true/false verdict never consults this table.
+	 */
+	private const IPV4_RANGE_LABELS = array(
+		'unspecified',
+		'private',
+		'CGNAT',
+		'loopback',
+		'link-local',
+		'private',
+		'reserved',
+		'documentation',
+		'private',
+		'benchmarking',
+		'documentation',
+		'documentation',
+		'multicast',
+		'reserved',
+	);
+
+	/**
+	 * Human-readable classification labels for describe(), aligned index-for
+	 * -index with IPV6_NON_PUBLIC_RANGES.
+	 */
+	private const IPV6_RANGE_LABELS = array(
+		'unspecified',
+		'loopback',
+		'link-local',
+		'unique-local',
+		'multicast',
+		'documentation',
+	);
+
+	/**
 	 * Normalizes one address token to a bare IPv4 or IPv6 address.
 	 *
 	 * Trims surrounding whitespace, strips a ":port" suffix from IPv4,
@@ -100,8 +138,9 @@ final class IpUtils {
 	 * documentation/benchmarking ranges, multicast, and reserved/future-use
 	 * space for IPv4; unspecified, loopback, link-local, unique local
 	 * (ULA), multicast, and documentation space for IPv6. Classification
-	 * uses an explicit range table rather than PHP's FILTER_FLAG_NO_PRIV_RANGE
-	 * / FILTER_FLAG_NO_RES_RANGE alone, since those do not reliably cover
+	 * uses an explicit range table (matched via cidr_match(), the plugin's
+	 * one CIDR matcher) rather than PHP's FILTER_FLAG_NO_PRIV_RANGE /
+	 * FILTER_FLAG_NO_RES_RANGE alone, since those do not reliably cover
 	 * every range Revision 3 names (notably CGNAT and IPv6 ULA). An
 	 * IPv4-mapped IPv6 address is classified by its underlying IPv4
 	 * address. Malformed input is never public.
@@ -121,12 +160,126 @@ final class IpUtils {
 		}
 
 		foreach ( ( $is_ipv4 ? self::IPV4_NON_PUBLIC_RANGES : self::IPV6_NON_PUBLIC_RANGES ) as $range ) {
-			if ( self::in_range( $ip, $range ) ) {
+			if ( self::cidr_match( $ip, $range ) ) {
 				return false;
 			}
 		}
 
 		return true;
+	}
+
+	/**
+	 * Whether $ip falls within $cidr — the plugin's single CIDR matcher
+	 * (Revision 3 §4.3), used both internally by is_public() and externally
+	 * by TrustedProxies (M2) against admin-configured and bundled ranges.
+	 *
+	 * Handles IPv4 and IPv6. A bare address with no "/prefix" is treated as
+	 * a /32 (IPv4) or /128 (IPv6) — an exact-address match. $ip and $cidr's
+	 * subnet are each reduced from IPv4-mapped IPv6 form
+	 * ("::ffff:a.b.c.d") to plain IPv4 before comparison, so a mapped
+	 * address matches a plain IPv4 CIDR and vice versa. A family mismatch
+	 * (one side IPv4, the other IPv6), a malformed address on either side,
+	 * or an out-of-range prefix (> 32 for IPv4, > 128 for IPv6) all return
+	 * false rather than throwing — this method never fails closed by
+	 * exception, only by returning false.
+	 *
+	 * @param string $ip   An address, ideally already normalize()'d.
+	 * @param string $cidr A CIDR, e.g. '10.0.0.0/8', or a bare address.
+	 *
+	 * @return bool
+	 */
+	public static function cidr_match( string $ip, string $cidr ): bool {
+		$ip = self::reduce_ipv4_mapped( trim( $ip ) );
+
+		if ( false === filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+			return false;
+		}
+
+		$slash_position = strrpos( $cidr, '/' );
+		$subnet         = self::reduce_ipv4_mapped( trim( false === $slash_position ? $cidr : substr( $cidr, 0, $slash_position ) ) );
+
+		if ( false === filter_var( $subnet, FILTER_VALIDATE_IP ) ) {
+			return false;
+		}
+
+		$ip_is_ipv4     = false !== filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 );
+		$subnet_is_ipv4 = false !== filter_var( $subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 );
+
+		if ( $ip_is_ipv4 !== $subnet_is_ipv4 ) {
+			return false;
+		}
+
+		$max_prefix = $subnet_is_ipv4 ? 32 : 128;
+
+		if ( false === $slash_position ) {
+			$prefix = $max_prefix;
+		} else {
+			$raw_prefix = trim( substr( $cidr, $slash_position + 1 ) );
+
+			if ( 1 !== preg_match( '/^\d{1,3}$/', $raw_prefix ) || (int) $raw_prefix > $max_prefix ) {
+				return false;
+			}
+
+			$prefix = (int) $raw_prefix;
+		}
+
+		$ip_bin     = inet_pton( $ip );
+		$subnet_bin = inet_pton( $subnet );
+
+		if ( false === $ip_bin || false === $subnet_bin || strlen( $ip_bin ) !== strlen( $subnet_bin ) ) {
+			return false;
+		}
+
+		$whole_bytes = intdiv( $prefix, 8 );
+		$extra_bits  = $prefix % 8;
+
+		if ( $whole_bytes > 0 && 0 !== substr_compare( $ip_bin, $subnet_bin, 0, $whole_bytes ) ) {
+			return false;
+		}
+
+		if ( 0 === $extra_bits ) {
+			return true;
+		}
+
+		$mask = ( 0xFF << ( 8 - $extra_bits ) ) & 0xFF;
+
+		return ( ord( $ip_bin[ $whole_bytes ] ) & $mask ) === ( ord( $subnet_bin[ $whole_bytes ] ) & $mask );
+	}
+
+	/**
+	 * A short human-readable classification for diagnostics (Revision 3
+	 * §10): family, non-public classification (or 'public'), and the masked
+	 * address — e.g. "IPv4 private (172.18.0.x)". Never returns the
+	 * complete address; malformed input returns the literal string
+	 * 'invalid', matching mask()'s own convention.
+	 *
+	 * @param string $ip An address, ideally already normalize()'d.
+	 *
+	 * @return string
+	 */
+	public static function describe( string $ip ): string {
+		$reduced = self::reduce_ipv4_mapped( trim( $ip ) );
+
+		$is_ipv4 = false !== filter_var( $reduced, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 );
+		$is_ipv6 = false !== filter_var( $reduced, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 );
+
+		if ( ! $is_ipv4 && ! $is_ipv6 ) {
+			return 'invalid';
+		}
+
+		$ranges = $is_ipv4 ? self::IPV4_NON_PUBLIC_RANGES : self::IPV6_NON_PUBLIC_RANGES;
+		$labels = $is_ipv4 ? self::IPV4_RANGE_LABELS : self::IPV6_RANGE_LABELS;
+
+		$classification = 'public';
+
+		foreach ( $ranges as $index => $range ) {
+			if ( self::cidr_match( $reduced, $range ) ) {
+				$classification = $labels[ $index ];
+				break;
+			}
+		}
+
+		return sprintf( '%s %s (%s)', $is_ipv4 ? 'IPv4' : 'IPv6', $classification, self::mask( $reduced ) );
 	}
 
 	/**
@@ -180,45 +333,5 @@ final class IpUtils {
 		}
 
 		return $value;
-	}
-
-	/**
-	 * Whether $ip falls within $cidr.
-	 *
-	 * Internal only: this is is_public()'s own range-membership check
-	 * against a fixed, hardcoded table, not a general-purpose CIDR matcher.
-	 * Admin-configured trust-list matching is TrustedProxies' job (M2) and
-	 * is not exposed here.
-	 *
-	 * @param string $ip   An already-validated IPv4 or IPv6 address.
-	 * @param string $cidr A CIDR of the same address family, e.g. '10.0.0.0/8'.
-	 *
-	 * @return bool
-	 */
-	private static function in_range( string $ip, string $cidr ): bool {
-		[ $subnet, $prefix ] = explode( '/', $cidr );
-		$prefix              = (int) $prefix;
-
-		$ip_bin     = inet_pton( $ip );
-		$subnet_bin = inet_pton( $subnet );
-
-		if ( false === $ip_bin || false === $subnet_bin || strlen( $ip_bin ) !== strlen( $subnet_bin ) ) {
-			return false;
-		}
-
-		$whole_bytes = intdiv( $prefix, 8 );
-		$extra_bits  = $prefix % 8;
-
-		if ( $whole_bytes > 0 && 0 !== substr_compare( $ip_bin, $subnet_bin, 0, $whole_bytes ) ) {
-			return false;
-		}
-
-		if ( 0 === $extra_bits ) {
-			return true;
-		}
-
-		$mask = ( 0xFF << ( 8 - $extra_bits ) ) & 0xFF;
-
-		return ( ord( $ip_bin[ $whole_bytes ] ) & $mask ) === ( ord( $subnet_bin[ $whole_bytes ] ) & $mask );
 	}
 }

@@ -1,18 +1,16 @@
 # Architecture
 
-**Status: M1 Step 1I complete — runtime composition and the public API now
-exist. `Plugin.php` eagerly builds the M1 object graph in `init()`
-(`RemoteAddrOnlyResolver`, `[DefaultCountryProvider]`, `GeoCache`,
-`ContextResolver`); resolution itself stays lazy until the first genuine
-call. `src/api.php`'s six `universal_geo_*` functions are loaded via
-Composer `autoload.files` and are now the frozen, permanent public surface.
-**M1 now operates end-to-end**, within its honest limits: `REMOTE_ADDR` only
-(no forwarding-header trust), one provider (`DefaultCountryProvider`,
-country-only, no region, confidence 0.10 or `unknown`). No trusted proxies,
-no additional providers, no diagnostics/REST/WP-CLI/admin UI exist yet.**
-
-The architecture is defined in the approved Revision 3 plan:
-/home/magpern/.claude/plans/you-are-the-lead-encapsulated-riddle.md
+**Status: M1 complete (frozen, tag `m1`); M2 complete.** This document
+records the M1 reconciliation history verbatim, below, as the record of how
+the frozen public API and composition patterns were decided. M2 replaced
+`RemoteAddrOnlyResolver` with the full trust-boundary stack (`ServerRequest`,
+`TrustedProxies`, `ClientIpResolver`), added the Cloudflare and WooCommerce
+providers, admin settings/diagnostics, and Site Health — see
+`docs/adr/0002-trusted-proxy-model.md` and
+`docs/adr/0006-optional-woocommerce-integration.md` for M2's own decisions,
+and `docs/HOOKS.md` / `docs/TRUSTED_PROXIES.md` / `docs/SECURITY.md` /
+`docs/PRIVACY.md` for M2's current, up-to-date behaviour. The M1 narrative
+below is retained as historical record and is not updated for M2.
 
 ## M1 bootstrap scope (Step 0)
 

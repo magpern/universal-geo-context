@@ -1,6 +1,7 @@
 <?php
 /**
- * Integration test bootstrap: WordPress is loaded, databases available.
+ * Integration test bootstrap: loads the WordPress test suite with
+ * WooCommerce active, this plugin available under wp-content/plugins/.
  *
  * @package UniversalGeoContext
  */
@@ -8,19 +9,39 @@
 declare( strict_types=1 );
 
 // phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
-// Integration test bootstrap; these errors are development-time only.
 
-// Determine the test environment config path (set by tests/bin/install-wp.sh).
-$config_file = dirname( __DIR__ ) . '/wp-tests-config.php';
-if ( ! file_exists( $config_file ) ) {
-	echo "Error: Could not find $config_file\n";
-	echo "Run 'bash tests/bin/install-wp.sh' first.\n";
-	exit( 1 );
-}
+$ugeo_root = dirname( __DIR__, 2 );
 
-// phpcs:enable
-
-require_once $config_file;
-require_once dirname( __DIR__ ) . '/tmp/wordpress/wp-settings.php';
+require_once $ugeo_root . '/vendor/autoload.php';
 
 define( 'UNIVERSAL_GEO_VERSION', '0.0.0-test' );
+
+$ugeo_tests_dir = getenv( 'WP_TESTS_DIR' );
+if ( ! $ugeo_tests_dir ) {
+	$ugeo_tests_dir = $ugeo_root . '/vendor/wp-phpunit/wp-phpunit';
+}
+
+if ( ! getenv( 'WP_PHPUNIT__TESTS_CONFIG' ) ) {
+	putenv( 'WP_PHPUNIT__TESTS_CONFIG=' . dirname( __DIR__ ) . '/wp-tests-config.php' );
+}
+
+require_once $ugeo_tests_dir . '/includes/functions.php';
+
+tests_add_filter(
+	'muplugins_loaded',
+	static function () {
+		require WP_PLUGIN_DIR . '/woocommerce/woocommerce.php';
+	}
+);
+
+tests_add_filter(
+	'setup_theme',
+	static function () {
+		\WC_Install::install();
+		$GLOBALS['wp_roles'] = new \WP_Roles(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+	}
+);
+
+require_once $ugeo_tests_dir . '/includes/bootstrap.php';
+
+// phpcs:enable

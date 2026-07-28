@@ -60,12 +60,16 @@ final class ContextResolverTest extends TestCase {
 	public function test_constructor_signature(): void {
 		$parameters = ( new ReflectionClass( ContextResolver::class ) )->getConstructor()->getParameters();
 
-		$this->assertCount( 3, $parameters );
+		$this->assertCount( 4, $parameters );
 		$this->assertSame( 'client_ip_resolver', $parameters[0]->getName() );
 		$this->assertSame( 'providers', $parameters[1]->getName() );
 		$this->assertSame( 'array', (string) $parameters[1]->getType() );
 		$this->assertSame( 'cache', $parameters[2]->getName() );
 		$this->assertSame( 'UniversalGeo\Cache\GeoCache', (string) $parameters[2]->getType() );
+		$this->assertSame( 'on_provider_failed', $parameters[3]->getName() );
+		$this->assertSame( '?callable', (string) $parameters[3]->getType() );
+		$this->assertTrue( $parameters[3]->isOptional() );
+		$this->assertNull( $parameters[3]->getDefaultValue() );
 	}
 
 	public function test_public_api_is_exactly_resolve_probe_and_reset(): void {
@@ -374,6 +378,107 @@ final class ContextResolverTest extends TestCase {
 
 		$resolver = new ContextResolver( new FakeClientIpResolver( $this->resolved_ip() ), array( $throwing, $fallback ), $this->cache() );
 		$this->assertSame( 'SE', $resolver->resolve()->country_code );
+	}
+
+	// ---- on_provider_failed callable -------------------------------------------
+
+	public function test_on_provider_failed_is_optional(): void {
+		// No 4th argument at all — must not throw or require one.
+		$throwing = new TrackingGeoProvider( 'a', true, null, true );
+		$resolver = new ContextResolver( new FakeClientIpResolver( $this->resolved_ip() ), array( $throwing ), $this->cache() );
+
+		$this->assertFalse( $resolver->resolve()->is_known() );
+	}
+
+	public function test_on_provider_failed_is_invoked_from_resolve_with_the_provider_id_and_a_reason(): void {
+		$throwing = new TrackingGeoProvider( 'a', true, null, true );
+		$calls    = array();
+		$resolver = new ContextResolver(
+			new FakeClientIpResolver( $this->resolved_ip() ),
+			array( $throwing ),
+			$this->cache(),
+			static function ( string $provider_id, string $reason ) use ( &$calls ) {
+				$calls[] = array( $provider_id, $reason );
+			}
+		);
+
+		$resolver->resolve();
+
+		$this->assertCount( 1, $calls );
+		$this->assertSame( 'a', $calls[0][0] );
+		$this->assertStringContainsString( 'RuntimeException', $calls[0][1] );
+		$this->assertStringContainsString( 'TrackingGeoProvider configured to throw.', $calls[0][1] );
+	}
+
+	public function test_on_provider_failed_is_not_invoked_for_a_non_throwing_miss(): void {
+		$miss  = new TrackingGeoProvider( 'a', true, null );
+		$calls = array();
+
+		$resolver = new ContextResolver(
+			new FakeClientIpResolver( $this->resolved_ip() ),
+			array( $miss ),
+			$this->cache(),
+			static function () use ( &$calls ) {
+				$calls[] = true;
+			}
+		);
+
+		$resolver->resolve();
+
+		$this->assertSame( array(), $calls );
+	}
+
+	public function test_on_provider_failed_is_invoked_once_per_throwing_provider_not_per_resolve_call(): void {
+		$throwing = new TrackingGeoProvider( 'a', true, null, true );
+		$calls    = 0;
+		$resolver = new ContextResolver(
+			new FakeClientIpResolver( $this->resolved_ip() ),
+			array( $throwing ),
+			$this->cache(),
+			static function () use ( &$calls ) {
+				++$calls;
+			}
+		);
+
+		$resolver->resolve();
+		$resolver->resolve(); // Memoized — provider not called again.
+
+		$this->assertSame( 1, $calls );
+	}
+
+	public function test_on_provider_failed_is_invoked_from_probe(): void {
+		$throwing = new TrackingGeoProvider( 'a', true, null, true );
+		$calls    = array();
+		$resolver = new ContextResolver(
+			new FakeClientIpResolver(),
+			array( $throwing ),
+			$this->cache(),
+			static function ( string $provider_id, string $reason ) use ( &$calls ) {
+				$calls[] = array( $provider_id, $reason );
+			}
+		);
+
+		$resolver->probe( '203.0.113.1' );
+
+		$this->assertCount( 1, $calls );
+		$this->assertSame( 'a', $calls[0][0] );
+	}
+
+	public function test_on_provider_failed_never_receives_the_ip(): void {
+		$throwing = new TrackingGeoProvider( 'a', true, null, true );
+		$calls    = array();
+		$resolver = new ContextResolver(
+			new FakeClientIpResolver( $this->resolved_ip( '203.0.113.77' ) ),
+			array( $throwing ),
+			$this->cache(),
+			static function ( string $provider_id, string $reason ) use ( &$calls ) {
+				$calls[] = $reason;
+			}
+		);
+
+		$resolver->resolve();
+
+		$this->assertStringNotContainsString( '203.0.113.77', $calls[0] );
 	}
 
 	public function test_all_providers_failing_returns_unknown(): void {
