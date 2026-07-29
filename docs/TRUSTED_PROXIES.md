@@ -2,7 +2,7 @@
 
 **Status: M2 complete.** The trust-gate algorithm (`src/Http/ClientIpResolver.php`),
 the effective trusted set (`src/Http/TrustedProxies.php`), and the two admin
-settings (`trusted_proxies`, `trust_cloudflare`, under Settings → Geo Context)
+settings (`trusted_proxies`, `trust_cloudflare`, under Settings → Universal Geo Context)
 are implemented and tested — the full 15-row spoofing matrix, both Cloudflare
 modes, and the fail-closed default.
 
@@ -10,7 +10,7 @@ This is the single most important configuration decision a site operator
 makes. Misconfiguring it — or leaving it at its default — either returns the
 correct answer for the wrong reason or, on a stricter reading, silently
 reports the reverse proxy's own location instead of the real visitor's. The
-`universal_geo_trusted_proxy` Site Health test (Settings → Geo Context →
+`universal_geo_trusted_proxy` Site Health test (Settings → Universal Geo Context →
 Diagnostics, and Tools → Site Health) exists to catch exactly that.
 
 ## Key principles
@@ -81,7 +81,7 @@ the table above, not broad ones.
 
 ## Diagnosing a misconfiguration
 
-Settings → Geo Context → Diagnostics shows, for the current request: the
+Settings → Universal Geo Context → Diagnostics shows, for the current request: the
 masked peer and its public/private classification; which forwarding headers
 are present; for each of the three trust-relevant headers, whether it was
 trusted or ignored **and why** (`no_trusted_proxies_configured`,

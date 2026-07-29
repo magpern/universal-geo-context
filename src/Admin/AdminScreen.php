@@ -1,6 +1,6 @@
 <?php
 /**
- * Settings + Diagnostics admin screen under Settings → Geo Context.
+ * Settings + Diagnostics admin screen under Settings → Universal Geo Context.
  *
  * @package UniversalGeoContext
  */
@@ -16,7 +16,7 @@ use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Settings;
 
 /**
- * `Settings → Geo Context` (`add_options_page`, `manage_options`), two tabs:
+ * `Settings → Universal Geo Context` (`add_options_page`, `manage_options`), two tabs:
  * Settings and Diagnostics (Revision 3 §11). `WC_Settings_Page` is
  * deliberately not used — this plugin must have a settings screen on sites
  * with no WooCommerce.
@@ -97,8 +97,8 @@ final class AdminScreen {
 	 */
 	public function add_menu_page(): void {
 		add_options_page(
-			__( 'Geo Context', 'universal-geo-context' ),
-			__( 'Geo Context', 'universal-geo-context' ),
+			__( 'Universal Geo Context', 'universal-geo-context' ),
+			__( 'Universal Geo Context', 'universal-geo-context' ),
 			'manage_options',
 			self::PAGE_SLUG,
 			array( $this, 'render_page' )

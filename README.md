@@ -43,7 +43,7 @@ Full documentation: [docs/API.md](docs/API.md).
 
 ## Settings
 
-Settings → Geo Context, two tabs:
+Settings → Universal Geo Context, two tabs:
 
 - **Trusted proxies** — CIDRs allowed to send client-address headers. Empty (default) trusts nothing.
 - **Trust Cloudflare** — Enables the bundled Cloudflare IP ranges and the `CF-Connecting-IP` / `CF-IPCountry` headers.

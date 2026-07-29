@@ -181,7 +181,7 @@ final class DiagnosticsService {
 			return $this->site_status_result(
 				'critical',
 				__(
-					'Forwarding headers are present but no trusted proxies are configured. Universal Geo Context is reporting the reverse proxy\'s own location to every visitor instead of the real one. Configure Trusted Proxies under Settings → Geo Context.',
+					'Forwarding headers are present but no trusted proxies are configured. Universal Geo Context is reporting the reverse proxy\'s own location to every visitor instead of the real one. Configure Trusted Proxies under Settings → Universal Geo Context.',
 					'universal-geo-context'
 				)
 			);
