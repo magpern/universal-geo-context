@@ -1,10 +1,10 @@
 # Compatibility Matrix
 
-**Status: M3 complete.** Version-header parity (header, `UNIVERSAL_GEO_VERSION`,
+**Status: M4 complete.** Version-header parity (header, `UNIVERSAL_GEO_VERSION`,
 and this document) is checked manually until M5's automated release tests
 land.
 
-**Current plugin version: `0.3.0`**
+**Current plugin version: `0.4.0`**
 
 ## Version support
 

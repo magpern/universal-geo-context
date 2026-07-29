@@ -62,6 +62,20 @@ final class AdminScreen {
 	}
 
 	/**
+	 * Deletes the first-run-notice dismissal meta for every user (M4, closing
+	 * the M2/M3 uninstall-ownership gap): `delete_metadata()`'s `$delete_all`
+	 * argument removes the key across every user at once, since a per-user
+	 * meta key has no single object id to target with `delete_user_meta()`.
+	 * Called by `uninstall.php` alongside `Settings::uninstall()` and
+	 * `GeoCache::uninstall()`.
+	 *
+	 * @return void
+	 */
+	public static function uninstall(): void {
+		delete_metadata( 'user', 0, self::NOTICE_DISMISSED_META, '', true );
+	}
+
+	/**
 	 * Wires every hook this screen needs.
 	 *
 	 * @return void
@@ -135,14 +149,18 @@ final class AdminScreen {
 		// after (type checks, regex shape validation, range clamping) — this
 		// array is raw input on its way there, never used or persisted as-is.
 		$raw = array(
-			'default_country'       => isset( $_POST['default_country'] ) ? wp_unslash( $_POST['default_country'] ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-			'trusted_proxies'       => isset( $_POST['trusted_proxies'] )
+			'default_country'              => isset( $_POST['default_country'] ) ? wp_unslash( $_POST['default_country'] ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			'trusted_proxies'              => isset( $_POST['trusted_proxies'] )
 				? $this->parse_trusted_proxies_textarea( wp_unslash( $_POST['trusted_proxies'] ) ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 				: array(),
-			'trust_cloudflare'      => ! empty( $_POST['trust_cloudflare'] ),
-			'derived_cache_enabled' => ! empty( $_POST['derived_cache_enabled'] ),
-			'derived_cache_ttl'     => isset( $_POST['derived_cache_ttl'] ) ? wp_unslash( $_POST['derived_cache_ttl'] ) : 900, // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-			'maxmind_db_path'       => isset( $_POST['maxmind_db_path'] ) ? wp_unslash( $_POST['maxmind_db_path'] ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			'trust_cloudflare'             => ! empty( $_POST['trust_cloudflare'] ),
+			'derived_cache_enabled'        => ! empty( $_POST['derived_cache_enabled'] ),
+			'derived_cache_ttl'            => isset( $_POST['derived_cache_ttl'] ) ? wp_unslash( $_POST['derived_cache_ttl'] ) : 900, // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			'maxmind_db_path'              => isset( $_POST['maxmind_db_path'] ) ? wp_unslash( $_POST['maxmind_db_path'] ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			'remote_enabled'               => ! empty( $_POST['remote_enabled'] ),
+			'remote_transfer_acknowledged' => ! empty( $_POST['remote_transfer_acknowledged'] ),
+			'remote_account_id'            => $this->submitted_credential( 'remote_account_id', $previous['remote_account_id'] ),
+			'remote_license_key'           => $this->submitted_credential( 'remote_license_key', $previous['remote_license_key'] ),
 		);
 
 		$sanitized = Settings::sanitize( $raw );
@@ -160,6 +178,14 @@ final class AdminScreen {
 			$maxmind_path_rejected        = true;
 		}
 
+		// The dedicated, non-silent warning Revision M4 requires: an admin
+		// checked "Enable the remote provider" but Settings::sanitize()'s own
+		// structural rule forced it back to false (no acknowledgement in this
+		// same submission). Detected by comparing what was submitted against
+		// what sanitize() actually produced, rather than duplicating
+		// sanitize()'s own acknowledgement logic here.
+		$enable_blocked_by_acknowledgement = ! empty( $_POST['remote_enabled'] ) && ! $sanitized['remote_enabled'];
+
 		Settings::save( $sanitized );
 		GeoCache::bump_epoch();
 
@@ -168,7 +194,67 @@ final class AdminScreen {
 			return;
 		}
 
+		if ( $enable_blocked_by_acknowledgement ) {
+			$this->redirect_with_notice( 'remote_enable_requires_acknowledgement', 'warning' );
+			return;
+		}
+
 		$this->redirect_with_notice( 'saved', 'success' );
+	}
+
+	/**
+	 * Resolves one submitted credential field's effective raw value
+	 * (credential clearing behavior, M4): checking "Clear stored
+	 * credentials" forces both credential fields to '' regardless of what
+	 * (if anything) was also typed; otherwise a blank submission — including
+	 * a field omitted entirely, e.g. because it was rendered `disabled`
+	 * while a wp-config.php constant is in effect — means "leave the
+	 * previously stored value unchanged" (the same shape a password field
+	 * that never round-trips its own value needs), not "erase it". Only a
+	 * genuinely non-blank submission replaces the stored value. This merge
+	 * logic is deliberately kept here, not inside Settings::sanitize(): that
+	 * method's own purity boundary docblock already reserves "merge against
+	 * previously stored state" for AdminScreen alone (the maxmind_db_path
+	 * precedent).
+	 *
+	 * @param string $post_key         The $_POST key for this credential.
+	 * @param string $previous_value   The previously sanitized, stored value.
+	 *
+	 * @return string
+	 */
+	private function submitted_credential( string $post_key, string $previous_value ): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- the nonce is verified once, by the caller (handle_save_settings()), before this helper runs.
+		if ( ! empty( $_POST['remote_clear_credentials'] ) ) {
+			return '';
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- the nonce is verified once, by the caller (handle_save_settings()), before this helper runs.
+		if ( ! isset( $_POST[ $post_key ] ) ) {
+			return $previous_value;
+		}
+
+		$submitted = wp_unslash( $_POST[ $post_key ] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.NonceVerification.Missing
+
+		if ( ! is_string( $submitted ) || '' === trim( $submitted ) ) {
+			return $previous_value;
+		}
+
+		return $submitted;
+	}
+
+	/**
+	 * Whether both remote-provider credential constants are defined as
+	 * non-empty strings — the same pair-wise "both or neither" test
+	 * `Plugin::resolved_remote_credentials()` applies at graph build, kept
+	 * here as its own small, display-only check rather than shared: this one
+	 * decides whether to render the two credential fields disabled, never
+	 * resolution behavior itself.
+	 *
+	 * @return bool
+	 */
+	private function remote_credentials_locked_by_constants(): bool {
+		return defined( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID' ) && is_string( UNIVERSAL_GEO_REMOTE_ACCOUNT_ID ) && '' !== UNIVERSAL_GEO_REMOTE_ACCOUNT_ID
+			&& defined( 'UNIVERSAL_GEO_REMOTE_LICENSE_KEY' ) && is_string( UNIVERSAL_GEO_REMOTE_LICENSE_KEY ) && '' !== UNIVERSAL_GEO_REMOTE_LICENSE_KEY;
 	}
 
 	/**
@@ -362,10 +448,11 @@ final class AdminScreen {
 	 */
 	private function notice_message( string $message_key ): string {
 		$messages = array(
-			'saved'                 => __( 'Settings saved.', 'universal-geo-context' ),
-			'peer_trusted'          => __( 'The current peer address has been added to Trusted Proxies.', 'universal-geo-context' ),
-			'cf_preset_enabled'     => __( 'The Cloudflare preset has been enabled.', 'universal-geo-context' ),
-			'maxmind_path_rejected' => __( 'Other settings were saved, but the MaxMind database path could not be validated (not a readable file, or outside the WordPress content directory) — the previous value was kept.', 'universal-geo-context' ),
+			'saved'                                  => __( 'Settings saved.', 'universal-geo-context' ),
+			'peer_trusted'                           => __( 'The current peer address has been added to Trusted Proxies.', 'universal-geo-context' ),
+			'cf_preset_enabled'                      => __( 'The Cloudflare preset has been enabled.', 'universal-geo-context' ),
+			'maxmind_path_rejected'                  => __( 'Other settings were saved, but the MaxMind database path could not be validated (not a readable file, or outside the WordPress content directory) — the previous value was kept.', 'universal-geo-context' ),
+			'remote_enable_requires_acknowledgement' => __( 'Other settings were saved, but the remote provider could not be enabled: you must acknowledge that visitor IP addresses will be transferred to MaxMind, Inc. in the same submission that enables it.', 'universal-geo-context' ),
 		);
 
 		return $messages[ $message_key ] ?? '';
@@ -522,8 +609,100 @@ final class AdminScreen {
 		);
 
 		echo '</tbody></table>';
+
+		$this->render_remote_settings_section( $settings );
+
 		submit_button();
 		echo '</form>';
+	}
+
+	/**
+	 * Renders the remote-provider settings section (M4): disabled by
+	 * default, requiring both the structural transfer acknowledgement and a
+	 * credential pair. Credential fields never round-trip the stored value
+	 * (`type="password"`, left blank) — submitted_credential() treats a
+	 * blank submission as "keep the existing value", so leaving these blank
+	 * on an otherwise-unrelated settings save does not erase them; the
+	 * "Clear stored credentials" checkbox is the only way to actually blank
+	 * them. When both credential constants are defined, the fields are
+	 * rendered disabled (so the browser never submits an override for them
+	 * at all) with an explanatory note — the constants supply credentials
+	 * only and never affect whether `remote_enabled` itself is editable.
+	 *
+	 * @param array<string, mixed> $settings The sanitized settings array.
+	 *
+	 * @return void
+	 */
+	private function render_remote_settings_section( array $settings ): void {
+		$locked = $this->remote_credentials_locked_by_constants();
+
+		echo '<h2>' . esc_html__( 'Remote provider (MaxMind GeoLite2 Country Web Service)', 'universal-geo-context' ) . '</h2>';
+
+		printf(
+			'<p>%s</p>',
+			esc_html__(
+				'Disabled by default. When enabled, this plugin sends visitor IP addresses to MaxMind, Inc. at geolite.info to derive a country — the one exception to this plugin never letting an IP address leave the server. Enabling requires both a credential pair and the acknowledgement below, in the same submission.',
+				'universal-geo-context'
+			)
+		);
+
+		echo '<table class="form-table"><tbody>';
+
+		printf(
+			'<tr><th scope="row">%1$s</th><td><label><input type="checkbox" name="remote_transfer_acknowledged" value="1" %2$s /> %3$s</label></td></tr>',
+			esc_html__( 'Transfer acknowledgement', 'universal-geo-context' ),
+			checked( $settings['remote_transfer_acknowledged'], true, false ),
+			esc_html__( 'I acknowledge that enabling the remote provider transfers visitor IP addresses to MaxMind, Inc.', 'universal-geo-context' )
+		);
+
+		printf(
+			'<tr><th scope="row">%1$s</th><td><label><input type="checkbox" name="remote_enabled" value="1" %2$s /> %3$s</label></td>' .
+			'<td><p class="description">%4$s</p></td></tr>',
+			esc_html__( 'Enable remote provider', 'universal-geo-context' ),
+			checked( $settings['remote_enabled'], true, false ),
+			esc_html__( 'Use MaxMind GeoLite2 Country Web Service as a fallback provider.', 'universal-geo-context' ),
+			esc_html__( 'Requires the acknowledgement above in the same save, and a credential pair below.', 'universal-geo-context' )
+		);
+
+		$disabled_attr = $locked ? ' disabled="disabled"' : '';
+
+		printf(
+			'<tr><th scope="row"><label for="universal_geo_remote_account_id">%1$s</label></th>' .
+			'<td><input type="password" autocomplete="off" class="regular-text" id="universal_geo_remote_account_id" name="remote_account_id" value="" placeholder="%2$s"%3$s />' .
+			'<p class="description">%4$s</p></td></tr>',
+			esc_html__( 'Account ID', 'universal-geo-context' ),
+			esc_attr( '' !== $settings['remote_account_id'] ? __( 'Currently configured (hidden)', 'universal-geo-context' ) : __( 'Not configured', 'universal-geo-context' ) ),
+			$disabled_attr, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a fixed literal (' disabled="disabled"' or ''), never user input; esc_attr() would corrupt the embedded quotes.
+			esc_html(
+				$locked
+				? __( 'Supplied via a wp-config.php constant and cannot be edited here.', 'universal-geo-context' )
+				: __( 'Leave blank to keep the stored value unchanged.', 'universal-geo-context' )
+			)
+		);
+
+		printf(
+			'<tr><th scope="row"><label for="universal_geo_remote_license_key">%1$s</label></th>' .
+			'<td><input type="password" autocomplete="off" class="regular-text" id="universal_geo_remote_license_key" name="remote_license_key" value="" placeholder="%2$s"%3$s />' .
+			'<p class="description">%4$s</p></td></tr>',
+			esc_html__( 'License key', 'universal-geo-context' ),
+			esc_attr( '' !== $settings['remote_license_key'] ? __( 'Currently configured (hidden)', 'universal-geo-context' ) : __( 'Not configured', 'universal-geo-context' ) ),
+			$disabled_attr, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a fixed literal (' disabled="disabled"' or ''), never user input; esc_attr() would corrupt the embedded quotes.
+			esc_html(
+				$locked
+				? __( 'Supplied via a wp-config.php constant and cannot be edited here.', 'universal-geo-context' )
+				: __( 'Leave blank to keep the stored value unchanged.', 'universal-geo-context' )
+			)
+		);
+
+		if ( ! $locked ) {
+			printf(
+				'<tr><th scope="row">%1$s</th><td><label><input type="checkbox" name="remote_clear_credentials" value="1" /> %2$s</label></td></tr>',
+				esc_html__( 'Clear stored credentials', 'universal-geo-context' ),
+				esc_html__( 'Blanks both fields above on save, regardless of what (if anything) is also typed.', 'universal-geo-context' )
+			);
+		}
+
+		echo '</tbody></table>';
 	}
 
 	/**
@@ -572,6 +751,22 @@ final class AdminScreen {
 
 		echo '<h2>' . esc_html__( 'MaxMind', 'universal-geo-context' ) . '</h2>';
 		$this->render_definition_list( $report['maxmind'] );
+
+		echo '<h2>' . esc_html__( 'Remote provider', 'universal-geo-context' ) . '</h2>';
+		if ( $report['remote']['enabled'] ) {
+			// The documented honesty note (M4 frozen decision): the
+			// "Providers" probe table below visits every provider,
+			// including this one when enabled — viewing this page is not a
+			// side-effect-free read while the remote provider is on.
+			printf(
+				'<p><em>%s</em></p>',
+				esc_html__(
+					'The remote provider is enabled — viewing this page performs one live request to the configured remote service, as part of the provider probe table below.',
+					'universal-geo-context'
+				)
+			);
+		}
+		$this->render_definition_list( $report['remote'] );
 
 		echo '<h2>' . esc_html__( 'Providers', 'universal-geo-context' ) . '</h2>';
 		foreach ( $report['providers'] as $row ) {

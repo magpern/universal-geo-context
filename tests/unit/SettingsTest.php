@@ -35,11 +35,15 @@ final class SettingsTest extends TestCase {
 		'derived_cache_enabled',
 		'derived_cache_ttl',
 		'maxmind_db_path',
+		'remote_enabled',
+		'remote_account_id',
+		'remote_license_key',
+		'remote_transfer_acknowledged',
 	);
 
 	// ---- defaults() -----------------------------------------------------------
 
-	public function test_defaults_contain_exactly_seven_keys(): void {
+	public function test_defaults_contain_exactly_eleven_keys(): void {
 		$this->assertSame( self::EXPECTED_KEYS, array_keys( Settings::defaults() ) );
 	}
 
@@ -69,6 +73,22 @@ final class SettingsTest extends TestCase {
 
 	public function test_defaults_maxmind_db_path_is_empty(): void {
 		$this->assertSame( '', Settings::defaults()['maxmind_db_path'] );
+	}
+
+	public function test_defaults_remote_enabled_is_false(): void {
+		$this->assertFalse( Settings::defaults()['remote_enabled'] );
+	}
+
+	public function test_defaults_remote_account_id_is_empty(): void {
+		$this->assertSame( '', Settings::defaults()['remote_account_id'] );
+	}
+
+	public function test_defaults_remote_license_key_is_empty(): void {
+		$this->assertSame( '', Settings::defaults()['remote_license_key'] );
+	}
+
+	public function test_defaults_remote_transfer_acknowledged_is_false(): void {
+		$this->assertFalse( Settings::defaults()['remote_transfer_acknowledged'] );
 	}
 
 	public function test_defaults_are_deterministic(): void {
@@ -322,9 +342,81 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( '', Settings::sanitize( array( 'maxmind_db_path' => null ) )['maxmind_db_path'] );
 	}
 
-	// ---- v2 -> v3 migration -----------------------------------------------------
+	// ---- remote_enabled / remote_transfer_acknowledged (M4) --------------------
 
-	public function test_v2_settings_migrate_to_v3_with_maxmind_db_path_defaulted(): void {
+	public function test_remote_enabled_true_without_acknowledgement_is_forced_false(): void {
+		$result = Settings::sanitize( array( 'remote_enabled' => true ) );
+		$this->assertFalse( $result['remote_enabled'] );
+	}
+
+	public function test_remote_enabled_true_with_acknowledgement_is_kept(): void {
+		$result = Settings::sanitize(
+			array(
+				'remote_enabled'               => true,
+				'remote_transfer_acknowledged' => true,
+			)
+		);
+		$this->assertTrue( $result['remote_enabled'] );
+	}
+
+	public function test_remote_enabled_missing_defaults_to_false(): void {
+		$this->assertFalse( Settings::sanitize( array() )['remote_enabled'] );
+	}
+
+	public function test_remote_transfer_acknowledged_true_alone_does_not_enable_remote(): void {
+		$result = Settings::sanitize( array( 'remote_transfer_acknowledged' => true ) );
+		$this->assertTrue( $result['remote_transfer_acknowledged'] );
+		$this->assertFalse( $result['remote_enabled'] );
+	}
+
+	public function test_remote_transfer_acknowledged_missing_defaults_to_false(): void {
+		$this->assertFalse( Settings::sanitize( array() )['remote_transfer_acknowledged'] );
+	}
+
+	// ---- remote_account_id / remote_license_key (M4) ---------------------------
+
+	public function test_remote_account_id_is_trimmed(): void {
+		$result = Settings::sanitize( array( 'remote_account_id' => '  12345  ' ) );
+		$this->assertSame( '12345', $result['remote_account_id'] );
+	}
+
+	public function test_remote_account_id_missing_defaults_to_empty(): void {
+		$this->assertSame( '', Settings::sanitize( array() )['remote_account_id'] );
+	}
+
+	public function test_remote_account_id_non_string_is_rejected(): void {
+		$this->assertSame( '', Settings::sanitize( array( 'remote_account_id' => 12345 ) )['remote_account_id'] );
+		$this->assertSame( '', Settings::sanitize( array( 'remote_account_id' => array( '12345' ) ) )['remote_account_id'] );
+		$this->assertSame( '', Settings::sanitize( array( 'remote_account_id' => null ) )['remote_account_id'] );
+	}
+
+	public function test_remote_account_id_null_byte_is_rejected(): void {
+		$result = Settings::sanitize( array( 'remote_account_id' => "1234\x005" ) );
+		$this->assertSame( '', $result['remote_account_id'] );
+	}
+
+	public function test_remote_license_key_is_trimmed(): void {
+		$result = Settings::sanitize( array( 'remote_license_key' => '  abc123XYZ  ' ) );
+		$this->assertSame( 'abc123XYZ', $result['remote_license_key'] );
+	}
+
+	public function test_remote_license_key_missing_defaults_to_empty(): void {
+		$this->assertSame( '', Settings::sanitize( array() )['remote_license_key'] );
+	}
+
+	public function test_remote_license_key_non_string_is_rejected(): void {
+		$this->assertSame( '', Settings::sanitize( array( 'remote_license_key' => 123 ) )['remote_license_key'] );
+		$this->assertSame( '', Settings::sanitize( array( 'remote_license_key' => true ) )['remote_license_key'] );
+	}
+
+	public function test_remote_license_key_null_byte_is_rejected(): void {
+		$result = Settings::sanitize( array( 'remote_license_key' => "abc\x00123" ) );
+		$this->assertSame( '', $result['remote_license_key'] );
+	}
+
+	// ---- v2/v3 -> v4 migration ---------------------------------------------------
+
+	public function test_v2_settings_migrate_to_v4_with_remote_fields_defaulted(): void {
 		$result = Settings::sanitize(
 			array(
 				'schema_version'        => 2,
@@ -336,9 +428,32 @@ final class SettingsTest extends TestCase {
 			)
 		);
 
-		$this->assertSame( 3, $result['schema_version'] );
+		$this->assertSame( 4, $result['schema_version'] );
 		$this->assertSame( 'SE', $result['default_country'] );
 		$this->assertSame( '', $result['maxmind_db_path'] );
+		$this->assertFalse( $result['remote_enabled'] );
+		$this->assertSame( '', $result['remote_account_id'] );
+		$this->assertSame( '', $result['remote_license_key'] );
+		$this->assertFalse( $result['remote_transfer_acknowledged'] );
+		$this->assertSame( self::EXPECTED_KEYS, array_keys( $result ) );
+	}
+
+	public function test_v3_settings_migrate_to_v4_with_remote_fields_defaulted(): void {
+		$result = Settings::sanitize(
+			array(
+				'schema_version'        => 3,
+				'default_country'       => 'SE',
+				'trusted_proxies'       => array(),
+				'trust_cloudflare'      => false,
+				'derived_cache_enabled' => true,
+				'derived_cache_ttl'     => 900,
+				'maxmind_db_path'       => '/var/www/html/wp-content/uploads/geo.mmdb',
+			)
+		);
+
+		$this->assertSame( 4, $result['schema_version'] );
+		$this->assertSame( '/var/www/html/wp-content/uploads/geo.mmdb', $result['maxmind_db_path'] );
+		$this->assertFalse( $result['remote_enabled'] );
 		$this->assertSame( self::EXPECTED_KEYS, array_keys( $result ) );
 	}
 
@@ -369,16 +484,20 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( Settings::SCHEMA_VERSION, $result['schema_version'] );
 	}
 
-	public function test_sanitize_returns_exactly_the_seven_key_schema(): void {
+	public function test_sanitize_returns_exactly_the_eleven_key_schema(): void {
 		$result = Settings::sanitize(
 			array(
-				'schema_version'        => 999,
-				'default_country'       => 'se',
-				'trusted_proxies'       => array( '10.0.0.0/8' ),
-				'trust_cloudflare'      => true,
-				'derived_cache_enabled' => false,
-				'derived_cache_ttl'     => 1234,
-				'maxmind_db_path'       => '/var/www/html/wp-content/uploads/geo.mmdb',
+				'schema_version'               => 999,
+				'default_country'              => 'se',
+				'trusted_proxies'              => array( '10.0.0.0/8' ),
+				'trust_cloudflare'             => true,
+				'derived_cache_enabled'        => false,
+				'derived_cache_ttl'            => 1234,
+				'maxmind_db_path'              => '/var/www/html/wp-content/uploads/geo.mmdb',
+				'remote_enabled'               => true,
+				'remote_account_id'            => '12345',
+				'remote_license_key'           => 'abc123XYZ',
+				'remote_transfer_acknowledged' => true,
 			)
 		);
 
@@ -390,6 +509,10 @@ final class SettingsTest extends TestCase {
 		$this->assertFalse( $result['derived_cache_enabled'] );
 		$this->assertSame( 1234, $result['derived_cache_ttl'] );
 		$this->assertSame( '/var/www/html/wp-content/uploads/geo.mmdb', $result['maxmind_db_path'] );
+		$this->assertTrue( $result['remote_enabled'] );
+		$this->assertSame( '12345', $result['remote_account_id'] );
+		$this->assertSame( 'abc123XYZ', $result['remote_license_key'] );
+		$this->assertTrue( $result['remote_transfer_acknowledged'] );
 	}
 
 	public function test_sanitize_of_non_array_returns_defaults(): void {
@@ -464,6 +587,19 @@ final class SettingsTest extends TestCase {
 		Settings::uninstall();
 
 		$this->assertFalse( get_option( 'universal_geo_provider_health', false ) );
+	}
+
+	/**
+	 * M4: the circuit breaker's option joins Settings::uninstall()'s
+	 * deletions — CircuitBreaker owns writing it, this class owns deleting
+	 * it (the same split ProviderHealthStore's option already established).
+	 */
+	public function test_uninstall_deletes_universal_geo_remote_circuit(): void {
+		update_option( 'universal_geo_remote_circuit', array( 'state' => 'open' ) );
+
+		Settings::uninstall();
+
+		$this->assertFalse( get_option( 'universal_geo_remote_circuit', false ) );
 	}
 
 	/**

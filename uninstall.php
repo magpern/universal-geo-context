@@ -6,9 +6,13 @@
  * loaded first, so the Composer autoloader must be required here or
  * Settings is unreachable and class_exists() always fails silently.
  *
- * Settings is the sole owner of the one option this plugin persists in
- * M1 Step 1A (`universal_geo_settings`); this script performs no cleanup
- * of its own and runs no raw SQL.
+ * Three classes each own a slice of persisted state and are called here in
+ * turn (M4, closing the M2/M3 all-or-nothing retention gap
+ * `docs/PRIVACY.md` previously recorded): `Settings::uninstall()` (its own
+ * option, `ProviderHealthStore`'s option, and the circuit breaker's option),
+ * `GeoCache::uninstall()` (the cache salt and epoch options), and
+ * `AdminScreen::uninstall()` (the per-user first-run-notice meta). This
+ * script performs no cleanup of its own and runs no raw SQL.
  *
  * @package UniversalGeoContext
  */
@@ -26,3 +30,5 @@ if ( ! class_exists( \UniversalGeo\Settings::class ) ) {
 }
 
 \UniversalGeo\Settings::uninstall();
+\UniversalGeo\Cache\GeoCache::uninstall();
+\UniversalGeo\Admin\AdminScreen::uninstall();

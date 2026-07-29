@@ -37,11 +37,21 @@ use UniversalGeo\Tests\Support\SourceGuardTrait;
  *    absent until then; 3D tightens this to a positive requirement, see
  *    `test_provider_health_store_is_a_real_option_writer_once_it_exists()`).
  * 6. `wp_remote_get` / `wp_remote_post` / `wp_remote_request` / `curl_init` /
- *    `file_get_contents('http...')` appear nowhere in `src/` (P4 — M4 will
- *    relax this with its own allowlist, extending rather than deleting this
- *    test).
+ *    `file_get_contents('http...')` appear nowhere in `src/` (P4) — no
+ *    allowlist exists for these; M4's reference remote provider uses
+ *    `wp_safe_remote_get()` exclusively (rule 8, below), a distinct function
+ *    this rule does not name.
  * 7. `VisitorContext` declares no property named `ip`, `ip_address`, or
  *    `client_ip` (P1; reflection, not source-text).
+ * 8. `wp_safe_remote_get` appears only in
+ *    `src/Providers/Remote/WordPressHttpTransport.php` (M4 — the one
+ *    production file allowed to perform outbound HTTP). Tolerated absent
+ *    until 4C; once the file exists it must be a real caller, or the
+ *    allowlist entry would be vacuous (the `ProviderHealthStore` pattern
+ *    from rule 5). The allowlist is per-file *and* per-function: rule 6's
+ *    prohibition on `wp_remote_get`/`wp_remote_post`/`wp_remote_request`/
+ *    `curl_init` still applies inside `WordPressHttpTransport.php` itself —
+ *    there is no blanket file exemption from rule 6.
  *
  * Mutation-verified (recorded per Revision 3 §16's convention): in a scratch
  * copy, (a) an unauthorized `update_option()` call was added to
@@ -49,6 +59,14 @@ use UniversalGeo\Tests\Support\SourceGuardTrait;
  * `hash_hmac()` call was added to `ContextResolver::resolve_via_providers()`
  * — this test went red on rule 1. Both mutations were reverted; the scratch
  * copy was discarded, not committed.
+ *
+ * M4 mutation verification (rules 6/8, recorded in the 4A sub-step report):
+ * in a scratch copy, (c) `wp_safe_remote_get()` was added to
+ * `MaxMindProvider.php` (an unauthorized provider file) — rule 8 went red;
+ * (d) `wp_remote_post()` was added to `WordPressHttpTransport.php` once it
+ * existed — rule 6 went red, proving the allowlist is per-function, not a
+ * blanket file exemption. Both mutations were reverted; the scratch copy was
+ * discarded, not committed.
  */
 final class PrivacyGuardTest extends TestCase {
 
@@ -86,12 +104,16 @@ final class PrivacyGuardTest extends TestCase {
 	 * The explicit option-writer allowlist (rule 5). ProviderHealthStore.php
 	 * is listed even before it exists (3D) — its absence does not make this
 	 * rule vacuous, since the other two files already exercise it; 3D adds a
-	 * dedicated positive test requiring the file once it lands.
+	 * dedicated positive test requiring the file once it lands. M4 adds
+	 * `Providers/Remote/CircuitBreaker.php`, the fifth and — per ADR-0005's
+	 * own closing consequence ("cannot add a fifth option writer... without
+	 * this guard going red first") — deliberately reviewed exception.
 	 */
 	private const OPTION_WRITE_ALLOWED_FILES = array(
 		'Settings.php',
 		'Cache/GeoCache.php',
 		'Diagnostics/ProviderHealthStore.php',
+		'Providers/Remote/CircuitBreaker.php',
 	);
 
 	private const REMOTE_HTTP_FUNCTIONS = array(
@@ -100,6 +122,10 @@ final class PrivacyGuardTest extends TestCase {
 		'wp_remote_request',
 		'curl_init',
 	);
+
+	private const SAFE_REMOTE_GET_FUNCTION = 'wp_safe_remote_get';
+
+	private const SAFE_REMOTE_GET_ALLOWED_FILE = 'Providers/Remote/WordPressHttpTransport.php';
 
 	private const FORBIDDEN_IP_PROPERTY_NAMES = array(
 		'ip',
@@ -258,6 +284,26 @@ final class PrivacyGuardTest extends TestCase {
 		);
 	}
 
+	/**
+	 * M4: CircuitBreaker.php must actually be a real option writer, or its
+	 * rule-5 allowlist entry would be vacuous — the same non-vacuity check
+	 * as ProviderHealthStore's own.
+	 */
+	public function test_circuit_breaker_is_a_real_option_writer_once_it_exists(): void {
+		$path = dirname( __DIR__, 3 ) . '/src/Providers/Remote/CircuitBreaker.php';
+
+		if ( ! is_file( $path ) ) {
+			$this->markTestSkipped( 'CircuitBreaker.php does not exist yet (pre-4D).' );
+		}
+
+		$code = $this->strip_comments( (string) file_get_contents( $path ) );
+
+		$this->assertTrue(
+			1 === preg_match( '/\b(?:update_option|add_option)\s*\(/', $code ),
+			'CircuitBreaker.php exists but does not call update_option()/add_option() — the allowlist entry would be vacuous.'
+		);
+	}
+
 	// ---- Rule 6: no remote HTTP primitives anywhere in src/ ---------------------
 
 	/**
@@ -279,6 +325,54 @@ final class PrivacyGuardTest extends TestCase {
 			'/\bfile_get_contents\s*\(\s*[\'"]https?:/i',
 			$code,
 			sprintf( '%s must not use file_get_contents() to fetch a URL.', $relative )
+		);
+	}
+
+	// ---- Rule 8: wp_safe_remote_get confined to WordPressHttpTransport --------
+
+	/**
+	 * @dataProvider source_file_provider
+	 */
+	public function test_safe_remote_get_appears_only_in_the_allowed_transport_file( string $file ): void {
+		$relative = $this->relative_source_path( $file );
+
+		if ( self::SAFE_REMOTE_GET_ALLOWED_FILE === $relative ) {
+			$this->markTestSkipped( $relative . ' is the allowed outbound HTTP transport.' );
+		}
+
+		$code = $this->strip_comments( (string) file_get_contents( $file ) );
+
+		$this->assertDoesNotMatchRegularExpression(
+			'/\b' . preg_quote( self::SAFE_REMOTE_GET_FUNCTION, '/' ) . '\s*\(/',
+			$code,
+			sprintf(
+				'%s must not call %s() — only %s may perform outbound HTTP.',
+				$relative,
+				self::SAFE_REMOTE_GET_FUNCTION,
+				self::SAFE_REMOTE_GET_ALLOWED_FILE
+			)
+		);
+	}
+
+	/**
+	 * Tolerated absent until 4C; once WordPressHttpTransport.php exists, it
+	 * must actually call wp_safe_remote_get(), or the allowlist entry above
+	 * would be vacuous (the same non-vacuity pattern
+	 * test_provider_health_store_is_a_real_option_writer_once_it_exists()
+	 * already established for rule 5).
+	 */
+	public function test_wordpress_http_transport_is_a_real_safe_remote_get_caller_once_it_exists(): void {
+		$path = dirname( __DIR__, 3 ) . '/src/' . self::SAFE_REMOTE_GET_ALLOWED_FILE;
+
+		if ( ! is_file( $path ) ) {
+			$this->markTestSkipped( self::SAFE_REMOTE_GET_ALLOWED_FILE . ' does not exist yet (pre-4C).' );
+		}
+
+		$code = $this->strip_comments( (string) file_get_contents( $path ) );
+
+		$this->assertTrue(
+			1 === preg_match( '/\b' . preg_quote( self::SAFE_REMOTE_GET_FUNCTION, '/' ) . '\s*\(/', $code ),
+			self::SAFE_REMOTE_GET_ALLOWED_FILE . ' exists but does not call wp_safe_remote_get() — the allowlist entry would be vacuous.'
 		);
 	}
 

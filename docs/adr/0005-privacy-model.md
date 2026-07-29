@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (M3)
+Accepted (M3), amended (M4)
 
 ## Context
 
@@ -103,6 +103,50 @@ test (`PrivacyGuardTest`), completing the cap Revision 3 §2 set at four.
    — reflection-checked, not source-text-checked, since the risk here is a
    property *existing*, not a particular function call referencing it.
 
+### M4 amendment — the remote provider's one deliberate exception
+
+10. **The remote provider is the one place in this codebase an IP
+    deliberately leaves the server — and only when an administrator has
+    explicitly enabled and acknowledged it.** Every other invariant in this
+    ADR still applies unchanged: the IP reaching `ReferenceRemoteProvider`
+    is the same already-resolved local variable `ContextResolver` hands
+    every provider, never persisted, never logged, and discarded the
+    instant the request completes. What M4 adds is a fifth option writer,
+    `src/Providers/Remote/CircuitBreaker.php` — a reviewed, intentional
+    exception this ADR's own M3 consequence anticipated by name ("cannot
+    add a fifth option writer... without this guard going red first"). Its
+    persisted state (`state`, `failure_count`, `opened_at`) contains no IP,
+    no credential, and no response body.
+11. **The outbound-HTTP prohibition (P4) gains its first and only allowlist
+    entry, per-file and per-function.** `PrivacyGuardTest` rule 6
+    (`wp_remote_get`/`wp_remote_post`/`wp_remote_request`/`curl_init`) is
+    unchanged and has no exception anywhere, ever. Rule 8 is new and
+    narrower: only `wp_safe_remote_get()`, only inside
+    `src/Providers/Remote/WordPressHttpTransport.php` — mutation-verified
+    both ways (an unauthorized provider file calling it fails the guard; the
+    one authorized file calling a rule-6 function instead *also* fails the
+    guard, proving the allowlist cannot be read as a blanket file
+    exemption).
+12. **Credentials are configuration, not personal data — but are still never
+    exposed.** The account id and license key belong to the site operator,
+    not to any visitor, so they fall outside this ADR's IP-specific
+    invariants by definition. They still receive their own floor:
+    `DiagnosticsService` and the `universal_geo_remote_provider` Site Health
+    test expose only a `credentials_present` boolean and a
+    `credential_source` enum, never the values; the settings-tab fields
+    never round-trip the stored value; and credential precedence
+    (constants vs. settings, pair-wise, never mixed) is resolved exactly
+    once, in `Plugin::build_graph()`, not re-derived by any consumer.
+13. **The structural transfer acknowledgement replaces a runtime consent
+    check with a sanitization-time impossibility.** `Settings::sanitize()`
+    forces `remote_enabled` to `false` unless
+    `remote_transfer_acknowledged` is `true` in that same input — the
+    forbidden source token is "consent" (`NoPolicyGuardTest`'s own word
+    list), so this ADR and every implementing file use "transfer
+    acknowledgement" throughout. There is no code path in which the
+    provider can be enabled without the acknowledgement having been true in
+    the very save that enabled it.
+
 ## Consequences
 
 - The four-guard cap Revision 3 §2 set (`NoPolicyGuardTest`,
@@ -116,19 +160,33 @@ test (`PrivacyGuardTest`), completing the cap Revision 3 §2 set at four.
 - Residual GDPR exposure is unchanged from M1/M2 and stated honestly, not
   hidden: a salted hash is still personal data in principle. Nothing in M3
   changes that; M3 only makes the boundary around it machine-enforced.
-- Any future provider (M4's remote provider included) that needs to persist
-  something touching an IP must either route through `GeoCache`'s existing
-  key format or justify a new, reviewed exception to this ADR — it cannot
-  add a fifth option writer or a second `hash_hmac()` call site without this
-  guard going red first.
+- The "cannot add a fifth option writer... without this guard going red
+  first" consequence was exercised, not merely stated: M4's
+  `CircuitBreaker.php` is exactly that fifth writer, added deliberately and
+  reviewed here, with `PrivacyGuardTest`'s own non-vacuity test requiring it
+  to be a real one.
+- M4 delivers the one exception this document named in advance: the IP
+  never leaves the server *by default*, and only leaves it at all once an
+  administrator has made an affirmative, structurally-enforced choice — not
+  a checkbox that merely defaults to unchecked, but one `Settings::sanitize()`
+  itself refuses to honor without the acknowledgement present in the same
+  submission.
+- Uninstall's all-or-nothing gap (recorded as a known M2/M3 issue in
+  `docs/PRIVACY.md`) is closed as of M4: `Settings::uninstall()`,
+  `GeoCache::uninstall()`, and `AdminScreen::uninstall()` together delete
+  every `universal_geo_*` option and user meta this plugin owns, including
+  the new circuit-breaker option.
 
 ## Related
 
 - `docs/PRIVACY.md` — the full persisted-data inventory and GDPR framing
   this ADR formalizes into a guard test.
 - `docs/adr/0002-trusted-proxy-model.md` — decision 8's provider self-guard
-  pattern, reused by `MaxMindProvider` (M3).
+  pattern, reused by `MaxMindProvider` (M3) and `ReferenceRemoteProvider` (M4).
 - `docs/adr/0003-provider-architecture.md` — the M3 amendment records the
-  same `ProviderHealthStore` ownership correction from the provider side.
+  same `ProviderHealthStore` ownership correction from the provider side;
+  the M4 amendment records `ReferenceRemoteProvider`/`CircuitBreaker`/
+  `HttpTransport`'s own architecture, the provider-side counterpart of this
+  ADR's M4 amendment.
 - `docs/SECURITY.md` — the threat model this privacy floor defends
-  alongside the trust boundary.
+  alongside the trust boundary, including (M4) SSRF and API-key disclosure.

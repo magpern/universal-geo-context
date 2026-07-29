@@ -24,18 +24,35 @@ use UniversalGeo\Http\IpUtils;
  * never throws, cleaning or dropping invalid input so persistence always
  * succeeds.
  *
- * Schema v3 (M3) scope: seven keys — schema_version, default_country (M1),
+ * Schema v4 (M4) scope: eleven keys — schema_version, default_country (M1),
  * trusted_proxies, trust_cloudflare, derived_cache_enabled, and
- * derived_cache_ttl (M2), plus `maxmind_db_path` (M3). `remote` remains M4.
+ * derived_cache_ttl (M2), `maxmind_db_path` (M3), plus (M4)
+ * `remote_enabled`, `remote_account_id`, `remote_license_key`, and
+ * `remote_transfer_acknowledged`.
+ *
+ * **The structural acknowledgement rule (M4 frozen decision):**
+ * `sanitize()` forces `remote_enabled` to `false` unless
+ * `remote_transfer_acknowledged` itself sanitizes to `true` — a pure
+ * sanitization rule (a boolean AND against another field in the same input),
+ * not I/O, not a merge against previously stored state. An admin cannot
+ * enable the remote provider in the same request that first sets the
+ * acknowledgement to false, and cannot enable it at all without the
+ * acknowledgement present in that same submission.
  *
  * **Purity boundary** (Revision 3 §11, audit finding F6; M3 architecture
  * report §6 3B): sanitize() performs *syntactic* checks only — CIDR shape,
  * boolean cast, TTL range, and (M3) absolute-path shape — never filesystem
- * I/O. `maxmind_db_path` is validated here only as a string shape (trimmed,
- * absolute Unix-style, no null bytes); `realpath()`, `is_file()`,
- * `is_readable()`, and WP_CONTENT_DIR containment are exclusively
+ * I/O, never a merge against a previously stored value. `maxmind_db_path` is
+ * validated here only as a string shape (trimmed, absolute Unix-style, no
+ * null bytes); `realpath()`, `is_file()`, `is_readable()`, and
+ * WP_CONTENT_DIR containment are exclusively
  * `AdminScreen::handle_save_settings()`'s job, at the one point in the
- * codebase filesystem I/O against an admin-supplied path is allowed.
+ * codebase filesystem I/O against an admin-supplied path is allowed. The
+ * same boundary applies to the M4 credential fields: "keep the previous
+ * value when the submitted field is blank" (credential clearing behavior) is
+ * an `AdminScreen`-only merge against `$previous`, never performed here —
+ * `sanitize()` treats a blank credential exactly like any other blank
+ * string, syntactically.
  *
  * @internal
  * @final
@@ -49,7 +66,7 @@ final class Settings {
 	/**
 	 * Current schema version.
 	 */
-	const SCHEMA_VERSION = 3;
+	const SCHEMA_VERSION = 4;
 
 	/**
 	 * Default derived-context cache TTL in seconds (Revision 3 §11).
@@ -75,13 +92,17 @@ final class Settings {
 	 */
 	public static function defaults(): array {
 		return array(
-			'schema_version'        => self::SCHEMA_VERSION,
-			'default_country'       => '',
-			'trusted_proxies'       => array(),
-			'trust_cloudflare'      => false,
-			'derived_cache_enabled' => true,
-			'derived_cache_ttl'     => self::DEFAULT_CACHE_TTL,
-			'maxmind_db_path'       => '',
+			'schema_version'               => self::SCHEMA_VERSION,
+			'default_country'              => '',
+			'trusted_proxies'              => array(),
+			'trust_cloudflare'             => false,
+			'derived_cache_enabled'        => true,
+			'derived_cache_ttl'            => self::DEFAULT_CACHE_TTL,
+			'maxmind_db_path'              => '',
+			'remote_enabled'               => false,
+			'remote_account_id'            => '',
+			'remote_license_key'           => '',
+			'remote_transfer_acknowledged' => false,
 		);
 	}
 
@@ -101,14 +122,24 @@ final class Settings {
 			$data = array();
 		}
 
+		$transfer_acknowledged = self::sanitize_bool( $data['remote_transfer_acknowledged'] ?? false );
+
 		return array(
-			'schema_version'        => self::SCHEMA_VERSION,
-			'default_country'       => self::sanitize_country( $data['default_country'] ?? '' ),
-			'trusted_proxies'       => self::sanitize_trusted_proxies( $data['trusted_proxies'] ?? array() ),
-			'trust_cloudflare'      => self::sanitize_bool( $data['trust_cloudflare'] ?? false ),
-			'derived_cache_enabled' => self::sanitize_bool( $data['derived_cache_enabled'] ?? true ),
-			'derived_cache_ttl'     => self::sanitize_ttl( $data['derived_cache_ttl'] ?? self::DEFAULT_CACHE_TTL ),
-			'maxmind_db_path'       => self::sanitize_maxmind_db_path( $data['maxmind_db_path'] ?? '' ),
+			'schema_version'               => self::SCHEMA_VERSION,
+			'default_country'              => self::sanitize_country( $data['default_country'] ?? '' ),
+			'trusted_proxies'              => self::sanitize_trusted_proxies( $data['trusted_proxies'] ?? array() ),
+			'trust_cloudflare'             => self::sanitize_bool( $data['trust_cloudflare'] ?? false ),
+			'derived_cache_enabled'        => self::sanitize_bool( $data['derived_cache_enabled'] ?? true ),
+			'derived_cache_ttl'            => self::sanitize_ttl( $data['derived_cache_ttl'] ?? self::DEFAULT_CACHE_TTL ),
+			'maxmind_db_path'              => self::sanitize_maxmind_db_path( $data['maxmind_db_path'] ?? '' ),
+			// The structural acknowledgement rule (M4, frozen): remote_enabled
+			// can never sanitize to true unless the acknowledgement does too —
+			// a pure boolean AND, evaluated on this same input, never against
+			// previously stored state.
+			'remote_enabled'               => self::sanitize_bool( $data['remote_enabled'] ?? false ) && $transfer_acknowledged,
+			'remote_account_id'            => self::sanitize_credential( $data['remote_account_id'] ?? '' ),
+			'remote_license_key'           => self::sanitize_credential( $data['remote_license_key'] ?? '' ),
+			'remote_transfer_acknowledged' => $transfer_acknowledged,
 		);
 	}
 
@@ -286,6 +317,29 @@ final class Settings {
 	}
 
 	/**
+	 * Normalizes a remote-provider credential (account id or license key):
+	 * syntactic shape only, mirroring sanitize_maxmind_db_path()'s purity —
+	 * trimmed, non-strings and null bytes rejected. No length or character-set
+	 * restriction is enforced here; MaxMind's own account id/license key
+	 * format is not this class's concern to police.
+	 *
+	 * @param mixed $raw Arbitrary input.
+	 *
+	 * @return string
+	 */
+	private static function sanitize_credential( $raw ): string {
+		if ( ! is_string( $raw ) ) {
+			return '';
+		}
+
+		if ( str_contains( $raw, "\0" ) ) {
+			return '';
+		}
+
+		return trim( $raw );
+	}
+
+	/**
 	 * Sanitizes and persists a settings value in one step.
 	 *
 	 * The sole write path for the settings option outside install() —
@@ -324,22 +378,25 @@ final class Settings {
 	}
 
 	/**
-	 * Deletes the options this plugin's uninstall lifecycle owns.
+	 * Deletes the options this class's own uninstall ownership covers.
 	 *
 	 * All-or-nothing retention (CLAUDE.md core invariant 4): the settings
-	 * option (this class's own) and, as of M3, `universal_geo_provider_health`
-	 * (`ProviderHealthStore`'s option — M3 architecture report §6 3D: "the
-	 * option joins Settings::uninstall()'s deletions"). GeoCache's own
-	 * `universal_geo_cache_salt` / `universal_geo_cache_epoch` options and
-	 * AdminScreen's per-user notice-dismissal meta are a separate,
-	 * pre-existing gap in this same all-or-nothing behavior, out of M3's
-	 * scope to close (recorded in the M3 final report, not silently left
-	 * unmentioned).
+	 * option (this class's own), `universal_geo_provider_health`
+	 * (`ProviderHealthStore`'s option, M3), and — as of M4 — the circuit
+	 * breaker's `universal_geo_remote_circuit` option: `CircuitBreaker` is
+	 * the sole runtime writer of that option, but its deletion is assigned to
+	 * this class (the frozen M4 ownership split), the same "owns writing,
+	 * doesn't own deleting" shape `ProviderHealthStore` already established.
+	 * `GeoCache::uninstall()` and `AdminScreen::uninstall()` own the
+	 * remaining M2/M3 gap this same invariant left open (cache salt/epoch,
+	 * the first-run notice meta) — `uninstall.php` calls all three, closing
+	 * the gap in full as of M4.
 	 *
 	 * @return void
 	 */
 	public static function uninstall(): void {
 		delete_option( self::OPTION_NAME );
 		delete_option( 'universal_geo_provider_health' );
+		delete_option( 'universal_geo_remote_circuit' );
 	}
 }

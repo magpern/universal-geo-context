@@ -1,8 +1,10 @@
 # Public API
 
-**Status: M3 complete.** The six functions and one value object below are
+**Status: M4 complete.** The six functions and one value object below are
 the frozen, permanent public surface as of v0.1.0 and remain unchanged
-through M2 and M3.
+through M2, M3, and M4 — the remote provider adds a new resolution source
+(`source === 'remote'`, `confidence === 0.85`) but no new function, no new
+value object, and no change to `universal_geo_api_version()` (still `1`).
 
 ## Public surface
 

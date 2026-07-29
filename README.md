@@ -2,12 +2,14 @@
 
 **Visitor geolocation detection and country resolution — evidence-based, privacy-respecting, and easily extensible.**
 
-**Status: v0.3.0 (M3) shipped.** A working WordPress plugin that resolves a
+**Status: v0.4.0 (M4) shipped.** A working WordPress plugin that resolves a
 visitor's country from a fixed chain of providers (Cloudflare headers, a
-local MaxMind database, WooCommerce's own geolocation, and a configured
-default), attributes the answer to a source, scores its confidence, and
-hands back one immutable context object. It never persists a raw IP
-address. Built for WooCommerce but works standalone.
+local MaxMind database, WooCommerce's own geolocation, an optional remote
+MaxMind web service, and a configured default), attributes the answer to a
+source, scores its confidence, and hands back one immutable context object.
+It never persists a raw IP address, and never sends one off-server unless
+an administrator explicitly enables and acknowledges the remote provider.
+Built for WooCommerce but works standalone.
 
 ## Design principles
 
@@ -48,10 +50,12 @@ Settings → Geo Context, two tabs:
 - **Default country** — Fallback when every provider misses (optional; empty → unknown).
 - **MaxMind database path** — Absolute path to a `.mmdb` file under the WordPress content directory. Empty = auto-detect via WooCommerce's own MaxMind integration.
 - **Derived cache TTL** — How long to cache a result (only with a persistent object cache).
+- **Remote provider** — Disabled by default. Enabling it requires, in the same submission, an explicit acknowledgement that visitor IP addresses will be transferred to MaxMind, Inc. at `geolite.info`, plus an account id and license key (or the `UNIVERSAL_GEO_REMOTE_ACCOUNT_ID` / `UNIVERSAL_GEO_REMOTE_LICENSE_KEY` wp-config.php constants, which take precedence as a pair).
 
 The Diagnostics tab shows live resolution, masked IPs, per-provider probe
-results, MaxMind database metadata, provider-health history, and Site
-Health results.
+results, MaxMind database metadata, remote-provider status (credential
+source, circuit-breaker state, scrubbed recent failure), provider-health
+history, and Site Health results.
 
 ## Deployment
 
@@ -63,7 +67,7 @@ deployment topologies and recipes.
 - **v0.1.0 (M1)** — Core domain and public API; `RemoteAddrOnlyResolver` only. Shipped.
 - **v0.2.0 (M2)** — Client IP resolution, Cloudflare headers, WooCommerce integration, admin settings and diagnostics. Shipped.
 - **v0.3.0 (M3)** — Privacy floor formalized, `maxmind_db_path` setting, `MaxMindProvider`, provider health tracking, MaxMind Site Health test. Shipped.
-- **v0.4.0 (M4)** — Remote provider (disabled by default).
+- **v0.4.0 (M4)** — Remote provider (MaxMind GeoLite2 Country Web Service), disabled by default; circuit breaker; remote diagnostics and Site Health test. Shipped.
 - **v1.0.0 (M5)** — WP-CLI, Site Health, translation readiness, release maturity.
 
 Full timeline: [docs/ROADMAP.md](docs/ROADMAP.md).

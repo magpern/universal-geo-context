@@ -19,6 +19,7 @@ use UniversalGeo\Http\TrustedProxies;
 use UniversalGeo\Model\GeoCandidate;
 use UniversalGeo\Plugin;
 use UniversalGeo\Providers\MaxMindProvider;
+use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Settings;
 use UniversalGeo\Tests\Support\ServerRequestFactory;
@@ -26,9 +27,9 @@ use UniversalGeo\Tests\Unit\Doubles\TrackingGeoProvider;
 
 /**
  * Covers the M2 report() sections, the trusted-proxy Site Health test,
- * register(), and (M3) the maxmind/provider_health report sections and the
- * MaxMind Site Health test. The remote report section remains out of scope
- * (M4).
+ * register(), (M3) the maxmind/provider_health report sections and the
+ * MaxMind Site Health test, and (M4) the remote report section and the
+ * remote-provider Site Health test.
  */
 final class DiagnosticsServiceTest extends TestCase {
 
@@ -67,7 +68,9 @@ final class DiagnosticsServiceTest extends TestCase {
 		array $settings = array(),
 		array $providers = array(),
 		?ProviderHealthStore $provider_health_store = null,
-		?MaxMindProvider $maxmind_provider = null
+		?MaxMindProvider $maxmind_provider = null,
+		?CircuitBreaker $circuit_breaker = null,
+		string $remote_credential_source = 'none'
 	): DiagnosticsService {
 		$request         = ServerRequestFactory::make( '203.0.113.1' );
 		$trusted_proxies = $trusted_proxies ?? new TrustedProxies( array(), false );
@@ -81,7 +84,9 @@ final class DiagnosticsServiceTest extends TestCase {
 			$trusted_proxies,
 			$settings,
 			$provider_health_store ?? new ProviderHealthStore(),
-			$maxmind_provider ?? new MaxMindProvider( '' )
+			$maxmind_provider ?? new MaxMindProvider( '' ),
+			$circuit_breaker ?? new CircuitBreaker(),
+			$remote_credential_source
 		);
 	}
 
@@ -99,6 +104,7 @@ final class DiagnosticsServiceTest extends TestCase {
 				'cloudflare',
 				'woocommerce',
 				'maxmind',
+				'remote',
 				'providers',
 				'provider_health',
 				'cache',
@@ -218,7 +224,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), true );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ) );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none' );
 
 		$report = $service->report();
 
@@ -321,6 +327,192 @@ final class DiagnosticsServiceTest extends TestCase {
 		$this->assertSame( $reader_before, $reader_property->getValue( $provider ) );
 	}
 
+	// ---- remote section (M4) -------------------------------------------------------------
+
+	public function test_remote_section_reports_disabled_by_default(): void {
+		$report = $this->service()->report();
+
+		$this->assertFalse( $report['remote']['enabled'] );
+		$this->assertFalse( $report['remote']['transfer_acknowledged'] );
+		$this->assertFalse( $report['remote']['credentials_present'] );
+		$this->assertSame( 'none', $report['remote']['credential_source'] );
+	}
+
+	public function test_remote_section_reports_the_fixed_endpoint_host_and_timeout(): void {
+		$report = $this->service()->report();
+
+		$this->assertSame( 'geolite.info', $report['remote']['endpoint_host'] );
+		$this->assertIsInt( $report['remote']['timeout_seconds'] );
+	}
+
+	public function test_remote_section_reports_settings_derived_flags(): void {
+		$settings = array(
+			'remote_enabled'               => true,
+			'remote_transfer_acknowledged' => true,
+		);
+		$report   = $this->service( null, null, $settings )->report();
+
+		$this->assertTrue( $report['remote']['enabled'] );
+		$this->assertTrue( $report['remote']['transfer_acknowledged'] );
+	}
+
+	public function test_remote_section_reports_the_injected_credential_source(): void {
+		$report = $this->service( null, null, array(), array(), null, null, null, 'settings' )->report();
+
+		$this->assertTrue( $report['remote']['credentials_present'] );
+		$this->assertSame( 'settings', $report['remote']['credential_source'] );
+	}
+
+	public function test_remote_section_never_exposes_credential_values(): void {
+		$report = $this->service( null, null, array(), array(), null, null, null, 'settings' )->report();
+		$json   = wp_json_encode( $report['remote'] );
+
+		$this->assertStringNotContainsString( 'account', $json );
+		$this->assertStringNotContainsString( 'license', $json );
+	}
+
+	public function test_remote_section_reports_the_circuit_state(): void {
+		$circuit_breaker = new CircuitBreaker();
+		$circuit_breaker->report_failure();
+		$circuit_breaker->report_failure();
+		$circuit_breaker->report_failure();
+
+		$report = $this->service( null, null, array(), array(), null, null, $circuit_breaker )->report();
+
+		$this->assertSame( 'open', $report['remote']['circuit_state'] );
+	}
+
+	public function test_remote_section_reading_circuit_state_does_not_mutate_it(): void {
+		$circuit_breaker = new CircuitBreaker();
+
+		$this->service( null, null, array(), array(), null, null, $circuit_breaker )->report();
+
+		$this->assertFalse( get_option( CircuitBreaker::OPTION_NAME, false ) );
+	}
+
+	public function test_remote_section_reports_no_recent_failure_by_default(): void {
+		$report = $this->service()->report();
+
+		$this->assertNull( $report['remote']['recent_failure'] );
+	}
+
+	public function test_remote_section_reports_a_scrubbed_recent_failure(): void {
+		$provider_health_store = new ProviderHealthStore();
+		$provider_health_store->record( 'remote', 'TransportException: Could not resolve host: 203.0.113.1' );
+
+		$report = $this->service( null, null, array(), array(), $provider_health_store )->report();
+
+		$this->assertNotNull( $report['remote']['recent_failure'] );
+		$this->assertStringNotContainsString( '203.0.113.1', $report['remote']['recent_failure'] );
+	}
+
+	// ---- Site Health: remote_site_status_test() (M4) -------------------------------------
+
+	public function test_remote_site_status_test_is_good_when_disabled(): void {
+		$service = $this->service();
+
+		$result = $service->remote_site_status_test();
+
+		$this->assertSame( 'good', $result['status'] );
+		$this->assertSame( DiagnosticsService::TEST_REMOTE, $result['test'] );
+	}
+
+	public function test_remote_site_status_test_is_recommended_when_enabled_without_credentials(): void {
+		$service = $this->service( null, null, array( 'remote_enabled' => true ), array(), null, null, null, 'none' );
+
+		$this->assertSame( 'recommended', $service->remote_site_status_test()['status'] );
+	}
+
+	public function test_remote_site_status_test_is_recommended_when_circuit_is_open(): void {
+		$circuit_breaker = new CircuitBreaker();
+		$circuit_breaker->report_failure();
+		$circuit_breaker->report_failure();
+		$circuit_breaker->report_failure();
+
+		$service = $this->service(
+			null,
+			null,
+			array( 'remote_enabled' => true ),
+			array(),
+			null,
+			null,
+			$circuit_breaker,
+			'settings'
+		);
+
+		$this->assertSame( 'recommended', $service->remote_site_status_test()['status'] );
+	}
+
+	public function test_remote_site_status_test_is_recommended_after_a_recent_failure(): void {
+		$provider_health_store = new ProviderHealthStore();
+		$provider_health_store->record( 'remote', 'TransportException: Connection timed out' );
+
+		$service = $this->service(
+			null,
+			null,
+			array( 'remote_enabled' => true ),
+			array(),
+			$provider_health_store,
+			null,
+			null,
+			'settings'
+		);
+
+		$this->assertSame( 'recommended', $service->remote_site_status_test()['status'] );
+	}
+
+	public function test_remote_site_status_test_is_good_when_enabled_and_healthy(): void {
+		$service = $this->service( null, null, array( 'remote_enabled' => true ), array(), null, null, null, 'settings' );
+
+		$this->assertSame( 'good', $service->remote_site_status_test()['status'] );
+	}
+
+	public function test_remote_site_status_test_never_returns_critical(): void {
+		// Every scenario this test constructs, even the "worst" (enabled,
+		// no credentials, open circuit, recent failure all at once), must
+		// cap at 'recommended' — the frozen M4 policy.
+		$provider_health_store = new ProviderHealthStore();
+		$provider_health_store->record( 'remote', 'TransportException: failure' );
+		$circuit_breaker = new CircuitBreaker();
+		$circuit_breaker->report_failure();
+		$circuit_breaker->report_failure();
+		$circuit_breaker->report_failure();
+
+		$service = $this->service(
+			null,
+			null,
+			array( 'remote_enabled' => true ),
+			array(),
+			$provider_health_store,
+			null,
+			$circuit_breaker,
+			'none'
+		);
+
+		$this->assertNotSame( 'critical', $service->remote_site_status_test()['status'] );
+	}
+
+	public function test_remote_site_status_test_gated_on_manage_options(): void {
+		$GLOBALS['universal_geo_test_current_user_can'] = false;
+
+		$service = $this->service( null, null, array( 'remote_enabled' => true ), array(), null, null, null, 'none' );
+
+		$this->assertSame( 'good', $service->remote_site_status_test()['status'] );
+	}
+
+	public function test_remote_site_status_test_performs_no_outbound_request(): void {
+		// A fresh CircuitBreaker + no queued transport of any kind: if this
+		// test's own service construction ever reached the network, PHPUnit
+		// would fail on an actual connection attempt/timeout rather than
+		// pass quietly — this test's real assertion is that it completes at
+		// all, quickly, using only injected fakes/state.
+		$service = $this->service( null, null, array( 'remote_enabled' => true ), array(), null, null, null, 'settings' );
+
+		$result = $service->remote_site_status_test();
+
+		$this->assertContains( $result['status'], array( 'good', 'recommended' ) );
+	}
+
 	// ---- providers section (probe() passthrough) ----------------------------------------
 
 	public function test_providers_section_reflects_probe(): void {
@@ -404,6 +596,12 @@ final class DiagnosticsServiceTest extends TestCase {
 		$this->assertArrayHasKey( DiagnosticsService::TEST_MAXMIND, $tests['direct'] );
 	}
 
+	public function test_add_site_status_tests_registers_the_remote_test(): void {
+		$tests = $this->service()->add_site_status_tests( array() );
+
+		$this->assertArrayHasKey( DiagnosticsService::TEST_REMOTE, $tests['direct'] );
+	}
+
 	// ---- Site Health: trusted_proxy_site_status_test() -----------------------------------
 
 	public function test_site_status_test_is_critical_when_misconfigured(): void {
@@ -412,7 +610,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ) );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none' );
 
 		$result = $service->trusted_proxy_site_status_test();
 
@@ -425,7 +623,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array( '172.18.0.0/16' ), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ) );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none' );
 
 		$this->assertSame( 'good', $service->trusted_proxy_site_status_test()['status'] );
 	}
@@ -436,7 +634,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ) );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none' );
 
 		$this->assertSame( 'good', $service->trusted_proxy_site_status_test()['status'] );
 	}
@@ -446,7 +644,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ) );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none' );
 
 		$this->assertSame( 'good', $service->trusted_proxy_site_status_test()['status'] );
 	}
@@ -458,7 +656,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ) );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none' );
 
 		// Even though this scenario would otherwise be critical, an
 		// unauthorized user must never see that verdict.

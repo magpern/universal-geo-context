@@ -21,6 +21,9 @@ use UniversalGeo\Model\VisitorContext;
 use UniversalGeo\Providers\CloudflareHeaderProvider;
 use UniversalGeo\Providers\DefaultCountryProvider;
 use UniversalGeo\Providers\MaxMindProvider;
+use UniversalGeo\Providers\Remote\CircuitBreaker;
+use UniversalGeo\Providers\Remote\ReferenceRemoteProvider;
+use UniversalGeo\Providers\Remote\WordPressHttpTransport;
 use UniversalGeo\Providers\WooCommerceProvider;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Resolver\GeoValidator;
@@ -160,7 +163,9 @@ final class Plugin {
 				$graph['trusted_proxies'],
 				$graph['settings'],
 				$graph['provider_health_store'],
-				$graph['maxmind_provider']
+				$graph['maxmind_provider'],
+				$graph['circuit_breaker'],
+				$graph['remote_credential_source']
 			);
 			$diagnostics->register();
 
@@ -266,11 +271,11 @@ final class Plugin {
 	 *
 	 * PROVIDER_ORDER (Revision 3 §4.4, reproduced by ContextResolver as a
 	 * documentation-only constant it never reads at runtime): cloudflare,
-	 * maxmind, woocommerce, remote, default. Remote doesn't exist until M4,
-	 * so the array built here is cloudflare, maxmind, woocommerce, default —
-	 * already in PROVIDER_ORDER's relative order.
+	 * maxmind, woocommerce, remote, default — the array built here matches
+	 * it exactly, as of M4's ReferenceRemoteProvider filling the 'remote'
+	 * slot.
 	 *
-	 * @return array{resolver: ContextResolver, client_ip_resolver: ClientIpResolver, server_request: ServerRequest, provider_health_store: ProviderHealthStore, maxmind_provider: MaxMindProvider, trusted_proxies: TrustedProxies, settings: array<string, mixed>}
+	 * @return array{resolver: ContextResolver, client_ip_resolver: ClientIpResolver, server_request: ServerRequest, provider_health_store: ProviderHealthStore, maxmind_provider: MaxMindProvider, trusted_proxies: TrustedProxies, settings: array<string, mixed>, remote_credential_source: string, remote_provider: ReferenceRemoteProvider, circuit_breaker: CircuitBreaker}
 	 */
 	private function build_graph(): array {
 		$settings = Settings::sanitize( get_option( Settings::OPTION_NAME, false ) );
@@ -280,15 +285,27 @@ final class Plugin {
 
 		$client_ip_resolver = new ClientIpResolver( $server_request, $trusted_proxies );
 
-		$default_country  = $this->filtered_default_country( $settings['default_country'] );
-		$maxmind_db_path  = $this->resolved_maxmind_db_path( $settings );
-		$maxmind_provider = new MaxMindProvider( $maxmind_db_path );
+		$default_country    = $this->filtered_default_country( $settings['default_country'] );
+		$maxmind_db_path    = $this->resolved_maxmind_db_path( $settings );
+		$maxmind_provider   = new MaxMindProvider( $maxmind_db_path );
+		$remote_credentials = $this->resolved_remote_credentials( $settings );
+		$circuit_breaker    = new CircuitBreaker();
+		$remote_provider    = new ReferenceRemoteProvider(
+			$settings['remote_enabled'],
+			$remote_credentials['account_id'],
+			$remote_credentials['license_key'],
+			new WordPressHttpTransport(),
+			$circuit_breaker
+		);
 
+		// PROVIDER_ORDER (frozen, M4): cloudflare, maxmind, woocommerce,
+		// remote, default.
 		$providers = $this->filtered_providers(
 			array(
 				new CloudflareHeaderProvider( $server_request, $client_ip_resolver ),
 				$maxmind_provider,
 				new WooCommerceProvider(),
+				$remote_provider,
 				new DefaultCountryProvider( $default_country ),
 			)
 		);
@@ -297,10 +314,13 @@ final class Plugin {
 			'sha256',
 			(string) wp_json_encode(
 				array(
-					'default_country'  => $default_country,
-					'trusted_proxies'  => $settings['trusted_proxies'],
-					'trust_cloudflare' => $settings['trust_cloudflare'],
-					'maxmind_db_path'  => $maxmind_db_path,
+					'default_country'              => $default_country,
+					'trusted_proxies'              => $settings['trusted_proxies'],
+					'trust_cloudflare'             => $settings['trust_cloudflare'],
+					'maxmind_db_path'              => $maxmind_db_path,
+					'remote_enabled'               => $settings['remote_enabled'],
+					'remote_transfer_acknowledged' => $settings['remote_transfer_acknowledged'],
+					'remote_credential_source'     => $remote_credentials['source'],
 				)
 			)
 		);
@@ -328,13 +348,16 @@ final class Plugin {
 		);
 
 		return array(
-			'resolver'              => $resolver,
-			'client_ip_resolver'    => $client_ip_resolver,
-			'server_request'        => $server_request,
-			'provider_health_store' => $provider_health_store,
-			'maxmind_provider'      => $maxmind_provider,
-			'trusted_proxies'       => $trusted_proxies,
-			'settings'              => $settings,
+			'resolver'                 => $resolver,
+			'client_ip_resolver'       => $client_ip_resolver,
+			'server_request'           => $server_request,
+			'provider_health_store'    => $provider_health_store,
+			'maxmind_provider'         => $maxmind_provider,
+			'trusted_proxies'          => $trusted_proxies,
+			'settings'                 => $settings,
+			'remote_credential_source' => $remote_credentials['source'],
+			'remote_provider'          => $remote_provider,
+			'circuit_breaker'          => $circuit_breaker,
 		);
 	}
 
@@ -502,6 +525,51 @@ final class Plugin {
 		}
 
 		return $filtered;
+	}
+
+	/**
+	 * Resolves the effective remote-provider credential pair and its source
+	 * (M4 frozen decision), the one place in the codebase this precedence is
+	 * decided: constants win only when *both* `UNIVERSAL_GEO_REMOTE_ACCOUNT_ID`
+	 * and `UNIVERSAL_GEO_REMOTE_LICENSE_KEY` are defined as non-empty
+	 * strings — never one constant paired with one setting. Otherwise, the
+	 * settings pair is used only when *both* `remote_account_id` and
+	 * `remote_license_key` sanitize to non-empty strings; a single configured
+	 * credential without its pair is treated identically to having neither
+	 * (the provider "requires both credentials"). `DiagnosticsService`
+	 * receives only the resulting source scalar — never re-deriving this
+	 * precedence itself, per the M4 report's frozen decision that credential
+	 * source is resolved exactly once, here.
+	 *
+	 * @param array<string, mixed> $settings The sanitized settings array.
+	 *
+	 * @return array{account_id: string, license_key: string, source: string} `source` is one of 'constants', 'settings', or 'none'.
+	 */
+	private function resolved_remote_credentials( array $settings ): array {
+		if (
+			defined( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID' ) && is_string( UNIVERSAL_GEO_REMOTE_ACCOUNT_ID ) && '' !== UNIVERSAL_GEO_REMOTE_ACCOUNT_ID
+			&& defined( 'UNIVERSAL_GEO_REMOTE_LICENSE_KEY' ) && is_string( UNIVERSAL_GEO_REMOTE_LICENSE_KEY ) && '' !== UNIVERSAL_GEO_REMOTE_LICENSE_KEY
+		) {
+			return array(
+				'account_id'  => UNIVERSAL_GEO_REMOTE_ACCOUNT_ID,
+				'license_key' => UNIVERSAL_GEO_REMOTE_LICENSE_KEY,
+				'source'      => 'constants',
+			);
+		}
+
+		if ( '' !== $settings['remote_account_id'] && '' !== $settings['remote_license_key'] ) {
+			return array(
+				'account_id'  => $settings['remote_account_id'],
+				'license_key' => $settings['remote_license_key'],
+				'source'      => 'settings',
+			);
+		}
+
+		return array(
+			'account_id'  => '',
+			'license_key' => '',
+			'source'      => 'none',
+		);
 	}
 
 	/**

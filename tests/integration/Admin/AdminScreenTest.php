@@ -17,6 +17,7 @@ use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Http\TrustedProxies;
 use UniversalGeo\Providers\MaxMindProvider;
+use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Settings;
 use WP_UnitTestCase;
@@ -64,7 +65,9 @@ final class AdminScreenTest extends WP_UnitTestCase {
 			$trusted_proxies,
 			array(),
 			new ProviderHealthStore(),
-			new MaxMindProvider( '' )
+			new MaxMindProvider( '' ),
+			new CircuitBreaker(),
+			'none'
 		);
 
 		return new AdminScreen( $diagnostics, $request );
@@ -197,5 +200,125 @@ final class AdminScreenTest extends WP_UnitTestCase {
 		$after = get_option( 'universal_geo_cache_epoch', 1 );
 
 		$this->assertGreaterThan( $before, $after );
+	}
+
+	// ---- M4: remote_enabled requires the transfer acknowledgement -------------------
+
+	public function test_remote_enabled_without_acknowledgement_is_rejected_with_a_dedicated_warning(): void {
+		$location = $this->submit( array( 'remote_enabled' => '1' ) );
+
+		$stored = get_option( Settings::OPTION_NAME );
+
+		$this->assertFalse( $stored['remote_enabled'] );
+		$this->assertStringContainsString( 'universal_geo_msg=remote_enable_requires_acknowledgement', $location );
+	}
+
+	public function test_remote_enabled_with_acknowledgement_in_the_same_submission_is_accepted(): void {
+		$location = $this->submit(
+			array(
+				'remote_enabled'               => '1',
+				'remote_transfer_acknowledged' => '1',
+			)
+		);
+
+		$stored = get_option( Settings::OPTION_NAME );
+
+		$this->assertTrue( $stored['remote_enabled'] );
+		$this->assertStringContainsString( 'universal_geo_msg=saved', $location );
+	}
+
+	public function test_unchecking_acknowledgement_while_leaving_enabled_checked_disables_it_with_a_warning(): void {
+		update_option(
+			Settings::OPTION_NAME,
+			Settings::sanitize(
+				array(
+					'remote_enabled'               => true,
+					'remote_transfer_acknowledged' => true,
+				)
+			)
+		);
+
+		// remote_transfer_acknowledged omitted this time (an unchecked checkbox).
+		$location = $this->submit( array( 'remote_enabled' => '1' ) );
+
+		$stored = get_option( Settings::OPTION_NAME );
+
+		$this->assertFalse( $stored['remote_enabled'] );
+		$this->assertStringContainsString( 'universal_geo_msg=remote_enable_requires_acknowledgement', $location );
+	}
+
+	// ---- M4: credential clearing behavior ----------------------------------------
+
+	public function test_blank_credential_submission_keeps_the_previously_stored_value(): void {
+		update_option(
+			Settings::OPTION_NAME,
+			Settings::sanitize(
+				array(
+					'remote_account_id'  => 'existing-account',
+					'remote_license_key' => 'existing-license',
+				)
+			)
+		);
+
+		// Both credential fields omitted, as a real <input type="password">
+		// left blank (or rendered disabled) would submit.
+		$this->submit( array( 'default_country' => 'de' ) );
+
+		$stored = get_option( Settings::OPTION_NAME );
+
+		$this->assertSame( 'existing-account', $stored['remote_account_id'] );
+		$this->assertSame( 'existing-license', $stored['remote_license_key'] );
+	}
+
+	public function test_non_blank_credential_submission_replaces_the_stored_value(): void {
+		update_option(
+			Settings::OPTION_NAME,
+			Settings::sanitize( array( 'remote_account_id' => 'old-account' ) )
+		);
+
+		$this->submit( array( 'remote_account_id' => 'new-account' ) );
+
+		$stored = get_option( Settings::OPTION_NAME );
+
+		$this->assertSame( 'new-account', $stored['remote_account_id'] );
+	}
+
+	public function test_clear_credentials_checkbox_blanks_both_fields_regardless_of_what_is_also_typed(): void {
+		update_option(
+			Settings::OPTION_NAME,
+			Settings::sanitize(
+				array(
+					'remote_account_id'  => 'existing-account',
+					'remote_license_key' => 'existing-license',
+				)
+			)
+		);
+
+		$this->submit(
+			array(
+				'remote_account_id'        => 'typed-but-ignored',
+				'remote_clear_credentials' => '1',
+			)
+		);
+
+		$stored = get_option( Settings::OPTION_NAME );
+
+		$this->assertSame( '', $stored['remote_account_id'] );
+		$this->assertSame( '', $stored['remote_license_key'] );
+	}
+
+	// ---- M4: AdminScreen::uninstall() --------------------------------------------
+
+	public function test_uninstall_deletes_the_first_run_notice_meta_for_every_user(): void {
+		$user_a = self::factory()->user->create();
+		$user_b = self::factory()->user->create();
+
+		update_user_meta( $user_a, 'universal_geo_first_run_notice_dismissed', 1 );
+		update_user_meta( $user_b, 'universal_geo_first_run_notice_dismissed', 1 );
+
+		AdminScreen::uninstall();
+
+		$this->assertSame( '', get_user_meta( $user_a, 'universal_geo_first_run_notice_dismissed', true ) );
+		$this->assertSame( '', get_user_meta( $user_b, 'universal_geo_first_run_notice_dismissed', true ) );
 	}
 }

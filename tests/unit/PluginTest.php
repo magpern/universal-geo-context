@@ -410,7 +410,7 @@ final class PluginTest extends TestCase {
 		$plugin = Plugin::instance();
 		$plugin->init();
 
-		$this->assertSame( array( 'cloudflare', 'maxmind', 'woocommerce', 'default' ), $received_ids );
+		$this->assertSame( array( 'cloudflare', 'maxmind', 'woocommerce', 'remote', 'default' ), $received_ids );
 	}
 
 	public function test_providers_filter_non_conforming_element_is_dropped_without_fatal(): void {
@@ -896,16 +896,36 @@ final class PluginTest extends TestCase {
 		return $reflection->invoke( Plugin::instance(), $settings );
 	}
 
-	private function base_settings( string $maxmind_db_path = '' ): array {
+	private function base_settings(
+		string $maxmind_db_path = '',
+		string $remote_account_id = '',
+		string $remote_license_key = ''
+	): array {
 		return array(
-			'schema_version'        => Settings::SCHEMA_VERSION,
-			'default_country'       => '',
-			'trusted_proxies'       => array(),
-			'trust_cloudflare'      => false,
-			'derived_cache_enabled' => true,
-			'derived_cache_ttl'     => 900,
-			'maxmind_db_path'       => $maxmind_db_path,
+			'schema_version'               => Settings::SCHEMA_VERSION,
+			'default_country'              => '',
+			'trusted_proxies'              => array(),
+			'trust_cloudflare'             => false,
+			'derived_cache_enabled'        => true,
+			'derived_cache_ttl'            => 900,
+			'maxmind_db_path'              => $maxmind_db_path,
+			'remote_enabled'               => false,
+			'remote_account_id'            => $remote_account_id,
+			'remote_license_key'           => $remote_license_key,
+			'remote_transfer_acknowledged' => false,
 		);
+	}
+
+	/**
+	 * @param array<string, mixed> $settings The sanitized settings array.
+	 *
+	 * @return array{account_id: string, license_key: string, source: string}
+	 */
+	private function resolved_remote_credentials( array $settings ): array {
+		$reflection = new ReflectionMethod( Plugin::class, 'resolved_remote_credentials' );
+		$reflection->setAccessible( true );
+
+		return $reflection->invoke( Plugin::instance(), $settings );
 	}
 
 	public function test_resolved_maxmind_db_path_empty_settings_and_no_wc_option_resolves_to_empty(): void {
@@ -1012,7 +1032,7 @@ final class PluginTest extends TestCase {
 		$plugin = Plugin::instance();
 		$plugin->init();
 
-		$this->assertSame( array( 'cloudflare', 'maxmind', 'woocommerce', 'default' ), $received_ids );
+		$this->assertSame( array( 'cloudflare', 'maxmind', 'woocommerce', 'remote', 'default' ), $received_ids );
 	}
 
 	/**
@@ -1050,5 +1070,140 @@ final class PluginTest extends TestCase {
 
 		unlink( $outside ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
 		$this->assertSame( $outside, $result );
+	}
+
+	// ---- M4: resolved_remote_credentials() precedence chain --------------------
+
+	public function test_remote_credentials_none_when_nothing_configured(): void {
+		$result = $this->resolved_remote_credentials( $this->base_settings() );
+
+		$this->assertSame(
+			array(
+				'account_id'  => '',
+				'license_key' => '',
+				'source'      => 'none',
+			),
+			$result
+		);
+	}
+
+	public function test_remote_credentials_uses_the_settings_pair_when_both_present(): void {
+		$result = $this->resolved_remote_credentials( $this->base_settings( '', '12345', 'abc123XYZ' ) );
+
+		$this->assertSame(
+			array(
+				'account_id'  => '12345',
+				'license_key' => 'abc123XYZ',
+				'source'      => 'settings',
+			),
+			$result
+		);
+	}
+
+	public function test_remote_credentials_none_when_only_account_id_is_present(): void {
+		$result = $this->resolved_remote_credentials( $this->base_settings( '', '12345', '' ) );
+
+		$this->assertSame( 'none', $result['source'] );
+	}
+
+	public function test_remote_credentials_none_when_only_license_key_is_present(): void {
+		$result = $this->resolved_remote_credentials( $this->base_settings( '', '', 'abc123XYZ' ) );
+
+		$this->assertSame( 'none', $result['source'] );
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_remote_credentials_constants_win_over_settings(): void {
+		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'constant-account' );
+		define( 'UNIVERSAL_GEO_REMOTE_LICENSE_KEY', 'constant-license' );
+
+		$result = $this->resolved_remote_credentials( $this->base_settings( '', 'settings-account', 'settings-license' ) );
+
+		$this->assertSame(
+			array(
+				'account_id'  => 'constant-account',
+				'license_key' => 'constant-license',
+				'source'      => 'constants',
+			),
+			$result
+		);
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_remote_credentials_never_combines_one_constant_with_one_setting(): void {
+		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'constant-account' );
+		// UNIVERSAL_GEO_REMOTE_LICENSE_KEY intentionally left undefined.
+
+		$result = $this->resolved_remote_credentials( $this->base_settings( '', '', 'settings-license' ) );
+
+		// Falls through to the settings pair evaluation, which also fails
+		// (account_id is '' in settings) — never a constant paired with a
+		// setting.
+		$this->assertSame( 'none', $result['source'] );
+	}
+
+	// ---- M4: config_sig covers the new remote-provider settings ----------------
+
+	public function test_different_remote_enabled_produces_a_different_config_sig(): void {
+		$this->set_settings( 'SE' );
+		$GLOBALS['universal_geo_test_options'][ Settings::OPTION_NAME ]['remote_enabled']               = false;
+		$GLOBALS['universal_geo_test_options'][ Settings::OPTION_NAME ]['remote_transfer_acknowledged'] = false;
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.1';
+
+		$first = Plugin::instance();
+		$first->init();
+		$first->context();
+
+		$this->reset_plugin_singleton();
+		$GLOBALS['universal_geo_test_options'][ Settings::OPTION_NAME ]['remote_enabled']               = true;
+		$GLOBALS['universal_geo_test_options'][ Settings::OPTION_NAME ]['remote_transfer_acknowledged'] = true;
+
+		$second = Plugin::instance();
+		$second->init();
+		$context = $second->context();
+
+		$this->assertFalse( $context->is_cached );
+	}
+
+	public function test_different_remote_credential_source_produces_a_different_config_sig(): void {
+		$this->set_settings( 'SE' );
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.1';
+
+		$first = Plugin::instance();
+		$first->init();
+		$first->context();
+
+		$this->reset_plugin_singleton();
+		$GLOBALS['universal_geo_test_options'][ Settings::OPTION_NAME ]['remote_account_id']  = 'an-account';
+		$GLOBALS['universal_geo_test_options'][ Settings::OPTION_NAME ]['remote_license_key'] = 'a-license';
+
+		$second = Plugin::instance();
+		$second->init();
+		$context = $second->context();
+
+		$this->assertFalse( $context->is_cached );
+	}
+
+	public function test_identical_remote_settings_share_the_same_config_sig(): void {
+		$this->set_settings( 'SE' );
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.1';
+
+		$first = Plugin::instance();
+		$first->init();
+		$first->context();
+
+		$this->reset_plugin_singleton();
+
+		$second = Plugin::instance();
+		$second->init();
+		$context = $second->context();
+
+		$this->assertTrue( $context->is_cached );
 	}
 }

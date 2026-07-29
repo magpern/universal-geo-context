@@ -229,4 +229,19 @@ final class GeoCache {
 
 		update_option( self::EPOCH_OPTION, $current + 1 );
 	}
+
+	/**
+	 * Deletes this class's own two options (M4, closing the M2/M3
+	 * uninstall-ownership gap `docs/PRIVACY.md` previously recorded): the
+	 * salt and the invalidation epoch. Called by `uninstall.php` alongside
+	 * `Settings::uninstall()` and `AdminScreen::uninstall()` — this class
+	 * remains the sole owner of both option names, on the write path (above)
+	 * and now the delete path too.
+	 *
+	 * @return void
+	 */
+	public static function uninstall(): void {
+		delete_option( self::SALT_OPTION );
+		delete_option( self::EPOCH_OPTION );
+	}
 }

@@ -15,6 +15,8 @@ use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Http\TrustedProxies;
 use UniversalGeo\Plugin;
 use UniversalGeo\Providers\MaxMindProvider;
+use UniversalGeo\Providers\Remote\CircuitBreaker;
+use UniversalGeo\Providers\Remote\ReferenceRemoteProvider;
 use UniversalGeo\Resolver\ContextResolver;
 
 /**
@@ -52,6 +54,11 @@ final class DiagnosticsService {
 	public const TEST_MAXMIND = 'universal_geo_maxmind';
 
 	/**
+	 * The remote-provider Site Health test id (M4) — the third and final v1 test.
+	 */
+	public const TEST_REMOTE = 'universal_geo_remote_provider';
+
+	/**
 	 * Build-age thresholds (days) for the MaxMind Site Health test (M3
 	 * architecture report §6 3D).
 	 */
@@ -70,13 +77,15 @@ final class DiagnosticsService {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param ContextResolver     $resolver              Supplies probe() for the provider table.
-	 * @param ClientIpResolver    $ip_resolver           Supplies explain() and the trust verdicts.
-	 * @param ServerRequest       $request               The boot-time $_SERVER snapshot.
-	 * @param TrustedProxies      $trusted_proxies       The effective trusted set.
-	 * @param array               $settings              The sanitized settings array (not the Settings class) — the only source of the two cache knobs, since GeoCache itself is not injected here.
-	 * @param ProviderHealthStore $provider_health_store Supplies the already-scrubbed, bounded provider-health record (M3).
-	 * @param MaxMindProvider     $maxmind_provider      The same instance the resolver uses (M3 F8) — diagnostics never opens a second reader.
+	 * @param ContextResolver     $resolver                 Supplies probe() for the provider table.
+	 * @param ClientIpResolver    $ip_resolver              Supplies explain() and the trust verdicts.
+	 * @param ServerRequest       $request                  The boot-time $_SERVER snapshot.
+	 * @param TrustedProxies      $trusted_proxies          The effective trusted set.
+	 * @param array               $settings                 The sanitized settings array (not the Settings class) — the only source of the cache knobs and the remote enabled/acknowledged flags, since GeoCache and ReferenceRemoteProvider's own scalars are not re-read from here.
+	 * @param ProviderHealthStore $provider_health_store    Supplies the already-scrubbed, bounded provider-health record (M3) — also the source of the remote section's scrubbed recent-failure field (M4).
+	 * @param MaxMindProvider     $maxmind_provider         The same instance the resolver uses (M3 F8) — diagnostics never opens a second reader.
+	 * @param CircuitBreaker      $circuit_breaker          The same instance ReferenceRemoteProvider uses (M4) — read via state() only, never may_attempt()/report_*(), so viewing diagnostics never itself flips circuit state.
+	 * @param string              $remote_credential_source One of 'constants', 'settings', 'none' — resolved exactly once by Plugin::build_graph(); this class must not call defined() or re-derive the precedence itself (M4 frozen decision).
 	 */
 	public function __construct(
 		private readonly ContextResolver $resolver,
@@ -85,7 +94,9 @@ final class DiagnosticsService {
 		private readonly TrustedProxies $trusted_proxies,
 		private readonly array $settings,
 		private readonly ProviderHealthStore $provider_health_store,
-		private readonly MaxMindProvider $maxmind_provider
+		private readonly MaxMindProvider $maxmind_provider,
+		private readonly CircuitBreaker $circuit_breaker,
+		private readonly string $remote_credential_source
 	) {
 	}
 
@@ -104,6 +115,7 @@ final class DiagnosticsService {
 			'cloudflare'         => $this->cloudflare_section(),
 			'woocommerce'        => $this->woocommerce_section(),
 			'maxmind'            => $this->maxmind_section(),
+			'remote'             => $this->remote_section(),
 			'providers'          => $this->resolver->probe(),
 			'provider_health'    => $this->provider_health_store->read(),
 			'cache'              => $this->cache_section(),
@@ -112,7 +124,7 @@ final class DiagnosticsService {
 	}
 
 	/**
-	 * Registers the trusted-proxy and MaxMind Site Health tests.
+	 * Registers the trusted-proxy, MaxMind, and remote-provider Site Health tests.
 	 *
 	 * @return void
 	 */
@@ -136,6 +148,11 @@ final class DiagnosticsService {
 		$tests['direct'][ self::TEST_MAXMIND ] = array(
 			'label' => __( 'Universal Geo Context: MaxMind database', 'universal-geo-context' ),
 			'test'  => array( $this, 'maxmind_site_status_test' ),
+		);
+
+		$tests['direct'][ self::TEST_REMOTE ] = array(
+			'label' => __( 'Universal Geo Context: remote provider', 'universal-geo-context' ),
+			'test'  => array( $this, 'remote_site_status_test' ),
 		);
 
 		return $tests;
@@ -310,6 +327,92 @@ final class DiagnosticsService {
 	}
 
 	/**
+	 * The remote-provider Site Health test (M4, the third and final v1
+	 * test): reads only already-persisted/configuration state — `$this->settings`,
+	 * `$this->remote_credential_source`, `$this->circuit_breaker->state()`
+	 * (a pure read, never `may_attempt()`/`report_*()`), and
+	 * `$this->provider_health_store->read()` — and performs no outbound
+	 * request of its own. An unconfigured/disabled provider is always
+	 * 'good' (an optional feature not turned on is not ill health, the
+	 * MaxMind test's own precedent); this test never returns 'critical' —
+	 * missing credentials, an open/half-open circuit, or a recent recorded
+	 * failure are all 'recommended' at most, per the frozen M4 policy.
+	 * Gated on manage_options, per both existing tests' own precedent.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function remote_site_status_test(): array {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return $this->remote_site_status_result( 'good', __( 'Not applicable for this user.', 'universal-geo-context' ) );
+		}
+
+		if ( ! ( $this->settings['remote_enabled'] ?? false ) ) {
+			return $this->remote_site_status_result(
+				'good',
+				__( 'The remote provider is disabled — this is an optional feature.', 'universal-geo-context' )
+			);
+		}
+
+		if ( 'none' === $this->remote_credential_source ) {
+			return $this->remote_site_status_result(
+				'recommended',
+				__( 'The remote provider is enabled but no credentials are configured.', 'universal-geo-context' )
+			);
+		}
+
+		$circuit_state = $this->circuit_breaker->state()['state'];
+
+		if ( in_array( $circuit_state, array( 'open', 'half_open' ), true ) ) {
+			return $this->remote_site_status_result(
+				'recommended',
+				sprintf(
+					/* translators: %s: circuit breaker state, "open" or "half_open". */
+					__( 'The remote provider\'s circuit breaker is currently %s after repeated failures.', 'universal-geo-context' ),
+					$circuit_state
+				)
+			);
+		}
+
+		$recent_failure = $this->provider_health_store->read()['remote']['last_error_message'] ?? '';
+
+		if ( '' !== $recent_failure ) {
+			return $this->remote_site_status_result(
+				'recommended',
+				__( 'The remote provider recently failed. Review Diagnostics for details.', 'universal-geo-context' )
+			);
+		}
+
+		return $this->remote_site_status_result(
+			'good',
+			__( 'The remote provider is enabled and healthy.', 'universal-geo-context' )
+		);
+	}
+
+	/**
+	 * Builds one remote-provider Site Health result array — mirrors
+	 * maxmind_site_status_result()'s shape but is capped at 'recommended':
+	 * this test never produces 'critical' (the frozen M4 policy).
+	 *
+	 * @param string $status      'good' or 'recommended'.
+	 * @param string $description Plain text, wrapped in a paragraph here.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function remote_site_status_result( string $status, string $description ): array {
+		return array(
+			'label'       => __( 'Universal Geo Context: remote provider', 'universal-geo-context' ),
+			'status'      => $status,
+			'badge'       => array(
+				'label' => __( 'Security', 'universal-geo-context' ),
+				'color' => 'recommended' === $status ? 'orange' : 'blue',
+			),
+			'description' => sprintf( '<p>%s</p>', esc_html( $description ) ),
+			'actions'     => '',
+			'test'        => self::TEST_REMOTE,
+		);
+	}
+
+	/**
 	 * Builds the "result" section.
 	 *
 	 * @return array<string, mixed>
@@ -447,6 +550,35 @@ final class DiagnosticsService {
 			'city_database_note' => $is_city
 				? __( 'City database detected; region support is deferred to a future release.', 'universal-geo-context' )
 				: '',
+		);
+	}
+
+	/**
+	 * Builds the "remote" section (M4): booleans and enums only, plus the
+	 * fixed endpoint host, timeout, circuit state, and a scrubbed recent
+	 * failure message — never a credential value, never the account id or
+	 * license key even as a boolean-adjacent hint beyond "present or not".
+	 * `credential_source` is read from the already-resolved scalar
+	 * `Plugin::build_graph()` injected; this method does not call
+	 * `defined()` or re-derive the constants-vs-settings precedence itself
+	 * (the frozen M4 rule). `circuit_state` reads `CircuitBreaker::state()`
+	 * only — never `may_attempt()`/`report_*()` — so building this report
+	 * never itself mutates circuit state.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function remote_section(): array {
+		$recent_failure = $this->provider_health_store->read()['remote']['last_error_message'] ?? '';
+
+		return array(
+			'enabled'               => $this->settings['remote_enabled'] ?? false,
+			'transfer_acknowledged' => $this->settings['remote_transfer_acknowledged'] ?? false,
+			'credentials_present'   => 'none' !== $this->remote_credential_source,
+			'credential_source'     => $this->remote_credential_source,
+			'endpoint_host'         => ReferenceRemoteProvider::ENDPOINT_HOST,
+			'timeout_seconds'       => ReferenceRemoteProvider::TIMEOUT_SECONDS,
+			'circuit_state'         => $this->circuit_breaker->state()['state'],
+			'recent_failure'        => '' !== $recent_failure ? $recent_failure : null,
 		);
 	}
 

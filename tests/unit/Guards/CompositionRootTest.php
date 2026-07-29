@@ -60,6 +60,9 @@ final class CompositionRootTest extends TestCase {
 		'DiagnosticsService',
 		'AdminScreen',
 		'ProviderHealthStore',
+		'ReferenceRemoteProvider',
+		'CircuitBreaker',
+		'WordPressHttpTransport',
 	);
 
 	/**

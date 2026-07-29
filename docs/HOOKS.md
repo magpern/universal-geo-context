@@ -1,7 +1,11 @@
 # Hooks and Extension Points
 
-**Status: M3 complete.** All seven v1 hooks are shipped (M1 shipped two, M2
-added four, M3 adds the seventh and last: `universal_geo_maxmind_db_path`).
+**Status: M4 complete.** All seven v1 hooks are shipped (M1 shipped two, M2
+added four, M3 added the seventh and last: `universal_geo_maxmind_db_path`).
+M4 adds no new public hook — the remote provider is wired entirely through
+existing surfaces (`universal_geo_providers` sees it in its fixed slot;
+`universal_geo_provider_failed` fires for its failures identically to any
+other provider).
 
 All hooks use the `universal_geo_` namespace; filters are nouns, actions are
 `{subject}_{past-participle}`.

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (M1), amended (M3)
+Accepted (M1), amended (M3, M4)
 
 ## Context
 
@@ -135,12 +135,65 @@ amendment note with nothing to amend.
     surfaces an informational note when a City database is detected rather
     than silently under-using it.
 
+### M4 amendment — the remote provider
+
+15. **`ReferenceRemoteProvider` is a provider like any other**, filling the
+    previously-empty `'remote'` slot in `PROVIDER_ORDER` (unchanged
+    confidence `0.85`, between `woocommerce` and `default`) — the identical
+    "no special-cased integration layer" precedent decisions 1 and 9 already
+    established, extended a second time.
+16. **Transport and provider responsibilities are split, frozen, and never
+    blurred.** An internal one-method interface, `HttpTransport`, executes
+    exactly one outbound GET and converts the raw result into a
+    `TransportResponse` value object or a scrubbed `TransportException` —
+    nothing more. `ReferenceRemoteProvider` alone builds the hardcoded
+    request URL, adds HTTP Basic authentication, classifies the response
+    status code, and parses the JSON body. `WordPressHttpTransport` is the
+    only production file permitted to call `wp_safe_remote_get()`
+    (`PrivacyGuardTest` rule 8) and is barred, like every other file, from
+    the four already-forbidden remote-HTTP primitives (rule 6) — the
+    allowlist is per-file *and* per-function, never a blanket exemption.
+17. **A dedicated `CircuitBreaker`, not a bespoke retry mechanism, gates
+    every attempt.** `closed` → `open` (three consecutive failures) →
+    `half_open` (after a 300-second cooldown, exactly one trial) →
+    `closed`/`open` again. No retries exist at any layer — a denied attempt
+    is a miss, not a queued retry, and the resolver's existing
+    `catch(Throwable)` boundary (decision 6) is what actually degrades a
+    thrown failure to "continue the chain," not anything new in
+    `CircuitBreaker` itself.
+18. **Credential precedence is pair-wise, resolved exactly once.**
+    `Plugin::build_graph()` decides, in one place, whether the
+    `UNIVERSAL_GEO_REMOTE_ACCOUNT_ID`/`UNIVERSAL_GEO_REMOTE_LICENSE_KEY`
+    constants or the `remote_account_id`/`remote_license_key` settings pair
+    is in effect — never one constant combined with one setting — and hands
+    `ReferenceRemoteProvider` only the resulting plain scalars, the same
+    "settings-derived values arrive pre-decided" pattern decision 7
+    established. `DiagnosticsService` receives only the resulting source
+    scalar (`'constants'`/`'settings'`/`'none'`) and neither calls
+    `defined()` nor re-derives this precedence itself.
+19. **The structural transfer acknowledgement is a pure sanitization rule,
+    not a runtime check.** `Settings::sanitize()` forces `remote_enabled` to
+    `false` unless `remote_transfer_acknowledged` is `true` in the same
+    input — the provider can never observe an enabled-without-acknowledged
+    state, so `ReferenceRemoteProvider` itself has no acknowledgement logic
+    of its own to duplicate or drift from `Settings`'s.
+20. **`is_available()` is a defense-in-depth double-check, not the sole
+    gate.** Mirroring `MaxMindProvider`'s own precedent (a corrupt/absent
+    database degrades to "no reader, no attempt" even if `resolve()` were
+    somehow called without an `is_available()` check first),
+    `ReferenceRemoteProvider::resolve()` re-checks its own enabled/credential
+    state at its own top, before ever consulting the circuit breaker or the
+    transport — a disabled or misconfigured instance makes zero outbound
+    attempts under any call pattern, not merely the one the resolver loop
+    happens to use.
+
 ## Consequences
 
 - Every provider added since M1 (`CloudflareHeaderProvider`,
-  `WooCommerceProvider`, `MaxMindProvider`) has satisfied the same
-  three-method contract with zero interface changes — the strongest
-  evidence the M1 architecture was sized correctly the first time.
+  `WooCommerceProvider`, `MaxMindProvider`, and now `ReferenceRemoteProvider`)
+  has satisfied the same three-method contract with zero interface
+  changes — the strongest evidence the M1 architecture was sized correctly
+  the first time.
 - A provider author (including a third party registering one via
   `universal_geo_providers`) never needs to understand confidence,
   ordering, or validation — only "can I look something up right now" and
@@ -148,7 +201,9 @@ amendment note with nothing to amend.
 - `ContextResolver` remains WordPress-free and its constructor signature
   frozen at three required arguments plus one optional callback (M2) —
   MaxMind's addition touched `Plugin.php`'s composition and
-  `DiagnosticsService`'s injection, never `ContextResolver` itself.
+  `DiagnosticsService`'s injection, never `ContextResolver` itself; the
+  remote provider's addition (M4) is the second confirmation of the same
+  invariant — `ContextResolver.php` has zero diff for M4.
 - The path-resolution trust-level distinction (decision 12) is the direct
   ancestor of `docs/SECURITY.md`'s "arbitrary file read via a MaxMind
   database path" threat-model row moving from "future" to
@@ -166,6 +221,9 @@ amendment note with nothing to amend.
 - `docs/adr/0006-optional-woocommerce-integration.md` — the "provider, not
   a special integration layer" precedent this ADR's decision 9 follows.
 - `docs/SECURITY.md` — the arbitrary-file-read threat model decision 12
-  defends against.
+  defends against, and (M4) the SSRF/API-key-disclosure/DoS rows decisions
+  16–18 defend against.
 - `docs/HOOKS.md` — `universal_geo_maxmind_db_path`'s full signature and
   hardening behavior.
+- `docs/PRIVACY.md` — the GDPR framing decision 19's structural
+  acknowledgement rule implements.

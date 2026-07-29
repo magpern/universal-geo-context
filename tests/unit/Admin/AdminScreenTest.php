@@ -19,6 +19,7 @@ use UniversalGeo\Diagnostics\ProviderHealthStore;
 use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\TrustedProxies;
 use UniversalGeo\Providers\MaxMindProvider;
+use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Tests\Support\ServerRequestFactory;
 
@@ -65,7 +66,9 @@ final class AdminScreenTest extends TestCase {
 			$trusted_proxies,
 			array(),
 			new ProviderHealthStore(),
-			new MaxMindProvider( '' )
+			new MaxMindProvider( '' ),
+			new CircuitBreaker(),
+			'none'
 		);
 	}
 
@@ -300,5 +303,72 @@ final class AdminScreenTest extends TestCase {
 
 		unlink( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
 		$this->assertTrue( $result );
+	}
+
+	// ---- remote_credentials_locked_by_constants() (M4) -------------------------
+
+	public function test_remote_credentials_not_locked_when_no_constants_defined(): void {
+		$this->assertFalse( $this->invoke_private( $this->screen(), 'remote_credentials_locked_by_constants' ) );
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_remote_credentials_locked_when_both_constants_defined(): void {
+		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'constant-account' );
+		define( 'UNIVERSAL_GEO_REMOTE_LICENSE_KEY', 'constant-license' );
+
+		$this->assertTrue( $this->invoke_private( $this->screen(), 'remote_credentials_locked_by_constants' ) );
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_remote_credentials_not_locked_when_only_one_constant_defined(): void {
+		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'constant-account' );
+
+		$this->assertFalse( $this->invoke_private( $this->screen(), 'remote_credentials_locked_by_constants' ) );
+	}
+
+	// ---- submitted_credential() (M4 credential clearing behavior) ---------------
+
+	public function test_submitted_credential_blank_submission_keeps_the_previous_value(): void {
+		$_POST = array( 'remote_account_id' => '' ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+
+		$result = $this->invoke_private( $this->screen(), 'submitted_credential', array( 'remote_account_id', 'previous-value' ) );
+
+		$_POST = array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$this->assertSame( 'previous-value', $result );
+	}
+
+	public function test_submitted_credential_omitted_field_keeps_the_previous_value(): void {
+		$_POST = array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+
+		$result = $this->invoke_private( $this->screen(), 'submitted_credential', array( 'remote_account_id', 'previous-value' ) );
+
+		$this->assertSame( 'previous-value', $result );
+	}
+
+	public function test_submitted_credential_non_blank_submission_replaces_the_previous_value(): void {
+		$_POST = array( 'remote_account_id' => 'new-value' ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+
+		$result = $this->invoke_private( $this->screen(), 'submitted_credential', array( 'remote_account_id', 'previous-value' ) );
+
+		$_POST = array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$this->assertSame( 'new-value', $result );
+	}
+
+	public function test_submitted_credential_clear_checkbox_blanks_regardless_of_typed_value(): void {
+		$_POST = array( // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			'remote_account_id'        => 'typed-value',
+			'remote_clear_credentials' => '1',
+		);
+
+		$result = $this->invoke_private( $this->screen(), 'submitted_credential', array( 'remote_account_id', 'previous-value' ) );
+
+		$_POST = array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$this->assertSame( '', $result );
 	}
 }

@@ -18,6 +18,7 @@ use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Http\TrustedProxies;
 use UniversalGeo\Plugin;
 use UniversalGeo\Providers\MaxMindProvider;
+use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Settings;
 use WP_UnitTestCase;
@@ -96,7 +97,9 @@ final class LiveAcceptanceTest extends WP_UnitTestCase {
 			$trusted,
 			array(),
 			new ProviderHealthStore(),
-			$provider
+			$provider,
+			new CircuitBreaker(),
+			'none'
 		);
 		$this->assertSame( 'critical', $diagnostics->maxmind_site_status_test()['status'] );
 

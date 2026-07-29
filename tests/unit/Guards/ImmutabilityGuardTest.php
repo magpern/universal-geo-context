@@ -16,13 +16,16 @@ use UniversalGeo\Model\GeoCandidate;
 use UniversalGeo\Model\ResolvedClientIp;
 use UniversalGeo\Model\VisitorContext;
 use UniversalGeo\Providers\MaxMindMetadata;
+use UniversalGeo\Providers\Remote\TransportResponse;
 
 /**
  * Enforces Revision 3 §13's exact frozen list: "VisitorContext, GeoCandidate,
  * ResolvedClientIp and ServerRequest are final with readonly promoted
  * properties" — plus MaxMindMetadata, joined in M3 (M3 architecture report
  * §6 3C: "A VO rather than an array for the same reason ResolvedClientIp is
- * one"). An explicit class allowlist, not a naming-pattern or directory
+ * one"), and TransportResponse, joined in M4 for the identical reason (a
+ * fixed, typed, immutable shape crossing the transport/provider boundary).
+ * An explicit class allowlist, not a naming-pattern or directory
  * heuristic — "value object" is a design classification this guard must
  * not try to infer, and a heuristic (e.g. "everything under src/Model/")
  * would silently miss ServerRequest (src/Http/) and MaxMindMetadata
@@ -54,6 +57,7 @@ final class ImmutabilityGuardTest extends TestCase {
 		ResolvedClientIp::class,
 		ServerRequest::class,
 		MaxMindMetadata::class,
+		TransportResponse::class,
 	);
 
 	/**

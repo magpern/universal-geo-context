@@ -58,7 +58,7 @@ final class GeoCacheTest extends TestCase {
 		$this->assertSame( 'string', (string) $parameters[2]->getType() );
 	}
 
-	public function test_public_api_is_exactly_get_set_and_bump_epoch(): void {
+	public function test_public_api_is_exactly_get_set_bump_epoch_and_uninstall(): void {
 		$names = array_values(
 			array_diff(
 				array_map(
@@ -70,7 +70,28 @@ final class GeoCacheTest extends TestCase {
 		);
 
 		sort( $names );
-		$this->assertSame( array( 'bump_epoch', 'get', 'set' ), $names );
+		$this->assertSame( array( 'bump_epoch', 'get', 'set', 'uninstall' ), $names );
+	}
+
+	// ---- uninstall() (M4) ------------------------------------------------------
+
+	public function test_uninstall_deletes_the_salt_and_epoch_options(): void {
+		update_option( 'universal_geo_cache_salt', 'some-salt-value' );
+		update_option( 'universal_geo_cache_epoch', 5 );
+
+		GeoCache::uninstall();
+
+		$this->assertFalse( get_option( 'universal_geo_cache_salt', false ) );
+		$this->assertFalse( get_option( 'universal_geo_cache_epoch', false ) );
+	}
+
+	public function test_uninstall_does_not_delete_unrelated_options(): void {
+		update_option( 'universal_geo_cache_salt', 'some-salt-value' );
+		update_option( 'universal_geo_settings', array( 'default_country' => 'SE' ) );
+
+		GeoCache::uninstall();
+
+		$this->assertSame( array( 'default_country' => 'SE' ), get_option( 'universal_geo_settings', false ) );
 	}
 
 	// ---- Enabled / disabled / no-op degradation ------------------------------
