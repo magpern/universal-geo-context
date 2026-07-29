@@ -21,7 +21,17 @@ WP_DB_USER="${WP_DB_USER:-root}"
 WP_DB_PASS="${WP_DB_PASS:-root}"
 
 # Use wp-phpunit's bundled WordPress version.
-if [ ! -d "$WP_DIR" ]; then
+#
+# Checked via wp-settings.php's presence, not merely $WP_DIR's existence:
+# $WP_DIR is a symlink to "." (tests/tmp itself, see below), and CI's own
+# actions/cache step caches exactly $WP_DIR ("tests/tmp/wordpress") — which,
+# being a symlink, serializes to a tiny (~194 byte) cache entry containing
+# only the symlink itself, never the real WordPress core files that live in
+# its target (tests/tmp/, the parent, outside the cached path). A cold
+# checkout that restores that cache ends up with a $WP_DIR that "exists" as
+# a directory (the symlink resolves) but is actually empty — `[ ! -d ]`
+# alone would then wrongly skip the entire download below.
+if [ ! -f "$WP_DIR/wp-settings.php" ]; then
 	echo "Setting up WordPress test environment in $WP_DIR..."
 
 	# wp-phpunit publishes one package version per WordPress core release,
