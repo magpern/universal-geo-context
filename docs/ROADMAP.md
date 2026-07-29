@@ -1,12 +1,12 @@
 # Roadmap
 
-**Status: M1 and M2 shipped. Milestones will be updated as they ship.**
+**Status: M1, M2, and M3 shipped. Milestones will be updated as they ship.**
 
 ## Milestone timeline
 
 - **v0.1.0 (M1)** — Core domain and public API; `RemoteAddrOnlyResolver` only. Shipped.
 - **v0.2.0 (M2)** — Client IP resolution, Cloudflare headers, WooCommerce integration, admin settings and diagnostics. Shipped.
-- **v0.3.0 (M3)** — MaxMind database support, caching with privacy floor.
+- **v0.3.0 (M3)** — Privacy floor formalized (`PrivacyGuardTest`, ADR-0005); `maxmind_db_path` setting; `MaxMindProvider` (local `.mmdb` country lookups, soft dependency); provider health tracking and the `universal_geo_maxmind` Site Health test. Shipped.
 - **v0.4.0 (M4)** — Remote provider (disabled by default).
 - **v1.0.0 (M5)** — WP-CLI, Site Health, translation readiness, release maturity.
 

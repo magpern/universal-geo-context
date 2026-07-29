@@ -24,8 +24,22 @@ WP_DB_PASS="${WP_DB_PASS:-root}"
 if [ ! -d "$WP_DIR" ]; then
 	echo "Setting up WordPress test environment in $WP_DIR..."
 
-	# Determine WordPress version from the installed wp-phpunit.
-	WP_VERSION=$(php -r 'echo json_decode(file_get_contents("'"$ROOT"'/vendor/wp-phpunit/wp-phpunit/wp-phpunit.json"), true)["wordpress_version"];')
+	# wp-phpunit publishes one package version per WordPress core release,
+	# using WordPress's own version string verbatim (e.g. package 7.0.2 <->
+	# WP core 7.0.2) — the package ships no wordpress-core/ directory or
+	# wp-phpunit.json manifest of its own (confirmed absent from every
+	# tagged release, not merely this one), so the resolved package version
+	# itself (from Composer's own installed.json, never a manifest file
+	# inside the package) is WordPress core's version to download.
+	WP_VERSION=$(php -r '
+		$installed = json_decode(file_get_contents("'"$ROOT"'/vendor/composer/installed.json"), true);
+		foreach ($installed["packages"] as $package) {
+			if ("wp-phpunit/wp-phpunit" === $package["name"]) {
+				echo $package["version"];
+				exit;
+			}
+		}
+	')
 	echo "WordPress version: $WP_VERSION"
 
 	mkdir -p "$TMPDIR"
@@ -52,11 +66,15 @@ if [ ! -d "$WP_DIR" ]; then
 		}
 	"
 
-	# Symlink instead of copying to save space.
-	if [ -d "$WP_DIR" ]; then
+	# The download above always extracts (--strip-components=1) directly
+	# into $TMPDIR itself, never into a "wordpress-$WP_VERSION" subdirectory
+	# — confirmed against the actual archive layout, not assumed — so the
+	# WP_DIR symlink always points at $TMPDIR itself ("."), never a
+	# version-named sibling.
+	if [ -d "$WP_DIR" ] || [ -L "$WP_DIR" ]; then
 		rm -rf "$WP_DIR"
 	fi
-	ln -s "$TMPDIR/wordpress-$WP_VERSION" "$WP_DIR" 2>/dev/null || ln -s "." "$WP_DIR"
+	ln -s "." "$WP_DIR"
 fi
 
 # Create wp-tests-config.php if needed.
@@ -99,22 +117,37 @@ if [ ! -d "$WP_DIR/wp-content/plugins/woocommerce" ]; then
 	mkdir -p "$WP_DIR/wp-content/plugins"
 	cd "$WP_DIR/wp-content/plugins"
 
-	if [ "$WC_VERSION" = "latest" ]; then
-		DOWNLOAD_URL="https://github.com/woocommerce/woocommerce/archive/refs/heads/trunk.zip"
-	else
-		DOWNLOAD_URL="https://github.com/woocommerce/woocommerce/archive/refs/tags/$WC_VERSION.zip"
-	fi
-
 	TMPZIP=$(mktemp)
-	curl -sSLo "$TMPZIP" "$DOWNLOAD_URL"
-	unzip -q "$TMPZIP"
-	rm "$TMPZIP"
 
-	# Rename the extracted directory to 'woocommerce'.
-	if [ -d "woocommerce-$WC_VERSION" ]; then
-		mv "woocommerce-$WC_VERSION" woocommerce
-	elif [ -d "woocommerce-trunk" ]; then
-		mv "woocommerce-trunk" woocommerce
+	if [ "$WC_VERSION" = "latest" ]; then
+		# No built release asset exists for an unreleased trunk build —
+		# fall back to the source archive (the whole monorepo: packages/,
+		# plugins/, tools/, ...), then promote the nested plugin directory.
+		curl -sSLo "$TMPZIP" "https://github.com/woocommerce/woocommerce/archive/refs/heads/trunk.zip"
+		unzip -q "$TMPZIP"
+		rm "$TMPZIP"
+
+		if [ -d "woocommerce-trunk" ]; then
+			mv "woocommerce-trunk" woocommerce
+		fi
+
+		if [ -f "woocommerce/plugins/woocommerce/woocommerce.php" ]; then
+			mv "woocommerce/plugins/woocommerce" woocommerce-plugin-only
+			rm -rf woocommerce
+			mv woocommerce-plugin-only woocommerce
+		fi
+	else
+		# The tagged source archive is the whole monorepo and, unlike the
+		# release asset below, ships no pre-built vendor/ — WooCommerce
+		# itself then reports "installation incomplete" and never boots.
+		# The GitHub Release's own "woocommerce.zip" asset is the actual
+		# built plugin (already the standard single-plugin zip layout,
+		# top-level directory "woocommerce/", vendor/ included) — the
+		# correct artifact for a runtime install, exactly what a site
+		# operator would download from wordpress.org.
+		curl -sSLo "$TMPZIP" "https://github.com/woocommerce/woocommerce/releases/download/$WC_VERSION/woocommerce.zip"
+		unzip -q "$TMPZIP"
+		rm "$TMPZIP"
 	fi
 fi
 

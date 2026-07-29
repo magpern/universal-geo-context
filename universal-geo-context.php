@@ -3,7 +3,7 @@
  * Plugin Name: Universal Geo Context
  * Plugin URI: https://github.com/magpern/universal-geo-context
  * Description: Visitor geolocation detection and country resolution. Evidence-based, privacy-respecting, and easily extensible.
- * Version: 0.2.0
+ * Version: 0.3.0
  * Author: magpern
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'UNIVERSAL_GEO_VERSION', '0.2.0' );
+define( 'UNIVERSAL_GEO_VERSION', '0.3.0' );
 define( 'UNIVERSAL_GEO_PLUGIN_FILE', __FILE__ );
 
 // PHP version guard. The "Requires PHP" header stops activation on WP 5.1+,

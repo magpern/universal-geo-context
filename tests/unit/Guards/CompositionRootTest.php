@@ -54,10 +54,12 @@ final class CompositionRootTest extends TestCase {
 		'GeoCache',
 		'ContextResolver',
 		'CloudflareHeaderProvider',
+		'MaxMindProvider',
 		'WooCommerceProvider',
 		'DefaultCountryProvider',
 		'DiagnosticsService',
 		'AdminScreen',
+		'ProviderHealthStore',
 	);
 
 	/**

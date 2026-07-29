@@ -15,8 +15,10 @@ use ReflectionMethod;
 use UniversalGeo\Admin\AdminScreen;
 use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Diagnostics\DiagnosticsService;
+use UniversalGeo\Diagnostics\ProviderHealthStore;
 use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\TrustedProxies;
+use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Tests\Support\ServerRequestFactory;
 
@@ -56,7 +58,15 @@ final class AdminScreenTest extends TestCase {
 		$ip_resolver     = new ClientIpResolver( $request, $trusted_proxies );
 		$resolver        = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
 
-		return new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted_proxies, array() );
+		return new DiagnosticsService(
+			$resolver,
+			$ip_resolver,
+			$request,
+			$trusted_proxies,
+			array(),
+			new ProviderHealthStore(),
+			new MaxMindProvider( '' )
+		);
 	}
 
 	private function screen( ?DiagnosticsService $diagnostics = null ): AdminScreen {
@@ -208,5 +218,87 @@ final class AdminScreenTest extends TestCase {
 		$screen      = $this->screen( $diagnostics );
 
 		$this->assertFalse( $this->invoke_private( $screen, 'should_show_first_run_notice' ) );
+	}
+
+	// ---- maxmind_path_is_valid() (M3) ------------------------------------------
+
+	public function test_maxmind_path_is_valid_accepts_a_readable_file_under_wp_content_dir(): void {
+		$path = WP_CONTENT_DIR . '/valid.mmdb';
+		file_put_contents( $path, 'fixture' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
+		$result = $this->invoke_private( $this->screen(), 'maxmind_path_is_valid', array( $path ) );
+
+		unlink( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		$this->assertTrue( $result );
+	}
+
+	public function test_maxmind_path_is_valid_rejects_a_missing_file(): void {
+		$result = $this->invoke_private( $this->screen(), 'maxmind_path_is_valid', array( WP_CONTENT_DIR . '/does-not-exist.mmdb' ) );
+
+		$this->assertFalse( $result );
+	}
+
+	public function test_maxmind_path_is_valid_rejects_a_directory(): void {
+		$result = $this->invoke_private( $this->screen(), 'maxmind_path_is_valid', array( WP_CONTENT_DIR ) );
+
+		$this->assertFalse( $result );
+	}
+
+	public function test_maxmind_path_is_valid_rejects_an_unreadable_file(): void {
+		$path = WP_CONTENT_DIR . '/unreadable.mmdb';
+		file_put_contents( $path, 'fixture' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		chmod( $path, 0000 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod
+
+		// Running as root (common in CI/containers) bypasses the 0000
+		// permission bit entirely — skip rather than assert a false negative.
+		if ( is_readable( $path ) ) {
+			chmod( $path, 0644 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod
+			unlink( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+			$this->markTestSkipped( 'Current user can read a 0000-permission file (likely running as root); cannot exercise this case.' );
+		}
+
+		$result = $this->invoke_private( $this->screen(), 'maxmind_path_is_valid', array( $path ) );
+
+		chmod( $path, 0644 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod
+		unlink( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		$this->assertFalse( $result );
+	}
+
+	public function test_maxmind_path_is_valid_rejects_a_path_outside_wp_content_dir(): void {
+		$path = sys_get_temp_dir() . '/universal-geo-context-outside-' . uniqid() . '.mmdb';
+		file_put_contents( $path, 'fixture' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
+		$result = $this->invoke_private( $this->screen(), 'maxmind_path_is_valid', array( $path ) );
+
+		unlink( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		$this->assertFalse( $result );
+	}
+
+	public function test_maxmind_path_is_valid_rejects_traversal_that_resolves_outside_wp_content_dir(): void {
+		$outside = sys_get_temp_dir() . '/universal-geo-context-traversal-target-' . uniqid() . '.mmdb';
+		file_put_contents( $outside, 'fixture' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
+		$traversal = rtrim( WP_CONTENT_DIR, '/' ) . '/../' . basename( $outside );
+
+		$result = $this->invoke_private( $this->screen(), 'maxmind_path_is_valid', array( $traversal ) );
+
+		unlink( $outside ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		$this->assertFalse( $result );
+	}
+
+	public function test_maxmind_path_is_valid_accepts_a_file_reached_via_traversal_that_still_resolves_inside(): void {
+		$sub_dir = WP_CONTENT_DIR . '/uploads';
+		if ( ! is_dir( $sub_dir ) ) {
+			mkdir( $sub_dir ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir
+		}
+
+		$path = WP_CONTENT_DIR . '/inside-via-traversal.mmdb';
+		file_put_contents( $path, 'fixture' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		$traversal = $sub_dir . '/../inside-via-traversal.mmdb';
+
+		$result = $this->invoke_private( $this->screen(), 'maxmind_path_is_valid', array( $traversal ) );
+
+		unlink( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		$this->assertTrue( $result );
 	}
 }

@@ -11,6 +11,7 @@ namespace UniversalGeo\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use ReflectionMethod;
 use UniversalGeo\Contracts\GeoProviderInterface;
 use UniversalGeo\Model\GeoCandidate;
 use UniversalGeo\Model\VisitorContext;
@@ -86,7 +87,8 @@ final class PluginTest extends TestCase {
 	private function set_settings(
 		string $default_country = '',
 		array $trusted_proxies = array(),
-		bool $trust_cloudflare = false
+		bool $trust_cloudflare = false,
+		string $maxmind_db_path = ''
 	): void {
 		$GLOBALS['universal_geo_test_options'][ Settings::OPTION_NAME ] = array(
 			'schema_version'        => Settings::SCHEMA_VERSION,
@@ -95,6 +97,7 @@ final class PluginTest extends TestCase {
 			'trust_cloudflare'      => $trust_cloudflare,
 			'derived_cache_enabled' => true,
 			'derived_cache_ttl'     => 900,
+			'maxmind_db_path'       => $maxmind_db_path,
 		);
 	}
 
@@ -407,7 +410,7 @@ final class PluginTest extends TestCase {
 		$plugin = Plugin::instance();
 		$plugin->init();
 
-		$this->assertSame( array( 'cloudflare', 'woocommerce', 'default' ), $received_ids );
+		$this->assertSame( array( 'cloudflare', 'maxmind', 'woocommerce', 'default' ), $received_ids );
 	}
 
 	public function test_providers_filter_non_conforming_element_is_dropped_without_fatal(): void {
@@ -479,6 +482,47 @@ final class PluginTest extends TestCase {
 		$this->assertSame( 'SE', $context->country_code );
 	}
 
+	/**
+	 * M3 F2: the failure callback must both fire the action (BC, verified
+	 * above) AND record into ProviderHealthStore — verified here via the
+	 * store's own option, since Plugin does not expose the store instance
+	 * publicly.
+	 */
+	public function test_provider_failure_is_also_recorded_into_the_provider_health_store(): void {
+		$this->set_settings( 'SE' );
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.1';
+
+		$throwing = new TrackingGeoProvider( 'throwing-provider', true, null, true );
+		add_filter(
+			'universal_geo_providers',
+			static function ( array $providers ) use ( $throwing ): array {
+				array_unshift( $providers, $throwing );
+				return $providers;
+			}
+		);
+
+		$plugin = Plugin::instance();
+		$plugin->init();
+		$plugin->context();
+
+		$stored = $GLOBALS['universal_geo_test_options']['universal_geo_provider_health'] ?? null;
+
+		$this->assertIsArray( $stored );
+		$this->assertArrayHasKey( 'throwing-provider', $stored );
+		$this->assertSame( 'RuntimeException', $stored['throwing-provider']['last_error_class'] );
+	}
+
+	public function test_successful_resolution_never_writes_to_the_provider_health_store(): void {
+		$this->set_default_country( 'SE' );
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.1';
+
+		$plugin = Plugin::instance();
+		$plugin->init();
+		$plugin->context();
+
+		$this->assertArrayNotHasKey( 'universal_geo_provider_health', $GLOBALS['universal_geo_test_options'] );
+	}
+
 	// ---- config_sig covers the new trust-boundary settings ------------------------
 
 	public function test_different_trusted_proxies_produce_a_different_config_sig(): void {
@@ -515,6 +559,76 @@ final class PluginTest extends TestCase {
 		$context = $second->context();
 
 		$this->assertFalse( $context->is_cached );
+	}
+
+	public function test_different_maxmind_db_path_produces_a_different_config_sig(): void {
+		// Both must resolve (realpath + WP_CONTENT_DIR containment) to a
+		// non-empty effective path for the sig inputs to actually differ —
+		// a nonexistent path degrades to '' regardless of what was configured.
+		$path_a = WP_CONTENT_DIR . '/plugin-test-geo-a.mmdb';
+		$path_b = WP_CONTENT_DIR . '/plugin-test-geo-b.mmdb';
+		file_put_contents( $path_a, 'a' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		file_put_contents( $path_b, 'b' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
+		$this->set_settings( 'SE', array(), false, $path_a );
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.1';
+
+		$first = Plugin::instance();
+		$first->init();
+		$first->context();
+
+		$this->reset_plugin_singleton();
+		$this->set_settings( 'SE', array(), false, $path_b );
+
+		$second = Plugin::instance();
+		$second->init();
+		$context = $second->context();
+
+		unlink( $path_a ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		unlink( $path_b ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		$this->assertFalse( $context->is_cached );
+	}
+
+	public function test_identical_maxmind_db_path_shares_the_same_config_sig(): void {
+		$path = WP_CONTENT_DIR . '/plugin-test-geo.mmdb';
+		file_put_contents( $path, 'a' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
+		$this->set_settings( 'SE', array(), false, $path );
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.1';
+
+		$first = Plugin::instance();
+		$first->init();
+		$first->context();
+
+		$this->reset_plugin_singleton();
+
+		$second = Plugin::instance();
+		$second->init();
+		$context = $second->context();
+
+		unlink( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		$this->assertTrue( $context->is_cached );
+	}
+
+	public function test_nonexistent_maxmind_db_path_resolves_to_empty_and_does_not_affect_config_sig(): void {
+		// A settings value that fails containment/existence degrades to ''
+		// at graph build — indistinguishable, for caching purposes, from no
+		// path configured at all.
+		$this->set_settings( 'SE', array(), false, '' );
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.1';
+
+		$first = Plugin::instance();
+		$first->init();
+		$first->context();
+
+		$this->reset_plugin_singleton();
+		$this->set_settings( 'SE', array(), false, WP_CONTENT_DIR . '/plugin-test-does-not-exist.mmdb' );
+
+		$second = Plugin::instance();
+		$second->init();
+		$context = $second->context();
+
+		$this->assertTrue( $context->is_cached );
 	}
 
 	public function test_identical_m2_settings_share_the_same_config_sig(): void {
@@ -766,5 +880,175 @@ final class PluginTest extends TestCase {
 		Plugin::instance()->init();
 
 		$this->assertArrayHasKey( 'site_status_tests', $GLOBALS['universal_geo_test_filters'] );
+	}
+
+	// ---- M3: resolved_maxmind_db_path() path-resolution chain -------------------
+
+	private const FIXTURE_COUNTRY_DB = __DIR__ . '/../fixtures/GeoIP2-Country-Test.mmdb';
+
+	/**
+	 * @param array<string, mixed> $settings The sanitized settings array.
+	 */
+	private function resolved_maxmind_db_path( array $settings ): string {
+		$reflection = new ReflectionMethod( Plugin::class, 'resolved_maxmind_db_path' );
+		$reflection->setAccessible( true );
+
+		return $reflection->invoke( Plugin::instance(), $settings );
+	}
+
+	private function base_settings( string $maxmind_db_path = '' ): array {
+		return array(
+			'schema_version'        => Settings::SCHEMA_VERSION,
+			'default_country'       => '',
+			'trusted_proxies'       => array(),
+			'trust_cloudflare'      => false,
+			'derived_cache_enabled' => true,
+			'derived_cache_ttl'     => 900,
+			'maxmind_db_path'       => $maxmind_db_path,
+		);
+	}
+
+	public function test_resolved_maxmind_db_path_empty_settings_and_no_wc_option_resolves_to_empty(): void {
+		// wp_upload_dir() does not exist in this unit bootstrap (proven by
+		// DiagnosticsServiceTest) — the WooCommerce auto-detect branch
+		// degrades to '' rather than fatal, deterministically, here too.
+		$this->assertFalse( function_exists( 'wp_upload_dir' ) );
+
+		$this->assertSame( '', $this->resolved_maxmind_db_path( $this->base_settings() ) );
+	}
+
+	public function test_resolved_maxmind_db_path_accepts_a_path_contained_under_wp_content_dir(): void {
+		$path = WP_CONTENT_DIR . '/plugin-resolution-test.mmdb';
+		copy( self::FIXTURE_COUNTRY_DB, $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_copy
+
+		$result = $this->resolved_maxmind_db_path( $this->base_settings( $path ) );
+
+		unlink( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		$this->assertSame( $path, $result );
+	}
+
+	public function test_resolved_maxmind_db_path_rejects_a_path_outside_wp_content_dir(): void {
+		// The committed fixture lives under tests/fixtures/, never under the
+		// fake WP_CONTENT_DIR fixture directory bootstrap.php defines.
+		$result = $this->resolved_maxmind_db_path( $this->base_settings( self::FIXTURE_COUNTRY_DB ) );
+
+		$this->assertSame( '', $result );
+	}
+
+	public function test_resolved_maxmind_db_path_rejects_a_nonexistent_settings_path(): void {
+		$result = $this->resolved_maxmind_db_path( $this->base_settings( WP_CONTENT_DIR . '/does-not-exist.mmdb' ) );
+
+		$this->assertSame( '', $result );
+	}
+
+	public function test_resolved_maxmind_db_path_filter_overrides_an_empty_result(): void {
+		add_filter( 'universal_geo_maxmind_db_path', static fn() => self::FIXTURE_COUNTRY_DB );
+
+		$result = $this->resolved_maxmind_db_path( $this->base_settings() );
+
+		$this->assertSame( self::FIXTURE_COUNTRY_DB, $result );
+	}
+
+	public function test_resolved_maxmind_db_path_filter_receives_the_pre_filter_path(): void {
+		$path = WP_CONTENT_DIR . '/plugin-resolution-filter-input-test.mmdb';
+		copy( self::FIXTURE_COUNTRY_DB, $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_copy
+
+		$received = null;
+		add_filter(
+			'universal_geo_maxmind_db_path',
+			function ( $value ) use ( &$received ) {
+				$received = $value;
+				return $value;
+			}
+		);
+
+		$this->resolved_maxmind_db_path( $this->base_settings( $path ) );
+
+		unlink( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		$this->assertSame( $path, $received );
+	}
+
+	public function test_resolved_maxmind_db_path_filter_non_string_result_is_discarded(): void {
+		add_filter( 'universal_geo_maxmind_db_path', static fn() => array( 'not-a-string' ) );
+
+		set_error_handler( static fn() => true, E_USER_WARNING ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler
+		$result = $this->resolved_maxmind_db_path( $this->base_settings() );
+		restore_error_handler();
+
+		$this->assertSame( '', $result );
+	}
+
+	public function test_maxmind_provider_resolves_via_full_plugin_wiring_using_the_filter(): void {
+		// Proves the whole chain end-to-end: filter -> Plugin -> MaxMindProvider
+		// -> ContextResolver -> VisitorContext, against the real public test
+		// fixture (214.78.120.0/22 -> US, per tests/fixtures/README.md).
+		add_filter( 'universal_geo_maxmind_db_path', static fn() => self::FIXTURE_COUNTRY_DB );
+
+		$this->set_settings( '' );
+		$_SERVER['REMOTE_ADDR'] = '214.78.120.1';
+
+		$plugin = Plugin::instance();
+		$plugin->init();
+		$context = $plugin->context();
+
+		$this->assertSame( 'US', $context->country_code );
+		$this->assertSame( 'maxmind', $context->source );
+		$this->assertSame( 0.90, $context->confidence );
+	}
+
+	public function test_maxmind_provider_slots_between_cloudflare_and_woocommerce(): void {
+		$received_ids = null;
+		add_filter(
+			'universal_geo_providers',
+			static function ( array $providers ) use ( &$received_ids ): array {
+				$received_ids = array_map( static fn( GeoProviderInterface $p ) => $p->get_id(), $providers );
+				return $providers;
+			}
+		);
+
+		$this->set_settings( 'SE' );
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.1';
+
+		$plugin = Plugin::instance();
+		$plugin->init();
+
+		$this->assertSame( array( 'cloudflare', 'maxmind', 'woocommerce', 'default' ), $received_ids );
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_maxmind_constant_wins_over_settings_and_wc_and_bypasses_the_filter(): void {
+		define( 'UNIVERSAL_GEO_MAXMIND_DB', '/etc/somewhere/outside/wp-content/geo.mmdb' );
+
+		$filter_called = false;
+		add_filter(
+			'universal_geo_maxmind_db_path',
+			static function ( $value ) use ( &$filter_called ) {
+				$filter_called = true;
+				return $value;
+			}
+		);
+
+		$result = $this->resolved_maxmind_db_path( $this->base_settings( self::FIXTURE_COUNTRY_DB ) );
+
+		$this->assertSame( '/etc/somewhere/outside/wp-content/geo.mmdb', $result );
+		$this->assertFalse( $filter_called, 'The filter must not be consulted when the constant wins.' );
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_maxmind_constant_may_point_outside_wp_content_dir(): void {
+		$outside = sys_get_temp_dir() . '/universal-geo-constant-test-' . uniqid() . '.mmdb';
+		copy( self::FIXTURE_COUNTRY_DB, $outside ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_copy
+		define( 'UNIVERSAL_GEO_MAXMIND_DB', $outside );
+
+		$result = $this->resolved_maxmind_db_path( $this->base_settings() );
+
+		unlink( $outside ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		$this->assertSame( $outside, $result );
 	}
 }

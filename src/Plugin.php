@@ -13,12 +13,14 @@ use UniversalGeo\Admin\AdminScreen;
 use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Contracts\GeoProviderInterface;
 use UniversalGeo\Diagnostics\DiagnosticsService;
+use UniversalGeo\Diagnostics\ProviderHealthStore;
 use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Http\TrustedProxies;
 use UniversalGeo\Model\VisitorContext;
 use UniversalGeo\Providers\CloudflareHeaderProvider;
 use UniversalGeo\Providers\DefaultCountryProvider;
+use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Providers\WooCommerceProvider;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Resolver\GeoValidator;
@@ -156,7 +158,9 @@ final class Plugin {
 				$graph['client_ip_resolver'],
 				$graph['server_request'],
 				$graph['trusted_proxies'],
-				$graph['settings']
+				$graph['settings'],
+				$graph['provider_health_store'],
+				$graph['maxmind_provider']
 			);
 			$diagnostics->register();
 
@@ -262,11 +266,11 @@ final class Plugin {
 	 *
 	 * PROVIDER_ORDER (Revision 3 §4.4, reproduced by ContextResolver as a
 	 * documentation-only constant it never reads at runtime): cloudflare,
-	 * maxmind, woocommerce, remote, default. MaxMind and remote don't exist
-	 * until M3/M4, so the array built here is cloudflare, woocommerce,
-	 * default — already in PROVIDER_ORDER's relative order.
+	 * maxmind, woocommerce, remote, default. Remote doesn't exist until M4,
+	 * so the array built here is cloudflare, maxmind, woocommerce, default —
+	 * already in PROVIDER_ORDER's relative order.
 	 *
-	 * @return array{resolver: ContextResolver, client_ip_resolver: ClientIpResolver, server_request: ServerRequest, trusted_proxies: TrustedProxies, settings: array<string, mixed>}
+	 * @return array{resolver: ContextResolver, client_ip_resolver: ClientIpResolver, server_request: ServerRequest, provider_health_store: ProviderHealthStore, maxmind_provider: MaxMindProvider, trusted_proxies: TrustedProxies, settings: array<string, mixed>}
 	 */
 	private function build_graph(): array {
 		$settings = Settings::sanitize( get_option( Settings::OPTION_NAME, false ) );
@@ -276,11 +280,14 @@ final class Plugin {
 
 		$client_ip_resolver = new ClientIpResolver( $server_request, $trusted_proxies );
 
-		$default_country = $this->filtered_default_country( $settings['default_country'] );
+		$default_country  = $this->filtered_default_country( $settings['default_country'] );
+		$maxmind_db_path  = $this->resolved_maxmind_db_path( $settings );
+		$maxmind_provider = new MaxMindProvider( $maxmind_db_path );
 
 		$providers = $this->filtered_providers(
 			array(
 				new CloudflareHeaderProvider( $server_request, $client_ip_resolver ),
+				$maxmind_provider,
 				new WooCommerceProvider(),
 				new DefaultCountryProvider( $default_country ),
 			)
@@ -293,17 +300,19 @@ final class Plugin {
 					'default_country'  => $default_country,
 					'trusted_proxies'  => $settings['trusted_proxies'],
 					'trust_cloudflare' => $settings['trust_cloudflare'],
+					'maxmind_db_path'  => $maxmind_db_path,
 				)
 			)
 		);
 
-		$cache = new GeoCache( $settings['derived_cache_enabled'], $settings['derived_cache_ttl'], $config_sig );
+		$cache                 = new GeoCache( $settings['derived_cache_enabled'], $settings['derived_cache_ttl'], $config_sig );
+		$provider_health_store = new ProviderHealthStore();
 
 		$resolver = new ContextResolver(
 			$client_ip_resolver,
 			$providers,
 			$cache,
-			static function ( string $provider_id, string $reason ): void {
+			static function ( string $provider_id, string $reason ) use ( $provider_health_store ): void {
 				/**
 				 * Fires when a provider's resolve() throws.
 				 *
@@ -313,15 +322,19 @@ final class Plugin {
 				 * @param string $reason      The exception's class and message. Never a client IP.
 				 */
 				do_action( 'universal_geo_provider_failed', $provider_id, $reason );
+
+				$provider_health_store->record( $provider_id, $reason );
 			}
 		);
 
 		return array(
-			'resolver'           => $resolver,
-			'client_ip_resolver' => $client_ip_resolver,
-			'server_request'     => $server_request,
-			'trusted_proxies'    => $trusted_proxies,
-			'settings'           => $settings,
+			'resolver'              => $resolver,
+			'client_ip_resolver'    => $client_ip_resolver,
+			'server_request'        => $server_request,
+			'provider_health_store' => $provider_health_store,
+			'maxmind_provider'      => $maxmind_provider,
+			'trusted_proxies'       => $trusted_proxies,
+			'settings'              => $settings,
 		);
 	}
 
@@ -359,6 +372,136 @@ final class Plugin {
 		}
 
 		return 1 === preg_match( '~^[A-Z]{2}$~', $filtered ) ? $filtered : $default_country;
+	}
+
+	/**
+	 * Resolves the single effective MaxMind database path (M3 architecture
+	 * report §6 3C), in strict precedence order:
+	 *
+	 * 1. `UNIVERSAL_GEO_MAXMIND_DB` — a wp-config.php constant. Wins
+	 *    outright when defined as a non-empty string; may point outside
+	 *    WP_CONTENT_DIR (the operator's own escape hatch); the filter is
+	 *    never consulted in this case.
+	 * 2. The sanitized settings value; if empty, the WooCommerce
+	 *    auto-detected candidate. Both are option-derived surfaces and are
+	 *    re-validated as contained under WP_CONTENT_DIR here, at graph
+	 *    construction — never trusting that a stored value necessarily came
+	 *    from the admin save handler's own containment check.
+	 * 3. `universal_geo_maxmind_db_path` — a code-level filter, uncontained,
+	 *    hardened exactly like filtered_default_country()/filtered_providers().
+	 *
+	 * The result feeds both MaxMindProvider's constructor and config_sig.
+	 *
+	 * @param array<string, mixed> $settings The sanitized settings array.
+	 *
+	 * @return string
+	 */
+	private function resolved_maxmind_db_path( array $settings ): string {
+		if ( defined( 'UNIVERSAL_GEO_MAXMIND_DB' ) && is_string( UNIVERSAL_GEO_MAXMIND_DB ) && '' !== UNIVERSAL_GEO_MAXMIND_DB ) {
+			return UNIVERSAL_GEO_MAXMIND_DB;
+		}
+
+		$path = '' !== $settings['maxmind_db_path'] ? $settings['maxmind_db_path'] : $this->wc_auto_detected_maxmind_path();
+
+		if ( '' !== $path && ! $this->is_contained_under_wp_content( $path ) ) {
+			$path = '';
+		}
+
+		return $this->filtered_maxmind_db_path( $path );
+	}
+
+	/**
+	 * Derives WooCommerce's own MaxMind database candidate path from its
+	 * stored settings option and the uploads directory — option-derived,
+	 * without depending on any WooCommerce class (WooCommerce may not even
+	 * be installed). Mirrors `WC_Integration_MaxMind_Database_Service::get_database_path()`'s
+	 * own, unfiltered formula: `{uploads}/woocommerce_uploads/{prefix-}GeoLite2-Country.mmdb`.
+	 *
+	 * @return string The candidate path, or '' when it cannot be derived.
+	 */
+	private function wc_auto_detected_maxmind_path(): string {
+		$wc_settings = get_option( 'woocommerce_maxmind_geolocation_settings', array() );
+		$prefix      = is_array( $wc_settings ) && ! empty( $wc_settings['database_prefix'] ) && is_string( $wc_settings['database_prefix'] )
+			? $wc_settings['database_prefix']
+			: '';
+
+		$upload_dir = function_exists( 'wp_upload_dir' ) ? wp_upload_dir() : null;
+		$base       = is_array( $upload_dir ) ? ( $upload_dir['basedir'] ?? null ) : null;
+
+		if ( ! is_string( $base ) || '' === $base ) {
+			return '';
+		}
+
+		$path = rtrim( $base, '/' ) . '/woocommerce_uploads/';
+
+		if ( '' !== $prefix ) {
+			$path .= $prefix . '-';
+		}
+
+		return $path . 'GeoLite2-Country.mmdb';
+	}
+
+	/**
+	 * Whether $path resolves (via realpath()) to somewhere under
+	 * WP_CONTENT_DIR — the containment check applied to every option-derived
+	 * MaxMind path source, mirroring AdminScreen::maxmind_path_is_valid()'s
+	 * own containment logic (the constant and the filter are exempt by
+	 * design; only settings/WooCommerce-derived candidates pass through
+	 * here).
+	 *
+	 * @param string $path A non-empty candidate path.
+	 *
+	 * @return bool
+	 */
+	private function is_contained_under_wp_content( string $path ): bool {
+		$resolved = realpath( $path );
+
+		if ( false === $resolved ) {
+			return false;
+		}
+
+		$content_dir = defined( 'WP_CONTENT_DIR' ) ? realpath( WP_CONTENT_DIR ) : false;
+
+		if ( false === $content_dir ) {
+			return false;
+		}
+
+		return str_starts_with( $resolved, rtrim( $content_dir, '/' ) . '/' );
+	}
+
+	/**
+	 * Applies the universal_geo_maxmind_db_path filter — a code-level
+	 * override, uncontained, hardened exactly like filtered_default_country():
+	 * a non-string result is discarded with _doing_it_wrong(), and the
+	 * pre-filter path is kept. Never called when the UNIVERSAL_GEO_MAXMIND_DB
+	 * constant already won (resolved_maxmind_db_path() returns before
+	 * reaching this method in that case).
+	 *
+	 * @param string $path The path resolved from settings/WooCommerce auto-detection (possibly '').
+	 *
+	 * @return string
+	 */
+	private function filtered_maxmind_db_path( string $path ): string {
+		/**
+		 * Filters the effective MaxMind database path.
+		 *
+		 * @since 0.3.0
+		 *
+		 * @param string $path The resolved path ('' when none is configured or the constant wasn't set).
+		 */
+		$filtered = apply_filters( 'universal_geo_maxmind_db_path', $path );
+
+		if ( ! is_string( $filtered ) ) {
+			_doing_it_wrong(
+				'universal_geo_maxmind_db_path',
+				'The universal_geo_maxmind_db_path filter must return a string.',
+				UNIVERSAL_GEO_VERSION // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			);
+
+			return $path;
+		}
+
+		return $filtered;
 	}
 
 	/**

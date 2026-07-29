@@ -14,6 +14,14 @@ $ugeo_root = dirname( __DIR__, 2 );
 
 require_once $ugeo_root . '/vendor/autoload.php';
 
+// Hand-rolled test doubles under tests/integration/Support/ — required
+// manually rather than left to Composer's PSR-4 autoloader, which cannot
+// resolve `UniversalGeo\Tests\Integration\...` (capital I) against this
+// directory's actual lowercase `tests/integration/` path on a case-
+// sensitive filesystem. Mirrors tests/unit/bootstrap.php's identical
+// manual-require workaround for tests/unit/Doubles/.
+require_once __DIR__ . '/Support/FixedResultClientIpResolver.php';
+
 define( 'UNIVERSAL_GEO_VERSION', '0.0.0-test' );
 
 $ugeo_tests_dir = getenv( 'WP_TESTS_DIR' );

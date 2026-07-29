@@ -129,6 +129,8 @@ final class AdminScreen {
 
 		check_admin_referer( 'universal_geo_save_settings' );
 
+		$previous = Settings::sanitize( get_option( Settings::OPTION_NAME, false ) );
+
 		// Every value below is re-sanitized by Settings::sanitize() immediately
 		// after (type checks, regex shape validation, range clamping) — this
 		// array is raw input on its way there, never used or persisted as-is.
@@ -140,12 +142,60 @@ final class AdminScreen {
 			'trust_cloudflare'      => ! empty( $_POST['trust_cloudflare'] ),
 			'derived_cache_enabled' => ! empty( $_POST['derived_cache_enabled'] ),
 			'derived_cache_ttl'     => isset( $_POST['derived_cache_ttl'] ) ? wp_unslash( $_POST['derived_cache_ttl'] ) : 900, // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			'maxmind_db_path'       => isset( $_POST['maxmind_db_path'] ) ? wp_unslash( $_POST['maxmind_db_path'] ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		);
 
-		update_option( Settings::OPTION_NAME, Settings::sanitize( $raw ) );
+		$sanitized = Settings::sanitize( $raw );
+
+		// Filesystem validation (realpath/is_file/is_readable/containment) is
+		// exclusively performed here, on the admin-panel surface — never
+		// inside Settings::sanitize() (the purity boundary, Settings.php's
+		// own docblock). Rejection retains the previously stored value
+		// rather than the syntactically-valid-but-unusable submitted one;
+		// acceptance stores the submitted path verbatim, not its realpath().
+		$maxmind_path_rejected = false;
+
+		if ( '' !== $sanitized['maxmind_db_path'] && ! $this->maxmind_path_is_valid( $sanitized['maxmind_db_path'] ) ) {
+			$sanitized['maxmind_db_path'] = $previous['maxmind_db_path'];
+			$maxmind_path_rejected        = true;
+		}
+
+		Settings::save( $sanitized );
 		GeoCache::bump_epoch();
 
+		if ( $maxmind_path_rejected ) {
+			$this->redirect_with_notice( 'maxmind_path_rejected', 'warning' );
+			return;
+		}
+
 		$this->redirect_with_notice( 'saved', 'success' );
+	}
+
+	/**
+	 * Filesystem validation for a submitted maxmind_db_path (Revision 3 §7,
+	 * M3 architecture report §6 3B): the path must resolve via realpath(),
+	 * be a readable regular file, and be contained under WP_CONTENT_DIR.
+	 * Never called from Settings::sanitize() — this is the one place in the
+	 * codebase filesystem I/O against an admin-supplied path is allowed.
+	 *
+	 * @param string $path An already syntactically-sanitized absolute path.
+	 *
+	 * @return bool
+	 */
+	private function maxmind_path_is_valid( string $path ): bool {
+		$resolved = realpath( $path );
+
+		if ( false === $resolved || ! is_file( $resolved ) || ! is_readable( $resolved ) ) {
+			return false;
+		}
+
+		$content_dir = realpath( WP_CONTENT_DIR );
+
+		if ( false === $content_dir ) {
+			return false;
+		}
+
+		return str_starts_with( $resolved, rtrim( $content_dir, '/' ) . '/' );
 	}
 
 	/**
@@ -173,7 +223,7 @@ final class AdminScreen {
 				$settings['trusted_proxies'][] = $entry;
 			}
 
-			update_option( Settings::OPTION_NAME, Settings::sanitize( $settings ) );
+			Settings::save( $settings );
 			GeoCache::bump_epoch();
 		}
 
@@ -197,7 +247,7 @@ final class AdminScreen {
 		$settings                     = Settings::sanitize( get_option( Settings::OPTION_NAME, false ) );
 		$settings['trust_cloudflare'] = true;
 
-		update_option( Settings::OPTION_NAME, Settings::sanitize( $settings ) );
+		Settings::save( $settings );
 		GeoCache::bump_epoch();
 
 		$this->redirect_with_notice( 'cf_preset_enabled', 'success' );
@@ -312,9 +362,10 @@ final class AdminScreen {
 	 */
 	private function notice_message( string $message_key ): string {
 		$messages = array(
-			'saved'             => __( 'Settings saved.', 'universal-geo-context' ),
-			'peer_trusted'      => __( 'The current peer address has been added to Trusted Proxies.', 'universal-geo-context' ),
-			'cf_preset_enabled' => __( 'The Cloudflare preset has been enabled.', 'universal-geo-context' ),
+			'saved'                 => __( 'Settings saved.', 'universal-geo-context' ),
+			'peer_trusted'          => __( 'The current peer address has been added to Trusted Proxies.', 'universal-geo-context' ),
+			'cf_preset_enabled'     => __( 'The Cloudflare preset has been enabled.', 'universal-geo-context' ),
+			'maxmind_path_rejected' => __( 'Other settings were saved, but the MaxMind database path could not be validated (not a readable file, or outside the WordPress content directory) — the previous value was kept.', 'universal-geo-context' ),
 		);
 
 		return $messages[ $message_key ] ?? '';
@@ -461,6 +512,15 @@ final class AdminScreen {
 			(int) $settings['derived_cache_ttl']
 		);
 
+		printf(
+			'<tr><th scope="row"><label for="universal_geo_maxmind_db_path">%1$s</label></th>' .
+			'<td><input type="text" class="regular-text" id="universal_geo_maxmind_db_path" name="maxmind_db_path" value="%2$s" />' .
+			'<p class="description">%3$s</p></td></tr>',
+			esc_html__( 'MaxMind database path', 'universal-geo-context' ),
+			esc_attr( $settings['maxmind_db_path'] ),
+			esc_html__( 'Absolute path to a .mmdb file under the WordPress content directory. Empty = auto-detect via WooCommerce.', 'universal-geo-context' )
+		);
+
 		echo '</tbody></table>';
 		submit_button();
 		echo '</form>';
@@ -510,8 +570,17 @@ final class AdminScreen {
 		echo '<h2>' . esc_html__( 'WooCommerce', 'universal-geo-context' ) . '</h2>';
 		$this->render_definition_list( $report['woocommerce'] );
 
+		echo '<h2>' . esc_html__( 'MaxMind', 'universal-geo-context' ) . '</h2>';
+		$this->render_definition_list( $report['maxmind'] );
+
 		echo '<h2>' . esc_html__( 'Providers', 'universal-geo-context' ) . '</h2>';
 		foreach ( $report['providers'] as $row ) {
+			$this->render_definition_list( $row );
+		}
+
+		echo '<h2>' . esc_html__( 'Provider health', 'universal-geo-context' ) . '</h2>';
+		foreach ( $report['provider_health'] as $provider_id => $row ) {
+			echo '<h3>' . esc_html( (string) $provider_id ) . '</h3>';
 			$this->render_definition_list( $row );
 		}
 

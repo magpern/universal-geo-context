@@ -17,6 +17,17 @@ if ( ! defined( 'UNIVERSAL_GEO_PLUGIN_FILE' ) ) {
 	define( 'UNIVERSAL_GEO_PLUGIN_FILE', dirname( __DIR__, 2 ) . '/universal-geo-context.php' );
 }
 
+// AdminScreen::maxmind_path_is_valid() reads WP_CONTENT_DIR directly (M3);
+// no WordPress is loaded in the unit bootstrap, so a fixture directory
+// stands in for it. Tests create/remove files under it directly.
+if ( ! defined( 'WP_CONTENT_DIR' ) ) {
+	define( 'WP_CONTENT_DIR', sys_get_temp_dir() . '/universal-geo-context-test-wp-content' );
+}
+
+if ( ! is_dir( WP_CONTENT_DIR ) ) {
+	mkdir( WP_CONTENT_DIR, 0777, true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir
+}
+
 // Minimal WordPress stubs for unit tests without WordPress loaded.
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 
@@ -183,8 +194,11 @@ if ( ! function_exists( 'is_admin' ) ) {
 
 // In-memory options store backing the get_option/add_option/update_option/
 // delete_option stubs below, so tests can exercise Settings::install() and
-// Settings::uninstall() without a database.
-$GLOBALS['universal_geo_test_options'] = array();
+// Settings::uninstall() without a database. universal_geo_test_option_autoload
+// records the autoload flag every add_option() call was given (M3:
+// ProviderHealthStore's non-autoload invariant needs to be assertable).
+$GLOBALS['universal_geo_test_options']         = array();
+$GLOBALS['universal_geo_test_option_autoload'] = array();
 
 if ( ! function_exists( 'get_option' ) ) {
 	function get_option( $option, $default = false ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Universal.NamingConventions.NoReservedKeywordParameterNames.defaultFound
@@ -195,7 +209,9 @@ if ( ! function_exists( 'get_option' ) ) {
 }
 
 if ( ! function_exists( 'add_option' ) ) {
-	function add_option( $option, $value ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+	function add_option( $option, $value, $deprecated = '', $autoload = 'yes' ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed, Universal.NamingConventions.NoReservedKeywordParameterNames.deprecatedFound
+		$GLOBALS['universal_geo_test_option_autoload'][ $option ] = $autoload;
+
 		if ( array_key_exists( $option, $GLOBALS['universal_geo_test_options'] ) ) {
 			return false;
 		}

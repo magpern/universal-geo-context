@@ -1,7 +1,7 @@
 # Hooks and Extension Points
 
-**Status: M2 complete.** Six of the seven v1 hooks are shipped (M1 shipped
-two; M2 adds four). `universal_geo_maxmind_db_path` remains M3.
+**Status: M3 complete.** All seven v1 hooks are shipped (M1 shipped two, M2
+added four, M3 adds the seventh and last: `universal_geo_maxmind_db_path`).
 
 All hooks use the `universal_geo_` namespace; filters are nouns, actions are
 `{subject}_{past-participle}`.
@@ -13,8 +13,8 @@ All hooks use the `universal_geo_` namespace; filters are nouns, actions are
 | `universal_geo_providers` | Filter | 0.2.0 | Once, when `Plugin::init()` builds the object graph (`plugins_loaded` priority 10). | Reorder, remove, or add providers. **The filtered array's order IS resolution order** — this is the advanced-customization surface that replaced a `provider_order` setting. |
 | `universal_geo_default_country` | Filter | 0.2.0 | Once, at graph build, before `DefaultCountryProvider` is constructed. | Override the configured fallback country. |
 | `universal_geo_trusted_proxies` | Filter | 0.2.0 | Lazily, on the first trust-gate evaluation each request (inside `ClientIpResolver`), not at graph build. | Extend the trusted-proxy CIDR set. **Additive only** — starts from an empty array and is unioned with the admin's own configuration; it can never shrink or replace what the admin configured. |
-| `universal_geo_provider_failed` | Action | 0.2.0 | Whenever a provider's `resolve()` throws, from inside the resolver loop (`ContextResolver::resolve()` or `::probe()`). | React to provider failures — logging, alerting, metrics. |
-| `universal_geo_maxmind_db_path` | Filter | — (M3) | Not yet implemented. | Override the MaxMind database path. |
+| `universal_geo_provider_failed` | Action | 0.2.0 | Whenever a provider's `resolve()` throws, from inside the resolver loop (`ContextResolver::resolve()` or `::probe()`). | React to provider failures — logging, alerting, metrics. As of 0.3.0 this same event also (separately) records a scrubbed copy into `ProviderHealthStore`; this action's own payload is unchanged. |
+| `universal_geo_maxmind_db_path` | Filter | 0.3.0 | Once, at graph build (`Plugin::build_graph()`, inside `resolved_maxmind_db_path()`), after the settings/WooCommerce-derived candidate has been resolved and containment-checked. **Not fired at all when `UNIVERSAL_GEO_MAXMIND_DB` is defined** — the constant wins outright and this filter is never consulted that request. | Override the effective MaxMind database path — a code-level surface, unlike the setting/WooCommerce sources, not constrained under `WP_CONTENT_DIR`. |
 
 ## Signatures
 
@@ -24,6 +24,7 @@ apply_filters( 'universal_geo_context', VisitorContext $context ): VisitorContex
 apply_filters( 'universal_geo_providers', GeoProviderInterface[] $providers ): GeoProviderInterface[]
 apply_filters( 'universal_geo_default_country', string $default_country ): string
 apply_filters( 'universal_geo_trusted_proxies', string[] $cidrs ): string[]
+apply_filters( 'universal_geo_maxmind_db_path', string $path ): string
 
 // Actions
 do_action( 'universal_geo_context_resolved', VisitorContext $context ): void
@@ -64,9 +65,21 @@ do_action( 'universal_geo_provider_failed', string $provider_id, string $reason 
   confidence (`0.85`) unless their `get_id()` matches one of the built-in
   provider ids in `ContextResolver`'s confidence table — a filter cannot
   mint a higher-confidence source than the resolver's own table allows.
-- `universal_geo_providers` and `universal_geo_default_country` fire once,
-  at `plugins_loaded` priority 10 (inside `Plugin::init()`) — a consumer
-  registering these filters must do so at file scope or another hook that
-  runs before priority 10, not inside `plugins_loaded` itself at a later
-  priority. `universal_geo_trusted_proxies` fires lazily, on first
-  resolution, so registering it any time before that first call works.
+- `universal_geo_providers`, `universal_geo_default_country`, and (as of
+  0.3.0) `universal_geo_maxmind_db_path` fire once, at `plugins_loaded`
+  priority 10 (inside `Plugin::init()`) — a consumer registering these
+  filters must do so at file scope or another hook that runs before
+  priority 10, not inside `plugins_loaded` itself at a later priority.
+  `universal_geo_trusted_proxies` fires lazily, on first resolution, so
+  registering it any time before that first call works.
+- `universal_geo_maxmind_db_path`'s return value is hardened identically to
+  `universal_geo_default_country`: a non-string result is discarded with
+  `_doing_it_wrong()` and the pre-filter path (the settings/WooCommerce-
+  derived candidate, or `''` if neither applied) is kept. The filter is a
+  code-level override and is **not** constrained under `WP_CONTENT_DIR` the
+  way the settings and WooCommerce-derived candidates are — it is trusted
+  the same way the `UNIVERSAL_GEO_MAXMIND_DB` constant is, since both are
+  only reachable by someone who can already run PHP on the site. The
+  constant takes precedence over this filter entirely: when
+  `UNIVERSAL_GEO_MAXMIND_DB` is defined as a non-empty string, this filter
+  is never invoked that request.

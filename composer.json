@@ -8,6 +8,7 @@
     },
     "require-dev": {
         "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+        "maxmind-db/reader": "^1.13",
         "phpunit/phpunit": "^9.6",
         "woocommerce/woocommerce-sniffs": "^1.0",
         "wp-coding-standards/wpcs": "^3.1",

@@ -24,18 +24,18 @@ use UniversalGeo\Http\IpUtils;
  * never throws, cleaning or dropping invalid input so persistence always
  * succeeds.
  *
- * M2 sub-step 2C scope: six keys — schema_version, default_country (M1),
- * plus trusted_proxies, trust_cloudflare, derived_cache_enabled, and
- * derived_cache_ttl (Revision 3 §11's "only two knobs exposed" for caching,
- * plus the two trust-boundary settings). `maxmind_db_path` and `remote`
- * remain M3/M4.
+ * Schema v3 (M3) scope: seven keys — schema_version, default_country (M1),
+ * trusted_proxies, trust_cloudflare, derived_cache_enabled, and
+ * derived_cache_ttl (M2), plus `maxmind_db_path` (M3). `remote` remains M4.
  *
- * **Purity boundary** (Revision 3 §11, audit finding F6): sanitize()
- * performs *syntactic* checks only — CIDR shape, boolean cast, TTL range —
- * never filesystem I/O. That rule has no bearing yet (no path-shaped
- * setting exists until `maxmind_db_path` in M3), but is stated here so the
- * boundary is established before the setting that could tempt violating it
- * arrives.
+ * **Purity boundary** (Revision 3 §11, audit finding F6; M3 architecture
+ * report §6 3B): sanitize() performs *syntactic* checks only — CIDR shape,
+ * boolean cast, TTL range, and (M3) absolute-path shape — never filesystem
+ * I/O. `maxmind_db_path` is validated here only as a string shape (trimmed,
+ * absolute Unix-style, no null bytes); `realpath()`, `is_file()`,
+ * `is_readable()`, and WP_CONTENT_DIR containment are exclusively
+ * `AdminScreen::handle_save_settings()`'s job, at the one point in the
+ * codebase filesystem I/O against an admin-supplied path is allowed.
  *
  * @internal
  * @final
@@ -49,7 +49,7 @@ final class Settings {
 	/**
 	 * Current schema version.
 	 */
-	const SCHEMA_VERSION = 2;
+	const SCHEMA_VERSION = 3;
 
 	/**
 	 * Default derived-context cache TTL in seconds (Revision 3 §11).
@@ -81,6 +81,7 @@ final class Settings {
 			'trust_cloudflare'      => false,
 			'derived_cache_enabled' => true,
 			'derived_cache_ttl'     => self::DEFAULT_CACHE_TTL,
+			'maxmind_db_path'       => '',
 		);
 	}
 
@@ -93,7 +94,7 @@ final class Settings {
 	 *
 	 * @param mixed $data Arbitrary input.
 	 *
-	 * @return array<string, mixed> The complete, normalized six-key schema.
+	 * @return array<string, mixed> The complete, normalized seven-key schema.
 	 */
 	public static function sanitize( $data ): array {
 		if ( ! is_array( $data ) ) {
@@ -107,6 +108,7 @@ final class Settings {
 			'trust_cloudflare'      => self::sanitize_bool( $data['trust_cloudflare'] ?? false ),
 			'derived_cache_enabled' => self::sanitize_bool( $data['derived_cache_enabled'] ?? true ),
 			'derived_cache_ttl'     => self::sanitize_ttl( $data['derived_cache_ttl'] ?? self::DEFAULT_CACHE_TTL ),
+			'maxmind_db_path'       => self::sanitize_maxmind_db_path( $data['maxmind_db_path'] ?? '' ),
 		);
 	}
 
@@ -252,6 +254,59 @@ final class Settings {
 	}
 
 	/**
+	 * Normalizes maxmind_db_path: syntactic shape only, no filesystem I/O
+	 * (the purity boundary this class's docblock states). Empty means
+	 * auto-detect. Trims whitespace; rejects non-strings, null bytes, and
+	 * anything not an absolute Unix-style path (leading '/') — including
+	 * relative paths and, structurally, arrays (already excluded by the
+	 * is_string() check). Never calls realpath(), is_file(), is_readable(),
+	 * or any WordPress filesystem function; that validation belongs
+	 * exclusively to AdminScreen::handle_save_settings().
+	 *
+	 * @param mixed $raw Arbitrary input.
+	 *
+	 * @return string
+	 */
+	private static function sanitize_maxmind_db_path( $raw ): string {
+		if ( ! is_string( $raw ) ) {
+			return '';
+		}
+
+		if ( str_contains( $raw, "\0" ) ) {
+			return '';
+		}
+
+		$value = trim( $raw );
+
+		if ( '' === $value ) {
+			return '';
+		}
+
+		return str_starts_with( $value, '/' ) ? $value : '';
+	}
+
+	/**
+	 * Sanitizes and persists a settings value in one step.
+	 *
+	 * The sole write path for the settings option outside install() —
+	 * AdminScreen and any future settings writer call this rather than
+	 * update_option() directly, keeping Settings the exclusive owner of
+	 * every update_option()/add_option() call for this option (the
+	 * privacy-floor option-writer allowlist, ADR-0005).
+	 *
+	 * @param mixed $data Arbitrary input, as from a form submission.
+	 *
+	 * @return array<string, mixed> The sanitized value that was persisted.
+	 */
+	public static function save( $data ): array {
+		$sanitized = self::sanitize( $data );
+
+		update_option( self::OPTION_NAME, $sanitized );
+
+		return $sanitized;
+	}
+
+	/**
 	 * Ensures the option exists and holds a sanitized value.
 	 *
 	 * Creates the option with defaults() when absent. When present,
@@ -269,14 +324,22 @@ final class Settings {
 	}
 
 	/**
-	 * Deletes the single option this plugin owns.
+	 * Deletes the options this plugin's uninstall lifecycle owns.
 	 *
-	 * M1 Step 1A owns exactly one persisted resource. No other option,
-	 * table, or metadata exists yet, so nothing else is deleted here.
+	 * All-or-nothing retention (CLAUDE.md core invariant 4): the settings
+	 * option (this class's own) and, as of M3, `universal_geo_provider_health`
+	 * (`ProviderHealthStore`'s option — M3 architecture report §6 3D: "the
+	 * option joins Settings::uninstall()'s deletions"). GeoCache's own
+	 * `universal_geo_cache_salt` / `universal_geo_cache_epoch` options and
+	 * AdminScreen's per-user notice-dismissal meta are a separate,
+	 * pre-existing gap in this same all-or-nothing behavior, out of M3's
+	 * scope to close (recorded in the M3 final report, not silently left
+	 * unmentioned).
 	 *
 	 * @return void
 	 */
 	public static function uninstall(): void {
 		delete_option( self::OPTION_NAME );
+		delete_option( 'universal_geo_provider_health' );
 	}
 }

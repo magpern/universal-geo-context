@@ -14,6 +14,7 @@ use UniversalGeo\Http\IpUtils;
 use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Http\TrustedProxies;
 use UniversalGeo\Plugin;
+use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Resolver\ContextResolver;
 
 /**
@@ -46,6 +47,18 @@ final class DiagnosticsService {
 	public const TEST_TRUSTED_PROXY = 'universal_geo_trusted_proxy';
 
 	/**
+	 * The MaxMind database Site Health test id (M3).
+	 */
+	public const TEST_MAXMIND = 'universal_geo_maxmind';
+
+	/**
+	 * Build-age thresholds (days) for the MaxMind Site Health test (M3
+	 * architecture report §6 3D).
+	 */
+	private const MAXMIND_CRITICAL_AGE_DAYS    = 90;
+	private const MAXMIND_RECOMMENDED_AGE_DAYS = 30;
+
+	/**
 	 * Bundled Cloudflare-range staleness thresholds, mirrored from the
 	 * MaxMind build-age pattern Revision 3 §12 describes for the (M3)
 	 * MaxMind test — used here only for the diagnostics report's own
@@ -57,23 +70,28 @@ final class DiagnosticsService {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param ContextResolver  $resolver        Supplies probe() for the provider table.
-	 * @param ClientIpResolver $ip_resolver     Supplies explain() and the trust verdicts.
-	 * @param ServerRequest    $request         The boot-time $_SERVER snapshot.
-	 * @param TrustedProxies   $trusted_proxies The effective trusted set.
-	 * @param array            $settings        The sanitized settings array (not the Settings class) — the only source of the two cache knobs, since GeoCache itself is not injected here.
+	 * @param ContextResolver     $resolver              Supplies probe() for the provider table.
+	 * @param ClientIpResolver    $ip_resolver           Supplies explain() and the trust verdicts.
+	 * @param ServerRequest       $request               The boot-time $_SERVER snapshot.
+	 * @param TrustedProxies      $trusted_proxies       The effective trusted set.
+	 * @param array               $settings              The sanitized settings array (not the Settings class) — the only source of the two cache knobs, since GeoCache itself is not injected here.
+	 * @param ProviderHealthStore $provider_health_store Supplies the already-scrubbed, bounded provider-health record (M3).
+	 * @param MaxMindProvider     $maxmind_provider      The same instance the resolver uses (M3 F8) — diagnostics never opens a second reader.
 	 */
 	public function __construct(
 		private readonly ContextResolver $resolver,
 		private readonly ClientIpResolver $ip_resolver,
 		private readonly ServerRequest $request,
 		private readonly TrustedProxies $trusted_proxies,
-		private readonly array $settings
+		private readonly array $settings,
+		private readonly ProviderHealthStore $provider_health_store,
+		private readonly MaxMindProvider $maxmind_provider
 	) {
 	}
 
 	/**
-	 * Builds the full structured report (Revision 3 §12's M2 sections).
+	 * Builds the full structured report (Revision 3 §12's M2 sections, plus
+	 * M3's maxmind and provider_health sections).
 	 *
 	 * @return array<string, mixed>
 	 */
@@ -85,14 +103,16 @@ final class DiagnosticsService {
 			'forwarding_headers' => $this->ip_resolver->explain(),
 			'cloudflare'         => $this->cloudflare_section(),
 			'woocommerce'        => $this->woocommerce_section(),
+			'maxmind'            => $this->maxmind_section(),
 			'providers'          => $this->resolver->probe(),
+			'provider_health'    => $this->provider_health_store->read(),
 			'cache'              => $this->cache_section(),
 			'environment'        => $this->environment_section(),
 		);
 	}
 
 	/**
-	 * Registers the trusted-proxy Site Health test.
+	 * Registers the trusted-proxy and MaxMind Site Health tests.
 	 *
 	 * @return void
 	 */
@@ -111,6 +131,11 @@ final class DiagnosticsService {
 		$tests['direct'][ self::TEST_TRUSTED_PROXY ] = array(
 			'label' => __( 'Universal Geo Context: trusted proxy configuration', 'universal-geo-context' ),
 			'test'  => array( $this, 'trusted_proxy_site_status_test' ),
+		);
+
+		$tests['direct'][ self::TEST_MAXMIND ] = array(
+			'label' => __( 'Universal Geo Context: MaxMind database', 'universal-geo-context' ),
+			'test'  => array( $this, 'maxmind_site_status_test' ),
 		);
 
 		return $tests;
@@ -170,6 +195,117 @@ final class DiagnosticsService {
 			'description' => sprintf( '<p>%s</p>', esc_html( $description ) ),
 			'actions'     => '',
 			'test'        => self::TEST_TRUSTED_PROXY,
+		);
+	}
+
+	/**
+	 * The MaxMind database Site Health test (M3 architecture report §6 3D):
+	 * an unconfigured path is always 'good' (an optional feature that isn't
+	 * set up is not ill health); a configured-but-missing/unreadable file
+	 * (with the reader library actually present) or a build age over
+	 * MAXMIND_CRITICAL_AGE_DAYS is 'critical'; a build age over
+	 * MAXMIND_RECOMMENDED_AGE_DAYS is 'recommended'; otherwise 'good'.
+	 * Gated on manage_options, per the trusted-proxy test's own precedent.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function maxmind_site_status_test(): array {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return $this->maxmind_site_status_result( 'good', __( 'Not applicable for this user.', 'universal-geo-context' ) );
+		}
+
+		$path = $this->maxmind_provider->db_path();
+
+		if ( '' === $path ) {
+			return $this->maxmind_site_status_result(
+				'good',
+				__( 'No MaxMind database is configured — this is an optional feature.', 'universal-geo-context' )
+			);
+		}
+
+		if ( ! class_exists( 'MaxMind\\Db\\Reader' ) ) {
+			return $this->maxmind_site_status_result(
+				'good',
+				__( 'A MaxMind database path is configured, but the MaxMind reader library is not available.', 'universal-geo-context' )
+			);
+		}
+
+		if ( ! is_readable( $path ) ) {
+			return $this->maxmind_site_status_result(
+				'critical',
+				__( 'A MaxMind database path is configured, but the file is missing or unreadable.', 'universal-geo-context' )
+			);
+		}
+
+		$metadata = $this->maxmind_provider->metadata();
+
+		if ( null === $metadata ) {
+			return $this->maxmind_site_status_result(
+				'critical',
+				__( 'The configured MaxMind database could not be opened.', 'universal-geo-context' )
+			);
+		}
+
+		$age_days = $metadata->build_age_days( time() );
+
+		if ( $age_days > self::MAXMIND_CRITICAL_AGE_DAYS ) {
+			return $this->maxmind_site_status_result(
+				'critical',
+				sprintf(
+					/* translators: %d: database age in days. */
+					__( 'The MaxMind database is %d days old (over 90) and should be updated.', 'universal-geo-context' ),
+					$age_days
+				)
+			);
+		}
+
+		if ( $age_days > self::MAXMIND_RECOMMENDED_AGE_DAYS ) {
+			return $this->maxmind_site_status_result(
+				'recommended',
+				sprintf(
+					/* translators: %d: database age in days. */
+					__( 'The MaxMind database is %d days old (over 30). Consider updating it.', 'universal-geo-context' ),
+					$age_days
+				)
+			);
+		}
+
+		return $this->maxmind_site_status_result(
+			'good',
+			__( 'The MaxMind database is present and current.', 'universal-geo-context' )
+		);
+	}
+
+	/**
+	 * Builds one MaxMind Site Health result array — a separate builder from
+	 * site_status_result() since that one is hardcoded to the trusted-proxy
+	 * label/test id and only ever produces 'good'/'critical', never
+	 * 'recommended'.
+	 *
+	 * @param string $status      'good', 'recommended', or 'critical'.
+	 * @param string $description Plain text, wrapped in a paragraph here.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function maxmind_site_status_result( string $status, string $description ): array {
+		if ( 'critical' === $status ) {
+			$color = 'red';
+		} elseif ( 'recommended' === $status ) {
+			$color = 'orange';
+		} else {
+			$color = 'blue';
+		}
+
+		return array(
+			'label'       => __( 'Universal Geo Context: MaxMind database', 'universal-geo-context' ),
+			'status'      => $status,
+			'badge'       => array(
+				'label' => __( 'Security', 'universal-geo-context' ),
+				'color' => $color,
+			),
+			'description' => sprintf( '<p>%s</p>', esc_html( $description ) ),
+			'actions'     => '',
+			'test'        => self::TEST_MAXMIND,
 		);
 	}
 
@@ -287,6 +423,31 @@ final class DiagnosticsService {
 		$matches = glob( rtrim( $base, '/' ) . '/*.mmdb' );
 
 		return is_array( $matches ) && array() !== $matches;
+	}
+
+	/**
+	 * Builds the "maxmind" section (M3): the effective resolved path (server
+	 * config, not personal data — never masked), availability, and — when
+	 * the reader opened successfully — its metadata. Reuses the injected
+	 * MaxMindProvider instance exclusively; never opens a second reader
+	 * (M3 F8).
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function maxmind_section(): array {
+		$metadata = $this->maxmind_provider->metadata();
+		$is_city  = null !== $metadata && str_contains( $metadata->database_type, 'City' );
+
+		return array(
+			'effective_path'     => $this->maxmind_provider->db_path(),
+			'available'          => $this->maxmind_provider->is_available(),
+			'reader_class_file'  => null !== $metadata ? $metadata->reader_class_file : null,
+			'database_type'      => null !== $metadata ? $metadata->database_type : null,
+			'build_age_days'     => null !== $metadata ? $metadata->build_age_days( time() ) : null,
+			'city_database_note' => $is_city
+				? __( 'City database detected; region support is deferred to a future release.', 'universal-geo-context' )
+				: '',
+		);
 	}
 
 	/**

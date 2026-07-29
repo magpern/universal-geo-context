@@ -34,11 +34,12 @@ final class SettingsTest extends TestCase {
 		'trust_cloudflare',
 		'derived_cache_enabled',
 		'derived_cache_ttl',
+		'maxmind_db_path',
 	);
 
 	// ---- defaults() -----------------------------------------------------------
 
-	public function test_defaults_contain_exactly_six_keys(): void {
+	public function test_defaults_contain_exactly_seven_keys(): void {
 		$this->assertSame( self::EXPECTED_KEYS, array_keys( Settings::defaults() ) );
 	}
 
@@ -64,6 +65,10 @@ final class SettingsTest extends TestCase {
 
 	public function test_defaults_derived_cache_ttl_is_900(): void {
 		$this->assertSame( 900, Settings::defaults()['derived_cache_ttl'] );
+	}
+
+	public function test_defaults_maxmind_db_path_is_empty(): void {
+		$this->assertSame( '', Settings::defaults()['maxmind_db_path'] );
 	}
 
 	public function test_defaults_are_deterministic(): void {
@@ -249,6 +254,94 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( 500, Settings::sanitize( array( 'derived_cache_ttl' => '500' ) )['derived_cache_ttl'] );
 	}
 
+	// ---- maxmind_db_path (M3) --------------------------------------------------
+
+	public function test_maxmind_db_path_accepts_an_absolute_path(): void {
+		$result = Settings::sanitize( array( 'maxmind_db_path' => '/var/www/html/wp-content/uploads/GeoLite2-Country.mmdb' ) );
+		$this->assertSame( '/var/www/html/wp-content/uploads/GeoLite2-Country.mmdb', $result['maxmind_db_path'] );
+	}
+
+	public function test_maxmind_db_path_empty_string_is_accepted_as_auto_detect(): void {
+		$result = Settings::sanitize( array( 'maxmind_db_path' => '' ) );
+		$this->assertSame( '', $result['maxmind_db_path'] );
+	}
+
+	public function test_maxmind_db_path_missing_defaults_to_empty(): void {
+		$this->assertSame( '', Settings::sanitize( array() )['maxmind_db_path'] );
+	}
+
+	public function test_maxmind_db_path_trims_surrounding_whitespace(): void {
+		$result = Settings::sanitize( array( 'maxmind_db_path' => '  /var/www/html/wp-content/uploads/geo.mmdb  ' ) );
+		$this->assertSame( '/var/www/html/wp-content/uploads/geo.mmdb', $result['maxmind_db_path'] );
+	}
+
+	public function test_maxmind_db_path_whitespace_only_becomes_empty(): void {
+		$this->assertSame( '', Settings::sanitize( array( 'maxmind_db_path' => '   ' ) )['maxmind_db_path'] );
+	}
+
+	public function test_maxmind_db_path_relative_path_is_rejected(): void {
+		$result = Settings::sanitize( array( 'maxmind_db_path' => 'relative/path/geo.mmdb' ) );
+		$this->assertSame( '', $result['maxmind_db_path'] );
+	}
+
+	public function test_maxmind_db_path_bare_filename_is_rejected(): void {
+		$result = Settings::sanitize( array( 'maxmind_db_path' => 'geo.mmdb' ) );
+		$this->assertSame( '', $result['maxmind_db_path'] );
+	}
+
+	public function test_maxmind_db_path_dot_dot_relative_is_rejected(): void {
+		$result = Settings::sanitize( array( 'maxmind_db_path' => '../../etc/passwd' ) );
+		$this->assertSame( '', $result['maxmind_db_path'] );
+	}
+
+	/**
+	 * A traversal-containing but still absolute path is a syntactically
+	 * valid absolute path (sanitize() is filesystem-free) — realpath()
+	 * containment against WP_CONTENT_DIR is AdminScreen's job, not this
+	 * one's. This test documents that boundary rather than asserting a
+	 * rejection sanitize() must not perform.
+	 */
+	public function test_maxmind_db_path_absolute_path_with_traversal_is_syntactically_accepted(): void {
+		$result = Settings::sanitize( array( 'maxmind_db_path' => '/var/www/html/wp-content/../../../etc/passwd' ) );
+		$this->assertSame( '/var/www/html/wp-content/../../../etc/passwd', $result['maxmind_db_path'] );
+	}
+
+	public function test_maxmind_db_path_null_byte_is_rejected(): void {
+		$result = Settings::sanitize( array( 'maxmind_db_path' => "/var/www/html/wp-content/geo.mmdb\0.jpg" ) );
+		$this->assertSame( '', $result['maxmind_db_path'] );
+	}
+
+	public function test_maxmind_db_path_array_is_rejected(): void {
+		$result = Settings::sanitize( array( 'maxmind_db_path' => array( '/var/www/geo.mmdb' ) ) );
+		$this->assertSame( '', $result['maxmind_db_path'] );
+	}
+
+	public function test_maxmind_db_path_non_string_is_rejected(): void {
+		$this->assertSame( '', Settings::sanitize( array( 'maxmind_db_path' => 123 ) )['maxmind_db_path'] );
+		$this->assertSame( '', Settings::sanitize( array( 'maxmind_db_path' => true ) )['maxmind_db_path'] );
+		$this->assertSame( '', Settings::sanitize( array( 'maxmind_db_path' => null ) )['maxmind_db_path'] );
+	}
+
+	// ---- v2 -> v3 migration -----------------------------------------------------
+
+	public function test_v2_settings_migrate_to_v3_with_maxmind_db_path_defaulted(): void {
+		$result = Settings::sanitize(
+			array(
+				'schema_version'        => 2,
+				'default_country'       => 'SE',
+				'trusted_proxies'       => array( '10.0.0.0/8' ),
+				'trust_cloudflare'      => true,
+				'derived_cache_enabled' => true,
+				'derived_cache_ttl'     => 900,
+			)
+		);
+
+		$this->assertSame( 3, $result['schema_version'] );
+		$this->assertSame( 'SE', $result['default_country'] );
+		$this->assertSame( '', $result['maxmind_db_path'] );
+		$this->assertSame( self::EXPECTED_KEYS, array_keys( $result ) );
+	}
+
 	// ---- Overall schema shape -----------------------------------------------------------
 
 	public function test_unknown_keys_are_removed(): void {
@@ -276,7 +369,7 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( Settings::SCHEMA_VERSION, $result['schema_version'] );
 	}
 
-	public function test_sanitize_returns_exactly_the_six_key_schema(): void {
+	public function test_sanitize_returns_exactly_the_seven_key_schema(): void {
 		$result = Settings::sanitize(
 			array(
 				'schema_version'        => 999,
@@ -285,6 +378,7 @@ final class SettingsTest extends TestCase {
 				'trust_cloudflare'      => true,
 				'derived_cache_enabled' => false,
 				'derived_cache_ttl'     => 1234,
+				'maxmind_db_path'       => '/var/www/html/wp-content/uploads/geo.mmdb',
 			)
 		);
 
@@ -295,6 +389,7 @@ final class SettingsTest extends TestCase {
 		$this->assertTrue( $result['trust_cloudflare'] );
 		$this->assertFalse( $result['derived_cache_enabled'] );
 		$this->assertSame( 1234, $result['derived_cache_ttl'] );
+		$this->assertSame( '/var/www/html/wp-content/uploads/geo.mmdb', $result['maxmind_db_path'] );
 	}
 
 	public function test_sanitize_of_non_array_returns_defaults(): void {
@@ -349,12 +444,26 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( array(), $stored['trusted_proxies'] );
 	}
 
-	public function test_uninstall_deletes_only_universal_geo_settings(): void {
+	public function test_uninstall_deletes_universal_geo_settings(): void {
 		update_option( Settings::OPTION_NAME, Settings::defaults() );
 
 		Settings::uninstall();
 
 		$this->assertFalse( get_option( Settings::OPTION_NAME, false ) );
+	}
+
+	/**
+	 * M3: universal_geo_provider_health (ProviderHealthStore's option) joins
+	 * Settings::uninstall()'s deletions — the all-or-nothing retention
+	 * behavior this class's uninstall() now owns for both its own option and
+	 * ProviderHealthStore's.
+	 */
+	public function test_uninstall_deletes_universal_geo_provider_health(): void {
+		update_option( 'universal_geo_provider_health', array( 'maxmind' => array( 'approx_count' => 1 ) ) );
+
+		Settings::uninstall();
+
+		$this->assertFalse( get_option( 'universal_geo_provider_health', false ) );
 	}
 
 	/**
@@ -365,14 +474,12 @@ final class SettingsTest extends TestCase {
 		update_option( Settings::OPTION_NAME, Settings::defaults() );
 		update_option( 'universal_geo_cache_salt', 'some-salt-value' );
 		update_option( 'universal_geo_cache_epoch', 1 );
-		update_option( 'universal_geo_provider_health', array( 'foo' => 'bar' ) );
 		update_option( 'some_unrelated_option', 'untouched' );
 
 		Settings::uninstall();
 
 		$this->assertSame( 'some-salt-value', get_option( 'universal_geo_cache_salt', false ) );
 		$this->assertSame( 1, get_option( 'universal_geo_cache_epoch', false ) );
-		$this->assertSame( array( 'foo' => 'bar' ), get_option( 'universal_geo_provider_health', false ) );
 		$this->assertSame( 'untouched', get_option( 'some_unrelated_option', false ) );
 	}
 }

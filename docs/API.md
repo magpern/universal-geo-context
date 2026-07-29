@@ -1,7 +1,8 @@
 # Public API
 
-**Status: M2 complete.** The six functions and one value object below are
-the frozen, permanent public surface as of v0.1.0 and are unchanged in M2.
+**Status: M3 complete.** The six functions and one value object below are
+the frozen, permanent public surface as of v0.1.0 and remain unchanged
+through M2 and M3.
 
 ## Public surface
 

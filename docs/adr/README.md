@@ -1,10 +1,10 @@
 # Architectural Decision Records
 
-**Status: M2 — 0002 and 0006 written and accepted.** 0001/0003/0004 are
-documented in the M1 milestone plan and `docs/ARCHITECTURE.md` but have not
-yet been written as standalone ADR files — a pre-existing gap from M1,
-noted here rather than silently left unmentioned; M1 is frozen (tagged `m1`)
-and this document does not retroactively alter it. 0005 remains M3.
+**Status: M3 — 0002, 0005, and 0006 written and accepted; 0003 written and
+amended (M3).** 0001/0004 remain documented only in the M1 milestone plan
+and `docs/ARCHITECTURE.md` — a pre-existing gap from M1, noted here rather
+than silently left unmentioned; M1 is frozen (tagged `m1`) and this document
+does not retroactively alter it. Nothing in M3 amends 0001 or 0004.
 
 Six ADRs will be written across M1–M3:
 
@@ -12,9 +12,9 @@ Six ADRs will be written across M1–M3:
 |---|---|---|---|
 | 0001 | Plugin purpose and boundaries | M1 | not yet written |
 | 0002 | Trusted proxy model | M2 | [0002-trusted-proxy-model.md](0002-trusted-proxy-model.md) |
-| 0003 | Provider architecture | M1, amended M3 | not yet written |
+| 0003 | Provider architecture | M1, amended M3 | [0003-provider-architecture.md](0003-provider-architecture.md) |
 | 0004 | Public API | M1 | not yet written |
-| 0005 | Privacy model | M3 | not yet written |
+| 0005 | Privacy model | M3 | [0005-privacy-model.md](0005-privacy-model.md) |
 | 0006 | Optional WooCommerce integration | M2 | [0006-optional-woocommerce-integration.md](0006-optional-woocommerce-integration.md) |
 
 ## Format

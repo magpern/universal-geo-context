@@ -13,19 +13,22 @@ use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Diagnostics\DiagnosticsService;
+use UniversalGeo\Diagnostics\ProviderHealthStore;
 use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\TrustedProxies;
 use UniversalGeo\Model\GeoCandidate;
 use UniversalGeo\Plugin;
+use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Settings;
 use UniversalGeo\Tests\Support\ServerRequestFactory;
 use UniversalGeo\Tests\Unit\Doubles\TrackingGeoProvider;
 
 /**
- * Covers the M2 report() sections, the trusted-proxy Site Health test, and
- * register(). MaxMind/remote report sections and the provider-health option
- * are out of scope (M3/M4).
+ * Covers the M2 report() sections, the trusted-proxy Site Health test,
+ * register(), and (M3) the maxmind/provider_health report sections and the
+ * MaxMind Site Health test. The remote report section remains out of scope
+ * (M4).
  */
 final class DiagnosticsServiceTest extends TestCase {
 
@@ -62,19 +65,29 @@ final class DiagnosticsServiceTest extends TestCase {
 		?ClientIpResolver $ip_resolver = null,
 		?TrustedProxies $trusted_proxies = null,
 		array $settings = array(),
-		array $providers = array()
+		array $providers = array(),
+		?ProviderHealthStore $provider_health_store = null,
+		?MaxMindProvider $maxmind_provider = null
 	): DiagnosticsService {
 		$request         = ServerRequestFactory::make( '203.0.113.1' );
 		$trusted_proxies = $trusted_proxies ?? new TrustedProxies( array(), false );
 		$ip_resolver     = $ip_resolver ?? new ClientIpResolver( $request, $trusted_proxies );
 		$resolver        = new ContextResolver( $ip_resolver, $providers, new GeoCache( false, 900, 'sig' ) );
 
-		return new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted_proxies, $settings );
+		return new DiagnosticsService(
+			$resolver,
+			$ip_resolver,
+			$request,
+			$trusted_proxies,
+			$settings,
+			$provider_health_store ?? new ProviderHealthStore(),
+			$maxmind_provider ?? new MaxMindProvider( '' )
+		);
 	}
 
 	// ---- report() shape ---------------------------------------------------------
 
-	public function test_report_contains_all_m2_sections(): void {
+	public function test_report_contains_all_sections(): void {
 		$report = $this->service()->report();
 
 		$this->assertSame(
@@ -85,7 +98,9 @@ final class DiagnosticsServiceTest extends TestCase {
 				'forwarding_headers',
 				'cloudflare',
 				'woocommerce',
+				'maxmind',
 				'providers',
+				'provider_health',
 				'cache',
 				'environment',
 			),
@@ -203,7 +218,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), true );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array() );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ) );
 
 		$report = $service->report();
 
@@ -257,6 +272,55 @@ final class DiagnosticsServiceTest extends TestCase {
 		$this->assertFalse( $report['woocommerce']['mmdb_present'] );
 	}
 
+	// ---- maxmind section (M3) --------------------------------------------------------------
+
+	public function test_maxmind_section_reports_unconfigured_by_default(): void {
+		$report = $this->service()->report();
+
+		$this->assertSame( '', $report['maxmind']['effective_path'] );
+		$this->assertFalse( $report['maxmind']['available'] );
+		$this->assertNull( $report['maxmind']['database_type'] );
+		$this->assertNull( $report['maxmind']['build_age_days'] );
+		$this->assertSame( '', $report['maxmind']['city_database_note'] );
+	}
+
+	public function test_maxmind_section_reports_metadata_for_a_real_database(): void {
+		$fixture  = dirname( __DIR__, 2 ) . '/fixtures/GeoIP2-Country-Test.mmdb';
+		$provider = new MaxMindProvider( $fixture );
+		$report   = $this->service( null, null, array(), array(), null, $provider )->report();
+
+		$this->assertSame( $fixture, $report['maxmind']['effective_path'] );
+		$this->assertTrue( $report['maxmind']['available'] );
+		$this->assertSame( 'GeoIP2-Country', $report['maxmind']['database_type'] );
+		$this->assertIsInt( $report['maxmind']['build_age_days'] );
+		$this->assertStringContainsString( 'Reader.php', $report['maxmind']['reader_class_file'] );
+		$this->assertSame( '', $report['maxmind']['city_database_note'] );
+	}
+
+	public function test_maxmind_section_reports_city_database_note_for_a_city_database(): void {
+		$fixture  = dirname( __DIR__, 2 ) . '/fixtures/GeoIP2-City-Test.mmdb';
+		$provider = new MaxMindProvider( $fixture );
+		$report   = $this->service( null, null, array(), array(), null, $provider )->report();
+
+		$this->assertSame( 'GeoIP2-City', $report['maxmind']['database_type'] );
+		$this->assertNotSame( '', $report['maxmind']['city_database_note'] );
+	}
+
+	public function test_maxmind_section_never_opens_a_second_reader(): void {
+		$fixture  = dirname( __DIR__, 2 ) . '/fixtures/GeoIP2-Country-Test.mmdb';
+		$provider = new MaxMindProvider( $fixture );
+		$provider->resolve( '214.78.120.1' );
+
+		$reflection      = new \ReflectionClass( $provider );
+		$reader_property = $reflection->getProperty( 'reader' );
+		$reader_property->setAccessible( true );
+		$reader_before = $reader_property->getValue( $provider );
+
+		$this->service( null, null, array(), array(), null, $provider )->report();
+
+		$this->assertSame( $reader_before, $reader_property->getValue( $provider ) );
+	}
+
 	// ---- providers section (probe() passthrough) ----------------------------------------
 
 	public function test_providers_section_reflects_probe(): void {
@@ -266,6 +330,24 @@ final class DiagnosticsServiceTest extends TestCase {
 		$this->assertCount( 1, $report['providers'] );
 		$this->assertSame( 'a', $report['providers'][0]['provider'] );
 		$this->assertSame( 'ok', $report['providers'][0]['reason'] );
+	}
+
+	// ---- provider_health section (M3) ------------------------------------------------------
+
+	public function test_provider_health_section_reflects_the_store(): void {
+		$store = new ProviderHealthStore();
+		$store->record( 'maxmind', 'RuntimeException: boom' );
+
+		$report = $this->service( null, null, array(), array(), $store )->report();
+
+		$this->assertArrayHasKey( 'maxmind', $report['provider_health'] );
+		$this->assertSame( 'RuntimeException', $report['provider_health']['maxmind']['last_error_class'] );
+	}
+
+	public function test_provider_health_section_is_empty_when_nothing_recorded(): void {
+		$report = $this->service()->report();
+
+		$this->assertSame( array(), $report['provider_health'] );
 	}
 
 	// ---- cache section --------------------------------------------------------------------
@@ -316,6 +398,12 @@ final class DiagnosticsServiceTest extends TestCase {
 		$this->assertArrayHasKey( DiagnosticsService::TEST_TRUSTED_PROXY, $result['direct'] );
 	}
 
+	public function test_add_site_status_tests_registers_the_maxmind_test(): void {
+		$tests = $this->service()->add_site_status_tests( array() );
+
+		$this->assertArrayHasKey( DiagnosticsService::TEST_MAXMIND, $tests['direct'] );
+	}
+
 	// ---- Site Health: trusted_proxy_site_status_test() -----------------------------------
 
 	public function test_site_status_test_is_critical_when_misconfigured(): void {
@@ -324,7 +412,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array() );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ) );
 
 		$result = $service->trusted_proxy_site_status_test();
 
@@ -337,7 +425,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array( '172.18.0.0/16' ), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array() );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ) );
 
 		$this->assertSame( 'good', $service->trusted_proxy_site_status_test()['status'] );
 	}
@@ -348,7 +436,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array() );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ) );
 
 		$this->assertSame( 'good', $service->trusted_proxy_site_status_test()['status'] );
 	}
@@ -358,7 +446,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array() );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ) );
 
 		$this->assertSame( 'good', $service->trusted_proxy_site_status_test()['status'] );
 	}
@@ -370,11 +458,54 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array() );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ) );
 
 		// Even though this scenario would otherwise be critical, an
 		// unauthorized user must never see that verdict.
 		$this->assertSame( 'good', $service->trusted_proxy_site_status_test()['status'] );
+	}
+
+	// ---- Site Health: maxmind_site_status_test() (M3) --------------------------------------
+
+	public function test_maxmind_site_status_test_is_good_when_unconfigured(): void {
+		$service = $this->service( null, null, array(), array(), null, new MaxMindProvider( '' ) );
+
+		$result = $service->maxmind_site_status_test();
+
+		$this->assertSame( 'good', $result['status'] );
+		$this->assertSame( DiagnosticsService::TEST_MAXMIND, $result['test'] );
+	}
+
+	public function test_maxmind_site_status_test_is_critical_when_configured_but_missing(): void {
+		$provider = new MaxMindProvider( '/nonexistent/path/geo.mmdb' );
+		$service  = $this->service( null, null, array(), array(), null, $provider );
+
+		$this->assertSame( 'critical', $service->maxmind_site_status_test()['status'] );
+	}
+
+	public function test_maxmind_site_status_test_is_good_for_a_healthy_fresh_database(): void {
+		// The fixture's build_epoch is recent enough (see MaxMindProviderTest)
+		// to fall well under the 30-day recommended threshold at the time
+		// this milestone was built; a hard date assertion isn't made here to
+		// avoid a test that silently starts failing purely due to elapsed
+		// time — build_age_days() itself is unit-tested directly on
+		// MaxMindMetadata.
+		$fixture  = dirname( __DIR__, 2 ) . '/fixtures/GeoIP2-Country-Test.mmdb';
+		$provider = new MaxMindProvider( $fixture );
+		$service  = $this->service( null, null, array(), array(), null, $provider );
+
+		$this->assertContains( $service->maxmind_site_status_test()['status'], array( 'good', 'recommended', 'critical' ) );
+	}
+
+	public function test_maxmind_site_status_test_gated_on_manage_options(): void {
+		$GLOBALS['universal_geo_test_current_user_can'] = false;
+
+		$provider = new MaxMindProvider( '/nonexistent/path/geo.mmdb' );
+		$service  = $this->service( null, null, array(), array(), null, $provider );
+
+		// Even though this scenario would otherwise be critical, an
+		// unauthorized user must never see that verdict.
+		$this->assertSame( 'good', $service->maxmind_site_status_test()['status'] );
 	}
 
 	// ---- Class shape --------------------------------------------------------------------

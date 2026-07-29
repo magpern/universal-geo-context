@@ -1,10 +1,13 @@
 # Privacy Model
 
-**Status: M2 draft, per the milestone plan (`PRIVACY.md | M2, finalised M5`).**
-Every invariant below is implemented and guard/unit-tested for the M1+M2
-surface. Finalization in M5 adds `wp_add_privacy_policy_content()` and a
-full privacy review covering the M3 (MaxMind) and M4 (remote provider)
-additions.
+**Status: Finalized (M3).** Every invariant below (P1–P6) is implemented
+and guard-tested (`tests/unit/Guards/PrivacyGuardTest.php`,
+`docs/adr/0005-privacy-model.md`) for the full M1–M3 surface, including
+MaxMind resolution and provider-health recording. M5 will additionally add
+`wp_add_privacy_policy_content()` (a WordPress privacy-tools integration,
+not a new invariant) and extend this document to cover M4's remote
+provider, the one consequential exception this plugin's design already
+names in advance (see "GDPR framing" below).
 
 ## Core principle
 
@@ -26,25 +29,34 @@ public API — `VisitorContext` has no IP field at all.
 | P1 | `VisitorContext` has no IP field and no dynamic properties. | `src/Model/VisitorContext.php` — `final`, fixed constructor-promoted properties. |
 | P2 | No file writes an IP to an option, transient, meta, table, or cache value as plain text — the only permitted persisted form is a salted hash inside a cache **key**, produced in exactly one file. | `src/Cache/GeoCache.php`'s key format: `"{epoch}:{config_sig}:ip:{hash}"`, `hash = substr(hash_hmac('sha256', $ip, $salt), 0, 32)`. |
 | P3 | No error, exception, or debug path emits an unmasked IP. Every address in diagnostics or a Site Health field passes through `IpUtils::mask()` first. | `src/Http/IpUtils.php::mask()`; consumed by `ClientIpResolver::explain()` and `DiagnosticsService`'s report sections. |
-| P4 | No outbound HTTP request carries an IP unless an administrator explicitly enabled a remote provider. | M2: no provider performs outbound HTTP at all (`WooCommerceProvider` calls `WC_Geolocation::geolocate_ip($ip, false, false)` — both fallbacks, including the API fallback, explicitly disabled). M4 will extend this invariant to the remote provider, off by default. |
-| P5 | Diagnostics and Site Health never print a complete IP address. WP-CLI (M5) will follow the same rule. | Every `DiagnosticsService::report()` section and the `universal_geo_trusted_proxy` Site Health test description use masked values exclusively. |
-| P6 | The plugin creates no custom database table. | No `dbDelta()` call anywhere in the codebase; the only persisted state is WordPress options (`universal_geo_settings`, `universal_geo_cache_salt`, `universal_geo_cache_epoch`) and one per-user meta key for the first-run notice dismissal. |
+| P4 | No outbound HTTP request carries an IP unless an administrator explicitly enabled a remote provider. | M1–M3: no provider performs outbound HTTP at all (`WooCommerceProvider` calls `WC_Geolocation::geolocate_ip($ip, false, false)` with both fallbacks disabled; `MaxMindProvider` is a purely local file read). `PrivacyGuardTest` enforces this by absence: `wp_remote_get`/`wp_remote_post`/`wp_remote_request`/`curl_init`/URL-fetching `file_get_contents` appear nowhere in `src/`. M4 will extend this invariant to the remote provider, off by default, with its own allowlist addition to the guard. |
+| P5 | Diagnostics and Site Health never print a complete IP address. WP-CLI (M5) will follow the same rule. | Every `DiagnosticsService::report()` section and both Site Health test descriptions (`universal_geo_trusted_proxy`, `universal_geo_maxmind`) use masked values exclusively — the MaxMind database path is server configuration, not personal data, and is shown unmasked; provider-health messages are scrubbed of IP-shaped tokens before they are ever persisted (see `ProviderHealthStore`, below). |
+| P6 | The plugin creates no custom database table. | No `dbDelta()` call anywhere in the codebase; the only persisted state is WordPress options and two per-user meta keys (below). |
 
-## Persisted-data inventory (M1+M2)
+## Persisted-data inventory (M1–M3)
 
 | Key | Type | Contents | Owner |
 |---|---|---|---|
-| `universal_geo_settings` | Option | `schema_version`, `default_country`, `trusted_proxies` (CIDRs — configuration, not personal data), `trust_cloudflare`, `derived_cache_enabled`, `derived_cache_ttl` | `Settings` |
+| `universal_geo_settings` | Option | `schema_version`, `default_country`, `trusted_proxies` (CIDRs — configuration, not personal data), `trust_cloudflare`, `derived_cache_enabled`, `derived_cache_ttl`, `maxmind_db_path` (a filesystem path — configuration, not personal data) | `Settings` |
 | `universal_geo_cache_salt` | Option | 32 random bytes, base64-encoded. Generated lazily on first cache write, never eagerly. | `GeoCache` |
 | `universal_geo_cache_epoch` | Option | An autoloaded integer, bumped by one on every settings save. | `GeoCache` (`bump_epoch()`) |
+| `universal_geo_provider_health` | Option | Non-autoloaded. A bounded record per provider id (`last_error_class`, `last_error_message`, `approx_count`, `last_seen_at`) — never a raw IP; every message is scrubbed of IP-shaped tokens and truncated before being written, and the approximate count is throttled (at most one write per 300s per unchanged error signature) rather than proportional to traffic. | `ProviderHealthStore` |
 | `universal_geo_first_run_notice_dismissed` | User meta | `1` once a specific admin user dismisses the first-run trusted-proxy notice. Per-user, never site-wide. | `AdminScreen` |
 | Derived-context cache entries (object cache only, e.g. Redis via `redis-cache`) | Object cache | The resolved `VisitorContext` (country, region, source, confidence, schema version) — **no IP** — under a key containing a salted-hash of the IP, never the IP itself. | `GeoCache` |
 
 Nothing above is deleted on **deactivation** (house invariant: deactivation
-removes nothing). **Uninstall** deletes all of it — the settings option, the
-cache salt, the cache epoch, and every user's notice-dismissal meta —
-permanently orphaning any residual cache-key hashes (they become
-unreconstructable once the salt is gone).
+removes nothing). **Uninstall** (`Settings::uninstall()`) deletes
+`universal_geo_settings` and, as of M3, `universal_geo_provider_health`.
+**Known gap, stated honestly rather than left unmentioned:** `Settings::uninstall()`
+does not currently delete `universal_geo_cache_salt`, `universal_geo_cache_epoch`,
+or the per-user `universal_geo_first_run_notice_dismissed` meta — a
+pre-existing M2 gap in the "uninstall is all-or-nothing" house invariant
+(CLAUDE.md), discovered during M3's privacy-floor reconciliation and out of
+M3's own scope to close (it does not conflict with anything M3 requires;
+closing it is recommended future cleanup, tracked as a PO decision rather
+than fixed silently as a drive-by change). None of the un-deleted items are
+themselves an IP or personal data in the P1–P6 sense: the salt and epoch are
+opaque configuration values, and the notice-dismissal meta is a boolean.
 
 ## Cache-key privacy, stated honestly
 

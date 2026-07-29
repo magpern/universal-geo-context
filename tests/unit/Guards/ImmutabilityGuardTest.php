@@ -15,15 +15,18 @@ use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Model\GeoCandidate;
 use UniversalGeo\Model\ResolvedClientIp;
 use UniversalGeo\Model\VisitorContext;
+use UniversalGeo\Providers\MaxMindMetadata;
 
 /**
  * Enforces Revision 3 §13's exact frozen list: "VisitorContext, GeoCandidate,
  * ResolvedClientIp and ServerRequest are final with readonly promoted
- * properties." An explicit class allowlist, not a naming-pattern or
- * directory heuristic — "value object" is a design classification this
- * guard must not try to infer, and a heuristic (e.g. "everything under
- * src/Model/") would silently miss ServerRequest, which lives under
- * src/Http/ once M2 adds it.
+ * properties" — plus MaxMindMetadata, joined in M3 (M3 architecture report
+ * §6 3C: "A VO rather than an array for the same reason ResolvedClientIp is
+ * one"). An explicit class allowlist, not a naming-pattern or directory
+ * heuristic — "value object" is a design classification this guard must
+ * not try to infer, and a heuristic (e.g. "everything under src/Model/")
+ * would silently miss ServerRequest (src/Http/) and MaxMindMetadata
+ * (src/Providers/).
  *
  * Checks `final` and "every declared property is readonly" — not literal
  * constructor promotion of every property. VisitorContext (frozen, M1)
@@ -50,6 +53,7 @@ final class ImmutabilityGuardTest extends TestCase {
 		GeoCandidate::class,
 		ResolvedClientIp::class,
 		ServerRequest::class,
+		MaxMindMetadata::class,
 	);
 
 	/**
