@@ -61,15 +61,6 @@ final class ReferenceRemoteProvider implements GeoProviderInterface {
 	public const ENDPOINT_HOST = 'geolite.info';
 
 	/**
-	 * The fixed request timeout, in seconds — an internal policy constant,
-	 * not an administrator-configurable setting (the M4 report names no
-	 * settings key for it); `WordPressHttpTransport` itself additionally
-	 * bounds whatever value it is given. Public so `DiagnosticsService` can
-	 * surface it without duplicating the value.
-	 */
-	public const TIMEOUT_SECONDS = 3;
-
-	/**
 	 * A healthy "no data for this address" response.
 	 */
 	private const STATUS_NOT_FOUND = 404;
@@ -81,20 +72,22 @@ final class ReferenceRemoteProvider implements GeoProviderInterface {
 
 	/**
 	 * Stores the injected dependencies. Every settings-derived value
-	 * (`$enabled`, `$account_id`, `$license_key`) arrives already resolved
-	 * by `Plugin::build_graph()` — this class never reads settings, a
-	 * constant, or `get_option()` itself.
+	 * (`$enabled`, `$account_id`, `$license_key`, `$timeout_seconds`) arrives
+	 * already resolved/sanitized by `Plugin::build_graph()`/`Settings::sanitize()`
+	 * — this class never reads settings, a constant, or `get_option()` itself.
 	 *
-	 * @param bool           $enabled       The fully-resolved "is the remote provider on" decision (`remote_enabled`, itself already forced false by `Settings::sanitize()` unless the transfer acknowledgement was also true).
-	 * @param string         $account_id    The effective account id, or '' when none is configured.
-	 * @param string         $license_key   The effective license key, or '' when none is configured.
-	 * @param HttpTransport  $http_transport Performs the outbound request.
+	 * @param bool           $enabled         The fully-resolved "is the remote provider on" decision (`remote_enabled`, itself already forced false by `Settings::sanitize()` unless the transfer acknowledgement was also true).
+	 * @param string         $account_id      The effective account id, or '' when none is configured.
+	 * @param string         $license_key     The effective license key, or '' when none is configured.
+	 * @param int            $timeout_seconds The configured request timeout, in seconds — already clamped to [1, 5] by `Settings::sanitize()` (the page-view latency bound, G10); passed through to the transport as-is.
+	 * @param HttpTransport  $http_transport  Performs the outbound request.
 	 * @param CircuitBreaker $circuit_breaker Gates whether an attempt may be made at all.
 	 */
 	public function __construct(
 		private readonly bool $enabled,
 		private readonly string $account_id,
 		private readonly string $license_key,
+		private readonly int $timeout_seconds,
 		private readonly HttpTransport $http_transport,
 		private readonly CircuitBreaker $circuit_breaker
 	) {
@@ -162,7 +155,7 @@ final class ReferenceRemoteProvider implements GeoProviderInterface {
 		);
 
 		try {
-			$response = $this->http_transport->get( self::ENDPOINT . $ip, $headers, self::TIMEOUT_SECONDS );
+			$response = $this->http_transport->get( self::ENDPOINT . $ip, $headers, $this->timeout_seconds );
 		} catch ( TransportException $e ) {
 			$this->circuit_breaker->report_failure();
 			throw $e;

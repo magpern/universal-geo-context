@@ -24,11 +24,11 @@ use UniversalGeo\Http\IpUtils;
  * never throws, cleaning or dropping invalid input so persistence always
  * succeeds.
  *
- * Schema v4 (M4) scope: eleven keys — schema_version, default_country (M1),
+ * Schema v4 (M4) scope: twelve keys — schema_version, default_country (M1),
  * trusted_proxies, trust_cloudflare, derived_cache_enabled, and
  * derived_cache_ttl (M2), `maxmind_db_path` (M3), plus (M4)
- * `remote_enabled`, `remote_account_id`, `remote_license_key`, and
- * `remote_transfer_acknowledged`.
+ * `remote_enabled`, `remote_account_id`, `remote_license_key`,
+ * `remote_transfer_acknowledged`, and `remote_timeout`.
  *
  * **The structural acknowledgement rule (M4 frozen decision):**
  * `sanitize()` forces `remote_enabled` to `false` unless
@@ -86,6 +86,23 @@ final class Settings {
 	private const MAX_CACHE_TTL = 86400;
 
 	/**
+	 * Default remote-provider request timeout, in seconds (M4 frozen policy).
+	 */
+	private const DEFAULT_REMOTE_TIMEOUT = 2;
+
+	/**
+	 * Lowest accepted remote_timeout, seconds (M4 frozen policy).
+	 */
+	private const MIN_REMOTE_TIMEOUT = 1;
+
+	/**
+	 * Highest accepted remote_timeout, seconds (M4 frozen policy) — the
+	 * page-view latency bound (G10): a single remote lookup must never be
+	 * able to hold a request open longer than this, even misconfigured.
+	 */
+	private const MAX_REMOTE_TIMEOUT = 5;
+
+	/**
 	 * The default settings structure.
 	 *
 	 * @return array<string, mixed>
@@ -103,6 +120,7 @@ final class Settings {
 			'remote_account_id'            => '',
 			'remote_license_key'           => '',
 			'remote_transfer_acknowledged' => false,
+			'remote_timeout'               => self::DEFAULT_REMOTE_TIMEOUT,
 		);
 	}
 
@@ -115,7 +133,7 @@ final class Settings {
 	 *
 	 * @param mixed $data Arbitrary input.
 	 *
-	 * @return array<string, mixed> The complete, normalized seven-key schema.
+	 * @return array<string, mixed> The complete, normalized twelve-key schema.
 	 */
 	public static function sanitize( $data ): array {
 		if ( ! is_array( $data ) ) {
@@ -140,6 +158,7 @@ final class Settings {
 			'remote_account_id'            => self::sanitize_credential( $data['remote_account_id'] ?? '' ),
 			'remote_license_key'           => self::sanitize_credential( $data['remote_license_key'] ?? '' ),
 			'remote_transfer_acknowledged' => $transfer_acknowledged,
+			'remote_timeout'               => self::sanitize_remote_timeout( $data['remote_timeout'] ?? self::DEFAULT_REMOTE_TIMEOUT ),
 		);
 	}
 
@@ -282,6 +301,31 @@ final class Settings {
 		}
 
 		return max( self::MIN_CACHE_TTL, min( self::MAX_CACHE_TTL, $ttl ) );
+	}
+
+	/**
+	 * Normalizes remote_timeout (M4 frozen policy — the page-view latency
+	 * bound, G10): a non-numeric value falls back to the default (2s)
+	 * outright; any numeric value, in or out of range, is clamped into
+	 * [MIN_REMOTE_TIMEOUT, MAX_REMOTE_TIMEOUT] (1–5s) — unlike
+	 * derived_cache_ttl, an out-of-range numeric value clamps to the nearest
+	 * bound rather than falling back to the default, since "the admin typed
+	 * a number that's merely too large/small" is a different failure mode
+	 * than "the admin typed nothing sensible at all".
+	 *
+	 * @param mixed $raw Arbitrary input.
+	 *
+	 * @return int
+	 */
+	private static function sanitize_remote_timeout( $raw ): int {
+		$is_numeric = is_int( $raw ) || is_float( $raw )
+			|| ( is_string( $raw ) && 1 === preg_match( '/^-?\d+$/', trim( $raw ) ) );
+
+		if ( ! $is_numeric ) {
+			return self::DEFAULT_REMOTE_TIMEOUT;
+		}
+
+		return max( self::MIN_REMOTE_TIMEOUT, min( self::MAX_REMOTE_TIMEOUT, (int) $raw ) );
 	}
 
 	/**

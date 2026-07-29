@@ -294,6 +294,7 @@ final class Plugin {
 			$settings['remote_enabled'],
 			$remote_credentials['account_id'],
 			$remote_credentials['license_key'],
+			$settings['remote_timeout'],
 			new WordPressHttpTransport(),
 			$circuit_breaker
 		);

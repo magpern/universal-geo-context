@@ -43,12 +43,14 @@ final class ReferenceRemoteProviderTest extends TestCase {
 		bool $enabled = true,
 		string $account_id = 'acct',
 		string $license_key = 'key',
-		?CircuitBreaker $circuit_breaker = null
+		?CircuitBreaker $circuit_breaker = null,
+		int $timeout_seconds = 2
 	): ReferenceRemoteProvider {
 		return new ReferenceRemoteProvider(
 			$enabled,
 			$account_id,
 			$license_key,
+			$timeout_seconds,
 			$transport,
 			$circuit_breaker ?? new CircuitBreaker()
 		);
@@ -148,6 +150,15 @@ final class ReferenceRemoteProviderTest extends TestCase {
 		$this->provider( $transport )->resolve( '8.8.8.8' );
 
 		$this->assertSame( 'https://geolite.info/geoip/v2.1/country/8.8.8.8', $transport->calls[0]['url'] );
+	}
+
+	public function test_resolve_passes_the_configured_timeout_to_the_transport(): void {
+		$transport = new FakeHttpTransport();
+		$transport->will_return( new TransportResponse( 200, '{"country":{"iso_code":"US"}}' ) );
+
+		$this->provider( $transport, true, 'acct', 'key', null, 5 )->resolve( '8.8.8.8' );
+
+		$this->assertSame( 5, $transport->calls[0]['timeout_seconds'] );
 	}
 
 	public function test_resolve_makes_exactly_one_transport_call(): void {

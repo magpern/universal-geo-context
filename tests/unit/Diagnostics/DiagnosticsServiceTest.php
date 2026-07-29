@@ -338,11 +338,22 @@ final class DiagnosticsServiceTest extends TestCase {
 		$this->assertSame( 'none', $report['remote']['credential_source'] );
 	}
 
-	public function test_remote_section_reports_the_fixed_endpoint_host_and_timeout(): void {
+	public function test_remote_section_reports_the_fixed_endpoint_host(): void {
 		$report = $this->service()->report();
 
 		$this->assertSame( 'geolite.info', $report['remote']['endpoint_host'] );
-		$this->assertIsInt( $report['remote']['timeout_seconds'] );
+	}
+
+	public function test_remote_section_reports_the_default_timeout_when_unconfigured(): void {
+		$report = $this->service()->report();
+
+		$this->assertSame( 2, $report['remote']['timeout_seconds'] );
+	}
+
+	public function test_remote_section_reports_the_configured_timeout(): void {
+		$report = $this->service( null, null, array( 'remote_timeout' => 5 ) )->report();
+
+		$this->assertSame( 5, $report['remote']['timeout_seconds'] );
 	}
 
 	public function test_remote_section_reports_settings_derived_flags(): void {

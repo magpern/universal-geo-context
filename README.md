@@ -50,7 +50,7 @@ Settings → Geo Context, two tabs:
 - **Default country** — Fallback when every provider misses (optional; empty → unknown).
 - **MaxMind database path** — Absolute path to a `.mmdb` file under the WordPress content directory. Empty = auto-detect via WooCommerce's own MaxMind integration.
 - **Derived cache TTL** — How long to cache a result (only with a persistent object cache).
-- **Remote provider** — Disabled by default. Enabling it requires, in the same submission, an explicit acknowledgement that visitor IP addresses will be transferred to MaxMind, Inc. at `geolite.info`, plus an account id and license key (or the `UNIVERSAL_GEO_REMOTE_ACCOUNT_ID` / `UNIVERSAL_GEO_REMOTE_LICENSE_KEY` wp-config.php constants, which take precedence as a pair).
+- **Remote provider** — Disabled by default. Enabling it requires, in the same submission, an explicit acknowledgement that visitor IP addresses will be transferred to MaxMind, Inc. at `geolite.info`, plus an account id and license key (or the `UNIVERSAL_GEO_REMOTE_ACCOUNT_ID` / `UNIVERSAL_GEO_REMOTE_LICENSE_KEY` wp-config.php constants, which take precedence as a pair). Request timeout is configurable from 1–5 seconds (default 2).
 
 The Diagnostics tab shows live resolution, masked IPs, per-provider probe
 results, MaxMind database metadata, remote-provider status (credential

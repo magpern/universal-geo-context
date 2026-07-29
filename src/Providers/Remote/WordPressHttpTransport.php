@@ -41,12 +41,14 @@ final class WordPressHttpTransport implements HttpTransport {
 	private const LIMIT_RESPONSE_SIZE = 16384;
 
 	/**
-	 * Bounds an arbitrary caller-supplied timeout into a sane range — a
-	 * request-level bound this class enforces itself, never trusting the
-	 * caller to have already done so.
+	 * Bounds an arbitrary caller-supplied timeout into the M4 frozen policy
+	 * range (1–5 seconds, the page-view latency bound, G10) — a
+	 * request-level bound this class enforces itself defensively, never
+	 * trusting that the caller (`ReferenceRemoteProvider`, itself passing
+	 * through an already-`Settings::sanitize()`-clamped value) got it right.
 	 */
 	private const MIN_TIMEOUT_SECONDS = 1;
-	private const MAX_TIMEOUT_SECONDS = 30;
+	private const MAX_TIMEOUT_SECONDS = 5;
 
 	/**
 	 * Executes a single outbound GET request.

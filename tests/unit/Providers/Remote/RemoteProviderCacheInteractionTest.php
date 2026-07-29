@@ -47,7 +47,7 @@ final class RemoteProviderCacheInteractionTest extends TestCase {
 	 * @return array{0: ContextResolver, 1: ReferenceRemoteProvider}
 	 */
 	private function make_resolver( FakeHttpTransport $transport, GeoCache $cache ): array {
-		$provider = new ReferenceRemoteProvider( true, 'acct', 'key', $transport, new CircuitBreaker() );
+		$provider = new ReferenceRemoteProvider( true, 'acct', 'key', 2, $transport, new CircuitBreaker() );
 		$resolver = new ContextResolver( new FakeClientIpResolver( $this->resolved_ip() ), array( $provider ), $cache );
 
 		return array( $resolver, $provider );

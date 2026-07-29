@@ -161,6 +161,7 @@ final class AdminScreen {
 			'remote_transfer_acknowledged' => ! empty( $_POST['remote_transfer_acknowledged'] ),
 			'remote_account_id'            => $this->submitted_credential( 'remote_account_id', $previous['remote_account_id'] ),
 			'remote_license_key'           => $this->submitted_credential( 'remote_license_key', $previous['remote_license_key'] ),
+			'remote_timeout'               => isset( $_POST['remote_timeout'] ) ? wp_unslash( $_POST['remote_timeout'] ) : 2, // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		);
 
 		$sanitized = Settings::sanitize( $raw );
@@ -701,6 +702,15 @@ final class AdminScreen {
 				esc_html__( 'Blanks both fields above on save, regardless of what (if anything) is also typed.', 'universal-geo-context' )
 			);
 		}
+
+		printf(
+			'<tr><th scope="row"><label for="universal_geo_remote_timeout">%1$s</label></th>' .
+			'<td><input type="number" min="1" max="5" id="universal_geo_remote_timeout" name="remote_timeout" value="%2$d" />' .
+			'<p class="description">%3$s</p></td></tr>',
+			esc_html__( 'Request timeout (seconds)', 'universal-geo-context' ),
+			(int) $settings['remote_timeout'],
+			esc_html__( 'Bounds how long a single remote lookup may hold a page view open. 1–5 seconds; default 2.', 'universal-geo-context' )
+		);
 
 		echo '</tbody></table>';
 	}

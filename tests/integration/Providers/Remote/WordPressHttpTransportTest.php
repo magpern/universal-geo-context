@@ -202,7 +202,7 @@ final class WordPressHttpTransportTest extends WP_UnitTestCase {
 
 		( new WordPressHttpTransport() )->get( 'https://geolite.info/geoip/v2.1/country/', array(), 999 );
 
-		$this->assertSame( 30, $captured_args['timeout'] );
+		$this->assertSame( 5, $captured_args['timeout'] );
 	}
 
 	public function test_a_non_positive_timeout_is_clamped_up(): void {

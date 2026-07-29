@@ -39,11 +39,12 @@ final class SettingsTest extends TestCase {
 		'remote_account_id',
 		'remote_license_key',
 		'remote_transfer_acknowledged',
+		'remote_timeout',
 	);
 
 	// ---- defaults() -----------------------------------------------------------
 
-	public function test_defaults_contain_exactly_eleven_keys(): void {
+	public function test_defaults_contain_exactly_twelve_keys(): void {
 		$this->assertSame( self::EXPECTED_KEYS, array_keys( Settings::defaults() ) );
 	}
 
@@ -89,6 +90,10 @@ final class SettingsTest extends TestCase {
 
 	public function test_defaults_remote_transfer_acknowledged_is_false(): void {
 		$this->assertFalse( Settings::defaults()['remote_transfer_acknowledged'] );
+	}
+
+	public function test_defaults_remote_timeout_is_2(): void {
+		$this->assertSame( 2, Settings::defaults()['remote_timeout'] );
 	}
 
 	public function test_defaults_are_deterministic(): void {
@@ -414,6 +419,61 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( '', $result['remote_license_key'] );
 	}
 
+	// ---- remote_timeout (M4 frozen policy: default 2, clamp [1, 5]) -----------------
+
+	public function test_remote_timeout_missing_defaults_to_2(): void {
+		$this->assertSame( 2, Settings::sanitize( array() )['remote_timeout'] );
+	}
+
+	public function test_remote_timeout_zero_clamps_up_to_1(): void {
+		$this->assertSame( 1, Settings::sanitize( array( 'remote_timeout' => 0 ) )['remote_timeout'] );
+	}
+
+	public function test_remote_timeout_5_is_kept(): void {
+		$this->assertSame( 5, Settings::sanitize( array( 'remote_timeout' => 5 ) )['remote_timeout'] );
+	}
+
+	public function test_remote_timeout_6_clamps_down_to_5(): void {
+		$this->assertSame( 5, Settings::sanitize( array( 'remote_timeout' => 6 ) )['remote_timeout'] );
+	}
+
+	public function test_remote_timeout_30_clamps_down_to_5(): void {
+		$this->assertSame( 5, Settings::sanitize( array( 'remote_timeout' => 30 ) )['remote_timeout'] );
+	}
+
+	public function test_remote_timeout_999_clamps_down_to_5(): void {
+		$this->assertSame( 5, Settings::sanitize( array( 'remote_timeout' => 999 ) )['remote_timeout'] );
+	}
+
+	public function test_remote_timeout_negative_clamps_up_to_1(): void {
+		$this->assertSame( 1, Settings::sanitize( array( 'remote_timeout' => -5 ) )['remote_timeout'] );
+	}
+
+	/**
+	 * @dataProvider non_numeric_remote_timeout_provider
+	 */
+	public function test_remote_timeout_non_numeric_falls_back_to_default_2( $malformed ): void {
+		$this->assertSame( 2, Settings::sanitize( array( 'remote_timeout' => $malformed ) )['remote_timeout'] );
+	}
+
+	public function non_numeric_remote_timeout_provider(): array {
+		return array(
+			'string'   => array( 'not-a-number' ),
+			'array'    => array( array( 3 ) ),
+			'boolean'  => array( true ),
+			'null'     => array( null ),
+			'floatish' => array( 'abc' ),
+		);
+	}
+
+	public function test_remote_timeout_numeric_string_is_accepted(): void {
+		$this->assertSame( 3, Settings::sanitize( array( 'remote_timeout' => '3' ) )['remote_timeout'] );
+	}
+
+	public function test_remote_timeout_float_is_cast_to_int(): void {
+		$this->assertSame( 3, Settings::sanitize( array( 'remote_timeout' => 3.9 ) )['remote_timeout'] );
+	}
+
 	// ---- v2/v3 -> v4 migration ---------------------------------------------------
 
 	public function test_v2_settings_migrate_to_v4_with_remote_fields_defaulted(): void {
@@ -435,6 +495,7 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( '', $result['remote_account_id'] );
 		$this->assertSame( '', $result['remote_license_key'] );
 		$this->assertFalse( $result['remote_transfer_acknowledged'] );
+		$this->assertSame( 2, $result['remote_timeout'] );
 		$this->assertSame( self::EXPECTED_KEYS, array_keys( $result ) );
 	}
 
@@ -454,6 +515,7 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( 4, $result['schema_version'] );
 		$this->assertSame( '/var/www/html/wp-content/uploads/geo.mmdb', $result['maxmind_db_path'] );
 		$this->assertFalse( $result['remote_enabled'] );
+		$this->assertSame( 2, $result['remote_timeout'] );
 		$this->assertSame( self::EXPECTED_KEYS, array_keys( $result ) );
 	}
 
@@ -484,7 +546,7 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( Settings::SCHEMA_VERSION, $result['schema_version'] );
 	}
 
-	public function test_sanitize_returns_exactly_the_eleven_key_schema(): void {
+	public function test_sanitize_returns_exactly_the_twelve_key_schema(): void {
 		$result = Settings::sanitize(
 			array(
 				'schema_version'               => 999,
@@ -498,6 +560,7 @@ final class SettingsTest extends TestCase {
 				'remote_account_id'            => '12345',
 				'remote_license_key'           => 'abc123XYZ',
 				'remote_transfer_acknowledged' => true,
+				'remote_timeout'               => 4,
 			)
 		);
 
@@ -513,6 +576,7 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( '12345', $result['remote_account_id'] );
 		$this->assertSame( 'abc123XYZ', $result['remote_license_key'] );
 		$this->assertTrue( $result['remote_transfer_acknowledged'] );
+		$this->assertSame( 4, $result['remote_timeout'] );
 	}
 
 	public function test_sanitize_of_non_array_returns_defaults(): void {

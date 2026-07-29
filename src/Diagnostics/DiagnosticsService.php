@@ -576,7 +576,7 @@ final class DiagnosticsService {
 			'credentials_present'   => 'none' !== $this->remote_credential_source,
 			'credential_source'     => $this->remote_credential_source,
 			'endpoint_host'         => ReferenceRemoteProvider::ENDPOINT_HOST,
-			'timeout_seconds'       => ReferenceRemoteProvider::TIMEOUT_SECONDS,
+			'timeout_seconds'       => $this->settings['remote_timeout'] ?? 2,
 			'circuit_state'         => $this->circuit_breaker->state()['state'],
 			'recent_failure'        => '' !== $recent_failure ? $recent_failure : null,
 		);
