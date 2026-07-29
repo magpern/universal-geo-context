@@ -166,6 +166,21 @@ final class AdminScreen {
 
 		$sanitized = Settings::sanitize( $raw );
 
+		// The dedicated, non-silent warning M5 D2 requires: an admin typed a
+		// non-empty default_country that Settings::sanitize() could not turn
+		// into a real country (malformed shape, or a syntactically-valid but
+		// nonexistent code like 'ZZ') — detected by comparing what was
+		// submitted against what sanitize() actually produced, the same
+		// technique the acknowledgement check below already uses. Rejection
+		// keeps the previously stored value, mirroring maxmind_path_rejected.
+		$default_country_rejected = false;
+		$raw_default_country      = is_string( $raw['default_country'] ) ? strtoupper( trim( $raw['default_country'] ) ) : '';
+
+		if ( '' !== $raw_default_country && '' === $sanitized['default_country'] ) {
+			$sanitized['default_country'] = $previous['default_country'];
+			$default_country_rejected     = true;
+		}
+
 		// Filesystem validation (realpath/is_file/is_readable/containment) is
 		// exclusively performed here, on the admin-panel surface — never
 		// inside Settings::sanitize() (the purity boundary, Settings.php's
@@ -189,6 +204,11 @@ final class AdminScreen {
 
 		Settings::save( $sanitized );
 		GeoCache::bump_epoch();
+
+		if ( $default_country_rejected ) {
+			$this->redirect_with_notice( 'default_country_rejected', 'warning' );
+			return;
+		}
 
 		if ( $maxmind_path_rejected ) {
 			$this->redirect_with_notice( 'maxmind_path_rejected', 'warning' );
@@ -343,9 +363,19 @@ final class AdminScreen {
 	/**
 	 * Dismisses the first-run notice for the current user only.
 	 *
+	 * M5: capability-checked before the nonce, exactly like every other
+	 * `admin_post_*` handler in this class — closing an inconsistency this
+	 * was the only handler missing (the practical risk was already low, since
+	 * the dismiss link is only ever rendered to `manage_options` users, and
+	 * the nonce is per-user, but the handler should not rely on that alone).
+	 *
 	 * @return void
 	 */
 	public function handle_dismiss_notice(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to do this.', 'universal-geo-context' ) );
+		}
+
 		check_admin_referer( 'universal_geo_dismiss_notice' );
 
 		update_user_meta( get_current_user_id(), self::NOTICE_DISMISSED_META, 1 );
@@ -452,6 +482,7 @@ final class AdminScreen {
 			'saved'                                  => __( 'Settings saved.', 'universal-geo-context' ),
 			'peer_trusted'                           => __( 'The current peer address has been added to Trusted Proxies.', 'universal-geo-context' ),
 			'cf_preset_enabled'                      => __( 'The Cloudflare preset has been enabled.', 'universal-geo-context' ),
+			'default_country_rejected'               => __( 'Other settings were saved, but the default country could not be recognized as a real ISO 3166-1 country code — the previous value was kept.', 'universal-geo-context' ),
 			'maxmind_path_rejected'                  => __( 'Other settings were saved, but the MaxMind database path could not be validated (not a readable file, or outside the WordPress content directory) — the previous value was kept.', 'universal-geo-context' ),
 			'remote_enable_requires_acknowledgement' => __( 'Other settings were saved, but the remote provider could not be enabled: you must acknowledge that visitor IP addresses will be transferred to MaxMind, Inc. in the same submission that enables it.', 'universal-geo-context' ),
 		);
@@ -565,9 +596,11 @@ final class AdminScreen {
 
 		printf(
 			'<tr><th scope="row"><label for="universal_geo_default_country">%1$s</label></th>' .
-			'<td><input type="text" maxlength="2" id="universal_geo_default_country" name="default_country" value="%2$s" /></td></tr>',
+			'<td><input type="text" maxlength="2" id="universal_geo_default_country" name="default_country" value="%2$s" />' .
+			'<p class="description">%3$s</p></td></tr>',
 			esc_html__( 'Default country', 'universal-geo-context' ),
-			esc_attr( $settings['default_country'] )
+			esc_attr( $settings['default_country'] ),
+			esc_html__( 'A real two-letter ISO 3166-1 country code (e.g. SE). Empty = no fallback. An unrecognized code is rejected and the previous value is kept.', 'universal-geo-context' )
 		);
 
 		printf(
@@ -798,11 +831,20 @@ final class AdminScreen {
 	 * smallest generic renderer that keeps every report section readable
 	 * without a template per section.
 	 *
+	 * Each key is looked up in DiagnosticsService::field_labels() (M5) for a
+	 * translated, human-readable label — shared with the Site Health
+	 * `debug_information` section and the WP-CLI `diagnostics` command
+	 * rather than duplicated per consumer. A key the map doesn't (yet) know
+	 * about falls back to the raw key rather than being hidden — the report
+	 * must never drop a field just because its label mapping is missing.
+	 *
 	 * @param array<string, mixed> $values Scalar or null values only.
 	 *
 	 * @return void
 	 */
 	private function render_definition_list( array $values ): void {
+		$labels = $this->diagnostics->field_labels();
+
 		echo '<dl>';
 
 		foreach ( $values as $key => $value ) {
@@ -816,7 +858,9 @@ final class AdminScreen {
 				$display = (string) $value;
 			}
 
-			printf( '<dt>%1$s</dt><dd>%2$s</dd>', esc_html( (string) $key ), esc_html( $display ) );
+			$label = $labels[ (string) $key ] ?? (string) $key;
+
+			printf( '<dt>%1$s</dt><dd>%2$s</dd>', esc_html( $label ), esc_html( $display ) );
 		}
 
 		echo '</dl>';

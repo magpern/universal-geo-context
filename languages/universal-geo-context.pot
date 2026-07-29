@@ -1,0 +1,618 @@
+# Copyright (C) 2026 magpern
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Universal Geo Context 0.4.0\n"
+"Report-Msgid-Bugs-To: https://github.com/magpern/universal-geo-context/issues\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-07-29T16:35:44+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: universal-geo-context\n"
+
+#. Plugin Name of the plugin
+#: universal-geo-context.php:3
+#: src/Admin/AdminScreen.php:100
+#: src/Admin/AdminScreen.php:101
+#: src/Admin/AdminScreen.php:121
+#: src/Diagnostics/DiagnosticsService.php:155
+#: src/Plugin.php:192
+msgid "Universal Geo Context"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: universal-geo-context.php:4
+msgid "https://github.com/magpern/universal-geo-context"
+msgstr ""
+
+#. Description of the plugin
+#: universal-geo-context.php:5
+msgid "Visitor geolocation detection and country resolution. Evidence-based, privacy-respecting, and easily extensible."
+msgstr ""
+
+#. Author of the plugin
+#: universal-geo-context.php:7
+msgid "magpern"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:141
+#: src/Admin/AdminScreen.php:316
+#: src/Admin/AdminScreen.php:349
+#: src/Admin/AdminScreen.php:376
+msgid "You do not have permission to do this."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:451
+msgid "Universal Geo Context detected forwarding headers but no trusted proxies are configured — geographic results may be wrong for every visitor."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:456
+msgid "Review Diagnostics"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:458
+msgid "Dismiss"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:482
+msgid "Settings saved."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:483
+msgid "The current peer address has been added to Trusted Proxies."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:484
+msgid "The Cloudflare preset has been enabled."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:485
+msgid "Other settings were saved, but the default country could not be recognized as a real ISO 3166-1 country code — the previous value was kept."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:486
+msgid "Other settings were saved, but the MaxMind database path could not be validated (not a readable file, or outside the WordPress content directory) — the previous value was kept."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:487
+msgid "Other settings were saved, but the remote provider could not be enabled: you must acknowledge that visitor IP addresses will be transferred to MaxMind, Inc. in the same submission that enables it."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:573
+msgid "Settings"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:579
+msgid "Diagnostics"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:601
+msgid "Default country"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:603
+msgid "A real two-letter ISO 3166-1 country code (e.g. SE). Empty = no fallback. An unrecognized code is rejected and the previous value is kept."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:610
+#: src/Admin/AdminScreen.php:763
+msgid "Trusted proxies"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:612
+msgid "One CIDR or IP per line. Empty = trust no forwarding header."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:617
+#: src/Diagnostics/DiagnosticsService.php:267
+msgid "Trust Cloudflare"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:619
+msgid "Trust the CF-Connecting-IP / CF-IPCountry headers once the peer is trusted."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:624
+msgid "Enable derived-context cache"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:626
+msgid "Requires a persistent object cache; otherwise a safe no-op."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:632
+#: src/Diagnostics/DiagnosticsService.php:306
+msgid "Cache TTL (seconds)"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:640
+msgid "MaxMind database path"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:642
+msgid "Absolute path to a .mmdb file under the WordPress content directory. Empty = auto-detect via WooCommerce."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:673
+msgid "Remote provider (MaxMind GeoLite2 Country Web Service)"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:677
+msgid "Disabled by default. When enabled, this plugin sends visitor IP addresses to MaxMind, Inc. at geolite.info to derive a country — the one exception to this plugin never letting an IP address leave the server. Enabling requires both a credential pair and the acknowledgement below, in the same submission."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:687
+msgid "Transfer acknowledgement"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:689
+msgid "I acknowledge that enabling the remote provider transfers visitor IP addresses to MaxMind, Inc."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:695
+msgid "Enable remote provider"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:697
+msgid "Use MaxMind GeoLite2 Country Web Service as a fallback provider."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:698
+msgid "Requires the acknowledgement above in the same save, and a credential pair below."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:707
+msgid "Account ID"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:708
+#: src/Admin/AdminScreen.php:722
+msgid "Currently configured (hidden)"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:708
+#: src/Admin/AdminScreen.php:722
+msgid "Not configured"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:712
+#: src/Admin/AdminScreen.php:726
+msgid "Supplied via a wp-config.php constant and cannot be edited here."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:713
+#: src/Admin/AdminScreen.php:727
+msgid "Leave blank to keep the stored value unchanged."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:721
+msgid "License key"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:734
+msgid "Clear stored credentials"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:735
+msgid "Blanks both fields above on save, regardless of what (if anything) is also typed."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:743
+msgid "Request timeout (seconds)"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:745
+msgid "Bounds how long a single remote lookup may hold a page view open. 1–5 seconds; default 2."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:760
+msgid "Client address"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:771
+msgid "Trust this peer"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:775
+msgid "Forwarding headers"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:780
+msgid "Cloudflare"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:788
+msgid "Enable the Cloudflare preset"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:792
+msgid "WooCommerce"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:795
+msgid "MaxMind"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:798
+msgid "Remote provider"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:806
+msgid "The remote provider is enabled — viewing this page performs one live request to the configured remote service, as part of the provider probe table below."
+msgstr ""
+
+#: src/Admin/AdminScreen.php:814
+msgid "Providers"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:819
+msgid "Provider health"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:825
+msgid "Environment"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:852
+#: src/Diagnostics/DiagnosticsService.php:232
+msgid "yes"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:852
+#: src/Diagnostics/DiagnosticsService.php:232
+msgid "no"
+msgstr ""
+
+#: src/Admin/AdminScreen.php:856
+#: src/Diagnostics/DiagnosticsService.php:236
+msgid "n/a"
+msgstr ""
+
+#: src/Cli/Command.php:195
+msgid "The derived-context cache has been flushed."
+msgstr ""
+
+#: src/Cli/Command.php:378
+msgid "No data."
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:259
+msgid "Peer address (masked)"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:260
+msgid "Peer classification"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:261
+msgid "Resolved client address (masked)"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:262
+msgid "Source header"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:263
+msgid "Public address"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:264
+msgid "Chain verified"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:265
+msgid "Server snapshot drift"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:266
+msgid "Configured trusted proxies"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:268
+msgid "Peer trusted"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:269
+msgid "Matched entry"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:270
+msgid "Header"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:271
+msgid "Present"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:272
+msgid "Trusted"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:273
+msgid "Reason"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:274
+msgid "Masked value"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:275
+msgid "Cloudflare preset enabled"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:276
+msgid "Peer in Cloudflare ranges"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:277
+msgid "CF-IPCountry header present"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:278
+msgid "Cloudflare ranges date"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:279
+msgid "Cloudflare ranges age (days)"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:280
+msgid "WooCommerce active"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:281
+msgid "WooCommerce MaxMind integration active"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:282
+msgid "WooCommerce MaxMind license key present"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:283
+msgid "MaxMind database file present"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:284
+msgid "Effective database path"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:285
+msgid "Available"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:286
+msgid "Reader class file"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:287
+msgid "Database type"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:288
+msgid "Database age (days)"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:289
+msgid "Notes"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:290
+msgid "Enabled"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:291
+msgid "Transfer acknowledged"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:292
+msgid "Credentials present"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:293
+msgid "Credential source"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:294
+msgid "Endpoint host"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:295
+msgid "Timeout (seconds)"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:296
+msgid "Circuit breaker state"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:297
+msgid "Recent failure"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:298
+msgid "Provider"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:299
+msgid "Country code"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:300
+msgid "Region code"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:301
+msgid "Last error class"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:302
+msgid "Last error message"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:303
+msgid "Approximate failure count"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:304
+msgid "Last seen at (timestamp)"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:305
+msgid "Derived-context cache enabled"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:307
+msgid "Persistent object cache active"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:308
+msgid "PHP version"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:309
+msgid "WordPress version"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:310
+msgid "Plugin version"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:311
+msgid "Confidence"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:312
+msgid "From cache"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:313
+msgid "Source"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:326
+#: src/Diagnostics/DiagnosticsService.php:388
+msgid "Universal Geo Context: trusted proxy configuration"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:331
+#: src/Diagnostics/DiagnosticsService.php:499
+msgid "Universal Geo Context: MaxMind database"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:336
+#: src/Diagnostics/DiagnosticsService.php:585
+msgid "Universal Geo Context: remote provider"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:354
+#: src/Diagnostics/DiagnosticsService.php:413
+#: src/Diagnostics/DiagnosticsService.php:528
+msgid "Not applicable for this user."
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:365
+msgid "Forwarding headers are present but no trusted proxies are configured. Universal Geo Context is reporting the reverse proxy's own location to every visitor instead of the real one. Configure Trusted Proxies under Settings → Universal Geo Context."
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:374
+msgid "Universal Geo Context's trusted proxy configuration looks correct."
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:391
+#: src/Diagnostics/DiagnosticsService.php:502
+#: src/Diagnostics/DiagnosticsService.php:588
+msgid "Security"
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:421
+msgid "No MaxMind database is configured — this is an optional feature."
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:428
+msgid "A MaxMind database path is configured, but the MaxMind reader library is not available."
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:435
+msgid "A MaxMind database path is configured, but the file is missing or unreadable."
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:444
+msgid "The configured MaxMind database could not be opened."
+msgstr ""
+
+#. translators: %d: database age in days.
+#: src/Diagnostics/DiagnosticsService.php:455
+#, php-format
+msgid "The MaxMind database is %d days old (over 90) and should be updated."
+msgstr ""
+
+#. translators: %d: database age in days.
+#: src/Diagnostics/DiagnosticsService.php:466
+#, php-format
+msgid "The MaxMind database is %d days old (over 30). Consider updating it."
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:474
+msgid "The MaxMind database is present and current."
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:534
+msgid "The remote provider is disabled — this is an optional feature."
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:541
+msgid "The remote provider is enabled but no credentials are configured."
+msgstr ""
+
+#. translators: %s: circuit breaker state, "open" or "half_open".
+#: src/Diagnostics/DiagnosticsService.php:552
+#, php-format
+msgid "The remote provider's circuit breaker is currently %s after repeated failures."
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:563
+msgid "The remote provider recently failed. Review Diagnostics for details."
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:569
+msgid "The remote provider is enabled and healthy."
+msgstr ""
+
+#: src/Diagnostics/DiagnosticsService.php:733
+msgid "City database detected; region support is deferred to a future release."
+msgstr ""
+
+#: src/Plugin.php:250
+msgid "Called before Universal Geo Context has booted. Call at or after the plugins_loaded priority 20."
+msgstr ""
+
+#: src/Plugin.php:277
+msgid "The universal_geo_context filter must return a VisitorContext with a valid country code."
+msgstr ""
+
+#: src/Plugin.php:559
+msgid "The universal_geo_maxmind_db_path filter must return a string."
+msgstr ""
+
+#: src/Plugin.php:653
+msgid "The universal_geo_providers filter must only return GeoProviderInterface instances; a non-conforming element was dropped."
+msgstr ""
+
+#: src/Privacy/PrivacyPolicyContent.php:49
+msgid "This site uses Universal Geo Context to detect a visitor's country. The visitor's IP address is read from the request only for the duration of that request and is never stored in plain form."
+msgstr ""
+
+#: src/Privacy/PrivacyPolicyContent.php:56
+msgid "When the derived-context cache is active, only a salted, one-way hash of the IP address is stored as part of a cache key — the address itself is never persisted."
+msgstr ""
+
+#: src/Privacy/PrivacyPolicyContent.php:65
+msgid "This site has enabled the optional remote provider: visitor IP addresses are sent to MaxMind, Inc. (geolite.info) to look up a country. This transfer only happens because an administrator explicitly enabled it and acknowledged the transfer."
+msgstr ""
+
+#: universal-geo-context.php:47
+msgid "Universal Geo Context requires PHP 8.1 or newer and is inactive."
+msgstr ""

@@ -124,12 +124,194 @@ final class DiagnosticsService {
 	}
 
 	/**
-	 * Registers the trusted-proxy, MaxMind, and remote-provider Site Health tests.
+	 * Registers the trusted-proxy, MaxMind, and remote-provider Site Health
+	 * tests, plus (M5) the Site Health Info screen's `debug_information` section.
 	 *
 	 * @return void
 	 */
 	public function register(): void {
 		add_filter( 'site_status_tests', array( $this, 'add_site_status_tests' ) );
+		add_filter( 'debug_information', array( $this, 'add_debug_information' ) );
+	}
+
+	/**
+	 * Adds a "Universal Geo Context" section to Tools → Site Health → Info
+	 * (M5 — Revision 3 §23's "the completed diagnostics report"). Reuses
+	 * report() verbatim rather than re-deriving any of its data, so the two
+	 * screens can never drift: every value here already passed through the
+	 * same masking/scrubbing report() itself guarantees (P5) — no credential,
+	 * secret, or full IP address is ever exposed, exactly like the admin
+	 * Diagnostics tab and the WP-CLI `diagnostics` command that reuse the
+	 * same report(). Nested arrays are flattened to one field per leaf value,
+	 * dot-joined, so the section stays readable in WordPress's own
+	 * two-column Info table.
+	 *
+	 * @param array<string, mixed> $info WordPress's own debug_information structure.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function add_debug_information( array $info ): array {
+		$info['universal-geo-context'] = array(
+			'label'   => __( 'Universal Geo Context', 'universal-geo-context' ),
+			'fields'  => $this->debug_information_fields( $this->report() ),
+			'private' => false,
+		);
+
+		return $info;
+	}
+
+	/**
+	 * Flattens report()'s nested section/row structure into
+	 * `debug_information`'s flat `field_id => array{label, value}` shape.
+	 *
+	 * @param array<string, mixed> $report The report() return value.
+	 *
+	 * @return array<string, array{label: string, value: string}>
+	 */
+	private function debug_information_fields( array $report ): array {
+		$fields = array();
+		$labels = $this->field_labels();
+
+		foreach ( $report as $section => $value ) {
+			foreach ( $this->flatten_for_debug_information( $value ) as $suffix => $display_value ) {
+				$field_id = '' !== $suffix ? $section . '.' . $suffix : (string) $section;
+
+				// field_labels() is keyed by the bare field name (e.g.
+				// 'last_error_class'), not the full dotted/bracketed path
+				// (e.g. 'cloudflare.last_error_class' or '0.country_code') —
+				// only the last path segment is looked up.
+				$last_segment = (string) preg_replace( '/^.*[.\[]|\]$/', '', $suffix );
+
+				$fields[ $field_id ] = array(
+					'label' => $labels[ $last_segment ] ?? $field_id,
+					'value' => $display_value,
+				);
+			}
+		}
+
+		return $fields;
+	}
+
+	/**
+	 * Recursively reduces one report value to a flat `suffix => display
+	 * string` map — the same generic shape AdminScreen::render_definition_list()
+	 * and the WP-CLI `diagnostics` command both reduce report() sections to,
+	 * kept here as this class's own reusable primitive rather than
+	 * duplicated three times (M5).
+	 *
+	 * @param mixed  $value  A report leaf value, row, or list of rows.
+	 * @param string $prefix The dot/bracket path built up so far.
+	 *
+	 * @return array<string, string>
+	 */
+	private function flatten_for_debug_information( $value, string $prefix = '' ): array {
+		if ( ! is_array( $value ) ) {
+			return array( $prefix => $this->stringify_for_debug_information( $value ) );
+		}
+
+		$is_list = array_is_list( $value );
+		$rows    = array();
+
+		foreach ( $value as $key => $item ) {
+			$label = $is_list ? sprintf( '%s[%d]', $prefix, $key ) : ( '' !== $prefix ? $prefix . '.' . $key : (string) $key );
+			$rows  = $rows + $this->flatten_for_debug_information( $item, $label );
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Renders one report leaf value as a display string.
+	 *
+	 * @param mixed $value A report leaf value.
+	 *
+	 * @return string
+	 */
+	private function stringify_for_debug_information( $value ): string {
+		if ( is_bool( $value ) ) {
+			return $value ? __( 'yes', 'universal-geo-context' ) : __( 'no', 'universal-geo-context' );
+		}
+
+		if ( null === $value ) {
+			return __( 'n/a', 'universal-geo-context' );
+		}
+
+		return (string) $value;
+	}
+
+	/**
+	 * Translated, human-readable labels for every snake_case field key a
+	 * report() section can contain (M5 admin-UX polish) — the single shared
+	 * source `AdminScreen::render_definition_list()`, add_debug_information(),
+	 * and the WP-CLI `diagnostics` command all consult, so the same key is
+	 * never labeled three different ways. Built fresh per call rather than
+	 * as a class constant, since the values must go through __() at
+	 * runtime. Deliberately one flat map, not scoped per report section: no
+	 * key collides in meaning across sections (e.g. "reason" and "available"
+	 * mean the same thing in both the forwarding-headers rows and the
+	 * provider-probe rows). A key this map doesn't (yet) know about is never
+	 * hidden by a consumer — every caller falls back to the raw key.
+	 *
+	 * @return array<string, string>
+	 */
+	public function field_labels(): array {
+		return array(
+			'peer_masked'                => __( 'Peer address (masked)', 'universal-geo-context' ),
+			'peer_classification'        => __( 'Peer classification', 'universal-geo-context' ),
+			'client_masked'              => __( 'Resolved client address (masked)', 'universal-geo-context' ),
+			'source_header'              => __( 'Source header', 'universal-geo-context' ),
+			'is_public'                  => __( 'Public address', 'universal-geo-context' ),
+			'chain_verified'             => __( 'Chain verified', 'universal-geo-context' ),
+			'server_snapshot_drift'      => __( 'Server snapshot drift', 'universal-geo-context' ),
+			'configured_count'           => __( 'Configured trusted proxies', 'universal-geo-context' ),
+			'trust_cloudflare'           => __( 'Trust Cloudflare', 'universal-geo-context' ),
+			'peer_trusted'               => __( 'Peer trusted', 'universal-geo-context' ),
+			'matched_entry'              => __( 'Matched entry', 'universal-geo-context' ),
+			'header'                     => __( 'Header', 'universal-geo-context' ),
+			'present'                    => __( 'Present', 'universal-geo-context' ),
+			'trusted'                    => __( 'Trusted', 'universal-geo-context' ),
+			'reason'                     => __( 'Reason', 'universal-geo-context' ),
+			'masked_value'               => __( 'Masked value', 'universal-geo-context' ),
+			'preset_enabled'             => __( 'Cloudflare preset enabled', 'universal-geo-context' ),
+			'peer_in_cf_ranges'          => __( 'Peer in Cloudflare ranges', 'universal-geo-context' ),
+			'cf_ipcountry_present'       => __( 'CF-IPCountry header present', 'universal-geo-context' ),
+			'ranges_date'                => __( 'Cloudflare ranges date', 'universal-geo-context' ),
+			'ranges_age_days'            => __( 'Cloudflare ranges age (days)', 'universal-geo-context' ),
+			'active'                     => __( 'WooCommerce active', 'universal-geo-context' ),
+			'maxmind_integration_active' => __( 'WooCommerce MaxMind integration active', 'universal-geo-context' ),
+			'license_key_present'        => __( 'WooCommerce MaxMind license key present', 'universal-geo-context' ),
+			'mmdb_present'               => __( 'MaxMind database file present', 'universal-geo-context' ),
+			'effective_path'             => __( 'Effective database path', 'universal-geo-context' ),
+			'available'                  => __( 'Available', 'universal-geo-context' ),
+			'reader_class_file'          => __( 'Reader class file', 'universal-geo-context' ),
+			'database_type'              => __( 'Database type', 'universal-geo-context' ),
+			'build_age_days'             => __( 'Database age (days)', 'universal-geo-context' ),
+			'city_database_note'         => __( 'Notes', 'universal-geo-context' ),
+			'enabled'                    => __( 'Enabled', 'universal-geo-context' ),
+			'transfer_acknowledged'      => __( 'Transfer acknowledged', 'universal-geo-context' ),
+			'credentials_present'        => __( 'Credentials present', 'universal-geo-context' ),
+			'credential_source'          => __( 'Credential source', 'universal-geo-context' ),
+			'endpoint_host'              => __( 'Endpoint host', 'universal-geo-context' ),
+			'timeout_seconds'            => __( 'Timeout (seconds)', 'universal-geo-context' ),
+			'circuit_state'              => __( 'Circuit breaker state', 'universal-geo-context' ),
+			'recent_failure'             => __( 'Recent failure', 'universal-geo-context' ),
+			'provider'                   => __( 'Provider', 'universal-geo-context' ),
+			'country_code'               => __( 'Country code', 'universal-geo-context' ),
+			'region_code'                => __( 'Region code', 'universal-geo-context' ),
+			'last_error_class'           => __( 'Last error class', 'universal-geo-context' ),
+			'last_error_message'         => __( 'Last error message', 'universal-geo-context' ),
+			'approx_count'               => __( 'Approximate failure count', 'universal-geo-context' ),
+			'last_seen_at'               => __( 'Last seen at (timestamp)', 'universal-geo-context' ),
+			'derived_cache_enabled'      => __( 'Derived-context cache enabled', 'universal-geo-context' ),
+			'derived_cache_ttl'          => __( 'Cache TTL (seconds)', 'universal-geo-context' ),
+			'object_cache_active'        => __( 'Persistent object cache active', 'universal-geo-context' ),
+			'php_version'                => __( 'PHP version', 'universal-geo-context' ),
+			'wp_version'                 => __( 'WordPress version', 'universal-geo-context' ),
+			'plugin_version'             => __( 'Plugin version', 'universal-geo-context' ),
+			'confidence'                 => __( 'Confidence', 'universal-geo-context' ),
+			'is_cached'                  => __( 'From cache', 'universal-geo-context' ),
+			'source'                     => __( 'Source', 'universal-geo-context' ),
+		);
 	}
 
 	/**

@@ -34,13 +34,17 @@ Approved Revision 3 architecture plan (§27 audit findings applied, verdict: APP
 - Machine-specific dev-environment notes belong in `CLAUDE.local.md` (gitignored) — never in this file.
 - Release: bump the `Version:` plugin header, `UNIVERSAL_GEO_VERSION`, and version in `docs/COMPATIBILITY.md` together; tag `vX.Y.Z` matching the header, push the tag only when explicitly approved by the Product Owner. The Release workflow builds and publishes the installable zip.
 
-## Deferred to later milestones
+## Deferred to 1.1+
 
-- `src/api.php` (M1 bootstrap has no public functions yet)
-- Region support (M1.1)
-- REST API (M1.1)
-- WP-CLI commands (M5)
-- Site Health tests (M2+)
-- MaxMind integration (M3)
-- Remote providers (M4)
-- Translation infrastructure (M5)
+M1–M5 are shipped in full (public API, Site Health tests, MaxMind
+integration, remote providers, WP-CLI, and translation infrastructure are
+all live — see `docs/ROADMAP.md`). Remaining deferred items, all 1.1+:
+
+- Region support
+- REST API
+- Additional GeoIP data (city, postcode, timezone, ASN)
+- Additional Site Health tests (cache health, empty-provider-chain)
+- Additional WP-CLI commands (`providers`, `trusted-proxies --test`, `cloudflare-ranges --update`)
+- ADR-0001/0004 backfill
+
+Full list: `docs/ROADMAP.md`.

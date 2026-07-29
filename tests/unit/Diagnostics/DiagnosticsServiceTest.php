@@ -613,6 +613,66 @@ final class DiagnosticsServiceTest extends TestCase {
 		$this->assertArrayHasKey( DiagnosticsService::TEST_REMOTE, $tests['direct'] );
 	}
 
+	// ---- M5: debug_information -----------------------------------------------------------
+
+	public function test_register_wires_the_debug_information_filter(): void {
+		$this->service()->register();
+
+		$result = apply_filters( 'debug_information', array() ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WordPress core's own hook, invoked to simulate WP applying it.
+
+		$this->assertArrayHasKey( 'universal-geo-context', $result );
+	}
+
+	public function test_add_debug_information_has_a_label(): void {
+		$info = $this->service()->add_debug_information( array() );
+
+		$this->assertSame( 'Universal Geo Context', $info['universal-geo-context']['label'] );
+	}
+
+	public function test_add_debug_information_is_never_marked_private(): void {
+		$info = $this->service()->add_debug_information( array() );
+
+		$this->assertFalse( $info['universal-geo-context']['private'] );
+	}
+
+	public function test_add_debug_information_flattens_report_sections_into_fields(): void {
+		$info   = $this->service()->add_debug_information( array() );
+		$fields = $info['universal-geo-context']['fields'];
+
+		$this->assertArrayHasKey( 'client_address.peer_masked', $fields );
+		$this->assertSame( 'Peer address (masked)', $fields['client_address.peer_masked']['label'] );
+	}
+
+	public function test_add_debug_information_never_contains_a_credential_value(): void {
+		$info   = $this->service()->add_debug_information( array() );
+		$values = array_column( $info['universal-geo-context']['fields'], 'value' );
+
+		foreach ( $values as $value ) {
+			$this->assertStringNotContainsString( 'license', strtolower( (string) $value ) );
+		}
+	}
+
+	// ---- M5: field_labels() ----------------------------------------------------------------
+
+	/**
+	 * @dataProvider client_address_key_provider
+	 */
+	public function test_field_labels_maps_every_client_address_key( string $key ): void {
+		$this->assertArrayHasKey( $key, $this->service()->field_labels() );
+	}
+
+	public function client_address_key_provider(): array {
+		return array(
+			'peer_masked'           => array( 'peer_masked' ),
+			'peer_classification'   => array( 'peer_classification' ),
+			'client_masked'         => array( 'client_masked' ),
+			'source_header'         => array( 'source_header' ),
+			'is_public'             => array( 'is_public' ),
+			'chain_verified'        => array( 'chain_verified' ),
+			'server_snapshot_drift' => array( 'server_snapshot_drift' ),
+		);
+	}
+
 	// ---- Site Health: trusted_proxy_site_status_test() -----------------------------------
 
 	public function test_site_status_test_is_critical_when_misconfigured(): void {

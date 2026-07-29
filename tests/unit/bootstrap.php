@@ -135,6 +135,22 @@ if ( ! function_exists( 'esc_html' ) ) {
 	}
 }
 
+if ( ! function_exists( 'esc_html__' ) ) {
+	/**
+	 * Identity translate-and-escape stub (M5): both the __() and esc_html()
+	 * stubs above are identity functions in this environment, so this one
+	 * is written as a direct identity too, rather than calling __() with a
+	 * variable argument (which the I18n sniff correctly forbids at real
+	 * call sites and does not distinguish from this stub's own definition).
+	 *
+	 * @param string $text   Source string.
+	 * @param string $domain Text domain (ignored).
+	 */
+	function esc_html__( $text, $domain = 'default' ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		return $text;
+	}
+}
+
 if ( ! function_exists( 'wp_json_encode' ) ) {
 	function wp_json_encode( $data, $options = 0, $depth = 512 ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 		return json_encode( $data, $options, $depth ); // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode

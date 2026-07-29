@@ -307,6 +307,80 @@ final class AdminScreenTest extends WP_UnitTestCase {
 		$this->assertSame( '', $stored['remote_license_key'] );
 	}
 
+	// ---- M5 D2: default_country rejection ------------------------------------------
+
+	public function test_unrecognized_default_country_retains_the_previous_value_and_shows_a_warning(): void {
+		update_option(
+			Settings::OPTION_NAME,
+			Settings::sanitize( array( 'default_country' => 'SE' ) )
+		);
+
+		$location = $this->submit( array( 'default_country' => 'ZZ' ) );
+
+		$stored = get_option( Settings::OPTION_NAME );
+
+		$this->assertSame( 'SE', $stored['default_country'] );
+		$this->assertStringContainsString( 'universal_geo_msg=default_country_rejected', $location );
+	}
+
+	public function test_recognized_default_country_is_accepted(): void {
+		$location = $this->submit( array( 'default_country' => 'de' ) );
+
+		$stored = get_option( Settings::OPTION_NAME );
+
+		$this->assertSame( 'DE', $stored['default_country'] );
+		$this->assertStringContainsString( 'universal_geo_msg=saved', $location );
+	}
+
+	public function test_other_settings_still_save_when_the_default_country_is_rejected(): void {
+		$this->submit(
+			array(
+				'default_country'  => 'ZZ',
+				'trust_cloudflare' => '1',
+			)
+		);
+
+		$stored = get_option( Settings::OPTION_NAME );
+
+		$this->assertTrue( $stored['trust_cloudflare'] );
+	}
+
+	// ---- M5: handle_dismiss_notice() capability check ------------------------------
+
+	public function test_dismiss_notice_requires_manage_options(): void {
+		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		wp_set_current_user( $subscriber_id );
+
+		$_REQUEST['_wpnonce'] = wp_create_nonce( 'universal_geo_dismiss_notice' ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.InputNotValidated
+
+		$this->expectException( \WPDieException::class );
+
+		$this->screen()->handle_dismiss_notice();
+	}
+
+	public function test_dismiss_notice_succeeds_for_manage_options(): void {
+		// wp_set_current_user() to the administrator setUp() already created.
+		$_REQUEST['_wpnonce'] = wp_create_nonce( 'universal_geo_dismiss_notice' ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.InputNotValidated
+
+		add_filter(
+			'wp_redirect',
+			static function ( $location ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- required by the wp_redirect filter signature; this trap only cares that it fires.
+				throw new \RuntimeException( 'redirect-trap' );
+			}
+		);
+
+		try {
+			$this->screen()->handle_dismiss_notice();
+			$this->fail( 'Expected the redirect trap to interrupt execution.' );
+		} catch ( \RuntimeException $e ) {
+			$this->assertSame( 'redirect-trap', $e->getMessage() );
+		}
+
+		remove_all_filters( 'wp_redirect' );
+
+		$this->assertEquals( 1, get_user_meta( get_current_user_id(), 'universal_geo_first_run_notice_dismissed', true ) );
+	}
+
 	// ---- M4: AdminScreen::uninstall() --------------------------------------------
 
 	public function test_uninstall_deletes_the_first_run_notice_meta_for_every_user(): void {

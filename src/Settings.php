@@ -12,16 +12,18 @@ declare( strict_types=1 );
 namespace UniversalGeo;
 
 use UniversalGeo\Http\IpUtils;
+use UniversalGeo\Resolver\GeoValidator;
 
 /**
  * Settings owner and validator.
  *
  * `defaults()` and `sanitize()` are pure and WordPress-free (unit-testable
  * without a bootstrap) — `IpUtils`, used for trusted-proxy CIDR shape
- * validation, is itself pure and WordPress-free, so this stays within the
- * purity boundary. `install()` and `uninstall()` read/write the option and
- * are the only methods that touch WordPress. Sanitization is forgiving: it
- * never throws, cleaning or dropping invalid input so persistence always
+ * validation, and `GeoValidator`, used for real country-code membership
+ * (M5), are both themselves pure and WordPress-free, so this stays within
+ * the purity boundary. `install()` and `uninstall()` read/write the option
+ * and are the only methods that touch WordPress. Sanitization is forgiving:
+ * it never throws, cleaning or dropping invalid input so persistence always
  * succeeds.
  *
  * Schema v4 (M4) scope: twelve keys — schema_version, default_country (M1),
@@ -163,24 +165,28 @@ final class Settings {
 	}
 
 	/**
-	 * Normalizes a country code: uppercase, empty allowed, malformed rejected.
+	 * Normalizes a country code: uppercase, empty allowed, anything that is
+	 * not a real ISO 3166-1 alpha-2 country (checked via `GeoValidator`'s
+	 * own embedded allowlist — the same membership test the resolver loop
+	 * applies to every provider candidate, M5 D2) is rejected to '', exactly
+	 * like a structurally malformed value always has been. This closes the
+	 * M1–M4 gap where a syntactically-shaped-but-nonexistent code (e.g.
+	 * 'ZZ') would sanitize successfully here and only be silently dropped
+	 * much later, inside the resolver loop, with no signal anywhere.
+	 * `AdminScreen::handle_save_settings()` is responsible for detecting the
+	 * rejection and surfacing it to the administrator — this method itself
+	 * stays silent-and-forgiving, per the class's own sanitization contract.
 	 *
 	 * @param mixed $raw Raw country value.
 	 *
-	 * @return string Empty string, or an uppercase ISO 3166-1 alpha-2 shape.
+	 * @return string Empty string, or a real, uppercase ISO 3166-1 alpha-2 (or 'XK') country code.
 	 */
 	private static function sanitize_country( $raw ): string {
 		if ( ! is_string( $raw ) ) {
 			return '';
 		}
 
-		$country = strtoupper( trim( $raw ) );
-
-		if ( '' === $country ) {
-			return '';
-		}
-
-		return 1 === preg_match( '~^[A-Z]{2}$~', $country ) ? $country : '';
+		return GeoValidator::country( $raw ) ?? '';
 	}
 
 	/**

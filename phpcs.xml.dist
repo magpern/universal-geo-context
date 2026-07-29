@@ -109,4 +109,14 @@
 	<rule ref="WordPress.Security.EscapeOutput.ExceptionNotEscaped">
 		<exclude-pattern>*src/Model/VisitorContext.php</exclude-pattern>
 	</rule>
+
+	<!-- M5: Cli\Command's two InvalidArgumentException messages (an invalid
+	     format flag, an invalid ip flag) are caught internally and handed to
+	     WP_CLI::error() — plain-text STDERR output, never HTML rendered to
+	     a browser, the same non-web-output rationale as VisitorContext's
+	     exclusion above, kept as its own rule/comment since the underlying
+	     reason (a CLI diagnostic, not a WordPress-free pure class) differs. -->
+	<rule ref="WordPress.Security.EscapeOutput.ExceptionNotEscaped">
+		<exclude-pattern>*src/Cli/Command.php</exclude-pattern>
+	</rule>
 </ruleset>

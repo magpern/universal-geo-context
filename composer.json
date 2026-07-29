@@ -11,6 +11,8 @@
         "maxmind-db/reader": "^1.13",
         "phpunit/phpunit": "^9.6",
         "woocommerce/woocommerce-sniffs": "^1.0",
+        "wp-cli/i18n-command": "^2.7",
+        "wp-cli/wp-cli": "^2.12",
         "wp-coding-standards/wpcs": "^3.1",
         "wp-phpunit/wp-phpunit": "^6.5 || ^7.0",
         "yoast/phpunit-polyfills": "^2.0"
@@ -32,7 +34,10 @@
         "phpcs": "phpcs",
         "phpcbf": "phpcbf",
         "test:unit": "phpunit -c phpunit.xml.dist",
-        "test:integration": "phpunit -c phpunit-integration.xml.dist"
+        "test:integration": "phpunit -c phpunit-integration.xml.dist",
+        "make-pot": "bash bin/make-pot.sh",
+        "make-pot:check": "bash bin/make-pot.sh --check",
+        "release-audit": "bash bin/release-audit.sh"
     },
     "config": {
         "platform": {

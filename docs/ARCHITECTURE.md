@@ -1,8 +1,9 @@
 # Architecture
 
-**Status: M1 complete (frozen, tag `m1`); M2 complete.** This document
-records the M1 reconciliation history verbatim, below, as the record of how
-the frozen public API and composition patterns were decided. M2 replaced
+**Status: M1 complete (frozen, tag `m1`); M2 complete; M3–M5 complete (see
+"M3–M5" at the end of this document).** This document records the M1
+reconciliation history verbatim, below, as the record of how the frozen
+public API and composition patterns were decided. M2 replaced
 `RemoteAddrOnlyResolver` with the full trust-boundary stack (`ServerRequest`,
 `TrustedProxies`, `ClientIpResolver`), added the Cloudflare and WooCommerce
 providers, admin settings/diagnostics, and Site Health — see
@@ -10,7 +11,9 @@ providers, admin settings/diagnostics, and Site Health — see
 `docs/adr/0006-optional-woocommerce-integration.md` for M2's own decisions,
 and `docs/HOOKS.md` / `docs/TRUSTED_PROXIES.md` / `docs/SECURITY.md` /
 `docs/PRIVACY.md` for M2's current, up-to-date behaviour. The M1 narrative
-below is retained as historical record and is not updated for M2.
+below is retained as historical record and is not updated for M2 — nor for
+M3, M4, or M5, each of which is instead summarized in its own short section
+at the end of this document, in the same spirit.
 
 ## M1 bootstrap scope (Step 0)
 
@@ -753,3 +756,67 @@ hooks, WP-CLI (`reset()`'s and `probe()`'s intended consumer), and the
 `Settings`-schema expansion that will replace this step's hardcoded
 `derived_cache_enabled`/`derived_cache_ttl` defaults with real
 administrator-configurable values.
+
+(This section is M1's own forward-looking text, retained as historical
+record per this document's own stated policy above — not all of it played
+out exactly as written; see "M3–M5" below for what actually shipped. In
+particular, WP-CLI (M5) ended up consuming `probe()` but not `reset()` —
+`reset()` remains "tests only", used nowhere in production code.)
+
+## M3–M5 (current)
+
+Summarized in the same spirit as the M2 paragraph above — current,
+up-to-date behavior lives in the docs named per milestone below, not
+re-narrated here.
+
+**M3 — "MaxMind and caching, the privacy floor".** `MaxMindProvider` (local
+`.mmdb` country lookups, soft dependency on the `MaxMind\Db\Reader` reader
+class); the `maxmind_db_path` setting (syntactic sanitize only — filesystem
+validation lives exclusively in `AdminScreen::handle_save_settings()`);
+`ProviderHealthStore`; the `universal_geo_maxmind` Site Health test; the
+fourth and final capped guard test, `PrivacyGuardTest`, formalizing the
+privacy floor M1/M2 already satisfied by review alone. See
+`docs/adr/0005-privacy-model.md` and `docs/PRIVACY.md`.
+
+**M4 — "Remote provider".** `ReferenceRemoteProvider` (MaxMind GeoLite2
+Country Web Service), disabled by default, requiring an explicit transfer
+acknowledgement plus a credential pair in the same settings submission;
+`CircuitBreaker`; the `HttpTransport` seam
+(`Providers/Remote/WordPressHttpTransport.php` is the sole caller of
+`wp_safe_remote_get()` anywhere in `src/`, enforced by `PrivacyGuardTest`);
+the `universal_geo_remote_provider` Site Health test. No new public hook,
+no public API change. See `docs/adr/0003-provider-architecture.md`'s M4
+amendment and `docs/SECURITY.md`.
+
+**M5 — Operational maturity → v1.0.0.** No architecture change: no new
+provider, no new hook, no public API change, `ContextResolver`'s signature
+and logic untouched. Four additions, each a consumer of the existing
+composition root/services rather than a new layer:
+
+- `Cli\Command` (`src/Cli/`) — the three WP-CLI commands
+  (`context`/`diagnostics`/`cache flush`), constructed and registered by
+  `Plugin::init()` on the symmetric WP-CLI-only path
+  (`should_register_cli()`), the exact counterpart to `AdminScreen`'s
+  admin-only registration. Reuses `ContextResolver::probe()` (already
+  public) and `DiagnosticsService::report()`/`field_labels()` — no
+  duplicated resolution or diagnostics logic.
+- `Privacy\PrivacyPolicyContent` (`src/Privacy/`) — builds the text
+  `Plugin::init()` registers via `wp_add_privacy_policy_content()` on
+  `admin_init`, on the admin-only path alongside `AdminScreen`.
+- `DiagnosticsService::add_debug_information()` — a second registration
+  (`debug_information`, alongside the existing `site_status_tests` filter)
+  on the same class, reusing `report()` verbatim for the Site Health Info
+  screen.
+- `load_plugin_textdomain()` (`universal-geo-context.php`, registered
+  ahead of the PHP-version guard) plus a generated `.pot`
+  (`languages/universal-geo-context.pot`, `bin/make-pot.sh`) and a CI check
+  that fails on drift between source strings and the committed file.
+
+Plus two small, contained fixes discovered during the M5 repository audit,
+neither an architecture change: `Settings::sanitize_country()` now checks
+real ISO 3166-1 membership via `GeoValidator::country()` (previously shape
+only), and `AdminScreen::handle_dismiss_notice()` now checks
+`manage_options` before its nonce, matching every other `admin_post_*`
+handler in that class. See `docs/COMPATIBILITY.md`, `docs/PRIVACY.md`, and
+`readme.txt` for M5's release-maturity surface (version parity,
+`bin/release-audit.sh`).

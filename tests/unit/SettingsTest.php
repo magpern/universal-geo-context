@@ -138,6 +138,43 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( '', $result['default_country'] );
 	}
 
+	/**
+	 * M5 D2: a syntactically-shaped-but-nonexistent country code must be
+	 * rejected to '', not accepted — the gap this milestone closes.
+	 * GeoValidator's own allowlist deliberately excludes exactly these
+	 * GeoIP-placeholder codes even though a bare regex would accept them.
+	 *
+	 * @dataProvider unrecognized_country_provider
+	 */
+	public function test_unrecognized_country_code_is_rejected( string $unrecognized ): void {
+		$result = Settings::sanitize( array( 'default_country' => $unrecognized ) );
+		$this->assertSame( '', $result['default_country'] );
+	}
+
+	public function unrecognized_country_provider(): array {
+		return array(
+			'ZZ' => array( 'ZZ' ),
+			'XX' => array( 'XX' ),
+			'EU' => array( 'EU' ),
+			'A1' => array( 'A1' ),
+		);
+	}
+
+	public function test_recognized_country_code_is_accepted(): void {
+		$result = Settings::sanitize( array( 'default_country' => 'SE' ) );
+		$this->assertSame( 'SE', $result['default_country'] );
+	}
+
+	/**
+	 * 'XK' (Kosovo) is user-assigned, not officially ISO 3166-1, but is
+	 * explicitly included in GeoValidator's allowlist per Revision 3 §8 —
+	 * Settings must accept it exactly like a real ISO code.
+	 */
+	public function test_xk_kosovo_is_accepted(): void {
+		$result = Settings::sanitize( array( 'default_country' => 'xk' ) );
+		$this->assertSame( 'XK', $result['default_country'] );
+	}
+
 	// ---- trusted_proxies ----------------------------------------------------------
 
 	public function test_valid_ipv4_cidr_is_kept(): void {

@@ -1,15 +1,18 @@
 # Privacy Model
 
-**Status: Finalized (M4).** Every invariant below (P1–P6) is implemented
-and guard-tested (`tests/unit/Guards/PrivacyGuardTest.php`,
-`docs/adr/0005-privacy-model.md`) for the full M1–M4 surface, including
-MaxMind resolution, provider-health recording, and the remote provider. M4
-ships the one consequential exception this plugin's design named in advance
-(see "GDPR framing" below): a remote provider that, once an administrator
-explicitly enables and acknowledges it, sends the visitor IP off-server to
-derive a country. It remains disabled by default. M5 will additionally add
-`wp_add_privacy_policy_content()` (a WordPress privacy-tools integration,
-not a new invariant).
+**Status: Finalized (M4), Privacy Policy Guide integration added (M5).**
+Every invariant below (P1–P6) is implemented and guard-tested
+(`tests/unit/Guards/PrivacyGuardTest.php`, `docs/adr/0005-privacy-model.md`)
+for the full M1–M5 surface, including MaxMind resolution, provider-health
+recording, and the remote provider. M4 ships the one consequential
+exception this plugin's design named in advance (see "GDPR framing"
+below): a remote provider that, once an administrator explicitly enables
+and acknowledges it, sends the visitor IP off-server to derive a country.
+It remains disabled by default. M5 adds `wp_add_privacy_policy_content()`
+(a WordPress privacy-tools integration, not a new invariant) — the
+registered text (`src/Privacy/PrivacyPolicyContent.php`) includes the
+remote-transfer paragraph only when the remote provider is actually
+enabled, never unconditionally.
 
 ## Core principle
 
@@ -32,10 +35,10 @@ public API — `VisitorContext` has no IP field at all.
 | P2 | No file writes an IP to an option, transient, meta, table, or cache value as plain text — the only permitted persisted form is a salted hash inside a cache **key**, produced in exactly one file. | `src/Cache/GeoCache.php`'s key format: `"{epoch}:{config_sig}:ip:{hash}"`, `hash = substr(hash_hmac('sha256', $ip, $salt), 0, 32)`. |
 | P3 | No error, exception, or debug path emits an unmasked IP. Every address in diagnostics or a Site Health field passes through `IpUtils::mask()` first. | `src/Http/IpUtils.php::mask()`; consumed by `ClientIpResolver::explain()` and `DiagnosticsService`'s report sections. |
 | P4 | No outbound HTTP request carries an IP unless an administrator explicitly enabled a remote provider. | `WooCommerceProvider` calls `WC_Geolocation::geolocate_ip($ip, false, false)` with both fallbacks disabled; `MaxMindProvider` is a purely local file read — neither performs outbound HTTP. `PrivacyGuardTest` enforces this by absence for `wp_remote_get`/`wp_remote_post`/`wp_remote_request`/`curl_init`/URL-fetching `file_get_contents` everywhere in `src/`, with no allowlist exception anywhere, ever (rule 6). The one function capable of outbound HTTP, `wp_safe_remote_get()`, is confined to a single file, `src/Providers/Remote/WordPressHttpTransport.php` (rule 8) — and `ReferenceRemoteProvider` itself only ever reaches that file when enabled, acknowledged, and credentialed (`is_available()`, re-checked defensively at the top of `resolve()` too). |
-| P5 | Diagnostics and Site Health never print a complete IP address, and (M4) never print a credential value. WP-CLI (M5) will follow the same rule. | Every `DiagnosticsService::report()` section and all three Site Health test descriptions (`universal_geo_trusted_proxy`, `universal_geo_maxmind`, `universal_geo_remote_provider`) use masked values exclusively — the MaxMind database path and the remote provider's endpoint host are server configuration, not personal data, and are shown unmasked; provider-health messages (including the remote provider's) are scrubbed of IP-shaped tokens before they are ever persisted (see `ProviderHealthStore`, below). The remote section reports only a `credentials_present` boolean and a `credential_source` enum (`constants`/`settings`/`none`) — the account id and license key values themselves never appear in diagnostics, a hook payload, an exception message, or a Site Health field. |
+| P5 | Diagnostics and Site Health never print a complete IP address, and (M4) never print a credential value. WP-CLI (M5) follows the same rule: `context`/`diagnostics` mask by default, `--allow-full-ip` only affects the explicitly-supplied `--ip` argument's own echo, and `diagnostics` never has a raw address to reveal in the first place (it reuses the already-masked `report()`). | Every `DiagnosticsService::report()` section, all three Site Health test descriptions (`universal_geo_trusted_proxy`, `universal_geo_maxmind`, `universal_geo_remote_provider`), and (M5) the `debug_information` section use masked values exclusively — the MaxMind database path and the remote provider's endpoint host are server configuration, not personal data, and are shown unmasked; provider-health messages (including the remote provider's) are scrubbed of IP-shaped tokens before they are ever persisted (see `ProviderHealthStore`, below). The remote section reports only a `credentials_present` boolean and a `credential_source` enum (`constants`/`settings`/`none`) — the account id and license key values themselves never appear in diagnostics, a hook payload, an exception message, or a Site Health field. |
 | P6 | The plugin creates no custom database table. | No `dbDelta()` call anywhere in the codebase; the only persisted state is WordPress options and two per-user meta keys (below). |
 
-## Persisted-data inventory (M1–M4)
+## Persisted-data inventory (M1–M5; M5 adds no new persisted key)
 
 | Key | Type | Contents | Owner |
 |---|---|---|---|

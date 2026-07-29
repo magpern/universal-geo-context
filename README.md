@@ -2,7 +2,7 @@
 
 **Visitor geolocation detection and country resolution — evidence-based, privacy-respecting, and easily extensible.**
 
-**Status: v0.4.0 (M4) shipped.** A working WordPress plugin that resolves a
+**Status: v1.0.0 (M5) shipped.** A working WordPress plugin that resolves a
 visitor's country from a fixed chain of providers (Cloudflare headers, a
 local MaxMind database, WooCommerce's own geolocation, an optional remote
 MaxMind web service, and a configured default), attributes the answer to a
@@ -68,9 +68,22 @@ deployment topologies and recipes.
 - **v0.2.0 (M2)** — Client IP resolution, Cloudflare headers, WooCommerce integration, admin settings and diagnostics. Shipped.
 - **v0.3.0 (M3)** — Privacy floor formalized, `maxmind_db_path` setting, `MaxMindProvider`, provider health tracking, MaxMind Site Health test. Shipped.
 - **v0.4.0 (M4)** — Remote provider (MaxMind GeoLite2 Country Web Service), disabled by default; circuit breaker; remote diagnostics and Site Health test. Shipped.
-- **v1.0.0 (M5)** — WP-CLI, Site Health, translation readiness, release maturity.
+- **v1.0.0 (M5)** — WP-CLI (`context`, `diagnostics`, `cache flush`); a Site Health `debug_information` section; translation readiness; Privacy Policy Guide integration; humanized diagnostics labels; real ISO 3166-1 validation for the default-country setting; release maturity (`readme.txt`, `LICENSE`, automated version-parity test, release-audit script). Shipped.
 
 Full timeline: [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## WP-CLI
+
+```
+wp universal-geo context [--ip=<ip>] [--format=table|json|yaml] [--allow-full-ip]
+wp universal-geo diagnostics [--format=table|json|yaml] [--allow-full-ip]
+wp universal-geo cache flush
+```
+
+WP-CLI has no HTTP request, so `context --ip=` probes the provider chain
+directly for that address; it never exercises forwarding-header trust —
+verifying trusted-proxy configuration always requires a real browser
+request against the Diagnostics tab.
 
 ## Architecture
 

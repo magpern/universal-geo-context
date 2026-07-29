@@ -3,7 +3,7 @@
  * Plugin Name: Universal Geo Context
  * Plugin URI: https://github.com/magpern/universal-geo-context
  * Description: Visitor geolocation detection and country resolution. Evidence-based, privacy-respecting, and easily extensible.
- * Version: 0.4.0
+ * Version: 1.0.0
  * Author: magpern
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -17,8 +17,24 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'UNIVERSAL_GEO_VERSION', '0.4.0' );
+define( 'UNIVERSAL_GEO_VERSION', '1.0.0' );
 define( 'UNIVERSAL_GEO_PLUGIN_FILE', __FILE__ );
+
+// Loaded unconditionally, before the PHP-version guard below (M5): this
+// plugin is GitHub-distributed, not wordpress.org-hosted, so it does not
+// get WordPress 4.6+'s automatic translation loading for .org plugins —
+// without this call, every __()/esc_html__() call anywhere in the plugin
+// is permanently untranslatable regardless of how many .mo files exist.
+// Registered ahead of the guard so even the guard's own admin_notices
+// message translates: that branch can run on a PHP version too old for the
+// rest of this file to matter, so this call cannot live inside
+// Plugin::init(), which never runs in that case.
+add_action(
+	'plugins_loaded',
+	static function () {
+		load_plugin_textdomain( 'universal-geo-context', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+	}
+);
 
 // PHP version guard. The "Requires PHP" header stops activation on WP 5.1+,
 // but a file-drop install can bypass it, so fail closed with a notice.

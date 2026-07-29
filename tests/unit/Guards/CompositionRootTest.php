@@ -47,6 +47,13 @@ final class CompositionRootTest extends TestCase {
 	 * Internal service classes the composition-root invariant confines to
 	 * Plugin.php, checked via `new ClassName(`. ServerRequest is checked
 	 * separately (via capture(), never new — its constructor is private).
+	 *
+	 * M5 adds two: `Command` (the WP-CLI command family, the symmetric
+	 * WP-CLI-only counterpart to `AdminScreen`'s admin-only registration)
+	 * and `PrivacyPolicyContent` (the `wp_add_privacy_policy_content()`
+	 * text builder) — both follow the exact same "constructed once in
+	 * Plugin.php, dependencies injected" shape every prior service already
+	 * established, so no new pattern is introduced.
 	 */
 	private const CONSTRUCTOR_CONFINED_CLASSES = array(
 		'TrustedProxies',
@@ -63,6 +70,8 @@ final class CompositionRootTest extends TestCase {
 		'ReferenceRemoteProvider',
 		'CircuitBreaker',
 		'WordPressHttpTransport',
+		'CliCommand',
+		'PrivacyPolicyContent',
 	);
 
 	/**

@@ -11,6 +11,7 @@ namespace UniversalGeo;
 
 use UniversalGeo\Admin\AdminScreen;
 use UniversalGeo\Cache\GeoCache;
+use UniversalGeo\Cli\Command as CliCommand;
 use UniversalGeo\Contracts\GeoProviderInterface;
 use UniversalGeo\Diagnostics\DiagnosticsService;
 use UniversalGeo\Diagnostics\ProviderHealthStore;
@@ -18,6 +19,7 @@ use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Http\TrustedProxies;
 use UniversalGeo\Model\VisitorContext;
+use UniversalGeo\Privacy\PrivacyPolicyContent;
 use UniversalGeo\Providers\CloudflareHeaderProvider;
 use UniversalGeo\Providers\DefaultCountryProvider;
 use UniversalGeo\Providers\MaxMindProvider;
@@ -142,7 +144,10 @@ final class Plugin {
 	 * graph; does not resolve anything. Admin services (`DiagnosticsService`,
 	 * `AdminScreen`) are additionally constructed and registered under the
 	 * Revision 3 §4.5 admin condition — never on the frontend, cron, AJAX,
-	 * or WP-CLI request path.
+	 * or WP-CLI request path. `DiagnosticsService` is instead paired with
+	 * `Cli\Command` (M5) on the symmetric WP-CLI-only path — the two
+	 * conditions are mutually exclusive within a single request, so
+	 * `DiagnosticsService` is still constructed at most once.
 	 *
 	 * @return void
 	 */
@@ -155,7 +160,10 @@ final class Plugin {
 		$graph          = $this->build_graph();
 		$this->resolver = $graph['resolver'];
 
-		if ( $this->should_register_admin() ) {
+		$register_admin = $this->should_register_admin();
+		$register_cli   = $this->should_register_cli();
+
+		if ( $register_admin || $register_cli ) {
 			$diagnostics = new DiagnosticsService(
 				$graph['resolver'],
 				$graph['client_ip_resolver'],
@@ -167,17 +175,37 @@ final class Plugin {
 				$graph['circuit_breaker'],
 				$graph['remote_credential_source']
 			);
+		}
+
+		if ( $register_admin ) {
 			$diagnostics->register();
 
 			( new AdminScreen( $diagnostics, $graph['server_request'] ) )->register();
+
+			$privacy_content = new PrivacyPolicyContent( $graph['settings']['remote_enabled'] );
+
+			add_action(
+				'admin_init',
+				static function () use ( $privacy_content ): void {
+					if ( function_exists( 'wp_add_privacy_policy_content' ) ) {
+						wp_add_privacy_policy_content(
+							__( 'Universal Geo Context', 'universal-geo-context' ),
+							$privacy_content->build()
+						);
+					}
+				}
+			);
+		}
+
+		if ( $register_cli ) {
+			( new CliCommand( $graph['resolver'], $diagnostics ) )->register();
 		}
 	}
 
 	/**
 	 * Revision 3 §4.5's exact admin registration condition: admin screens
 	 * register only on a real wp-admin request, never on AJAX, cron, or
-	 * WP-CLI (WP_CLI is undefined until M5's Cli\Command.php exists, but the
-	 * condition is written now so it needs no revisiting then).
+	 * WP-CLI.
 	 *
 	 * @return bool
 	 */
@@ -186,6 +214,16 @@ final class Plugin {
 			&& ! ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() )
 			&& ! ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() )
 			&& ! ( defined( 'WP_CLI' ) && WP_CLI );
+	}
+
+	/**
+	 * The symmetric WP-CLI registration condition (M5) — the exact opposite
+	 * leg of should_register_admin()'s own WP_CLI exclusion.
+	 *
+	 * @return bool
+	 */
+	private function should_register_cli(): bool {
+		return defined( 'WP_CLI' ) && WP_CLI;
 	}
 
 	/**
@@ -209,7 +247,7 @@ final class Plugin {
 			// input; _doing_it_wrong() escapes it internally.
 			_doing_it_wrong(
 				'universal_geo_get_context',
-				'Called before Universal Geo Context has booted. Call at or after the plugins_loaded priority 20.',
+				__( 'Called before Universal Geo Context has booted. Call at or after the plugins_loaded priority 20.', 'universal-geo-context' ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- _doing_it_wrong()'s message is never echoed as HTML (WP core's own trigger_error() path); WP core's own usage of this function passes plain __(), never esc_html__().
 				UNIVERSAL_GEO_VERSION // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			);
 
@@ -236,7 +274,7 @@ final class Plugin {
 		if ( ! $this->is_valid_filtered_context( $filtered ) ) {
 			_doing_it_wrong(
 				'universal_geo_context',
-				'The universal_geo_context filter must return a VisitorContext with a valid country code.',
+				__( 'The universal_geo_context filter must return a VisitorContext with a valid country code.', 'universal-geo-context' ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- see the identical note on the first _doing_it_wrong() call above.
 				UNIVERSAL_GEO_VERSION // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			);
 
@@ -518,7 +556,7 @@ final class Plugin {
 		if ( ! is_string( $filtered ) ) {
 			_doing_it_wrong(
 				'universal_geo_maxmind_db_path',
-				'The universal_geo_maxmind_db_path filter must return a string.',
+				__( 'The universal_geo_maxmind_db_path filter must return a string.', 'universal-geo-context' ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- see the identical note on the first _doing_it_wrong() call above.
 				UNIVERSAL_GEO_VERSION // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			);
 
@@ -612,7 +650,7 @@ final class Plugin {
 
 			_doing_it_wrong(
 				'universal_geo_providers',
-				'The universal_geo_providers filter must only return GeoProviderInterface instances; a non-conforming element was dropped.',
+				__( 'The universal_geo_providers filter must only return GeoProviderInterface instances; a non-conforming element was dropped.', 'universal-geo-context' ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- see the identical note on the first _doing_it_wrong() call above.
 				UNIVERSAL_GEO_VERSION // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			);
 		}

@@ -1,10 +1,11 @@
 # Compatibility Matrix
 
-**Status: M4 complete.** Version-header parity (header, `UNIVERSAL_GEO_VERSION`,
-and this document) is checked manually until M5's automated release tests
-land.
+**Status: M5 complete.** Version-header parity (header, `UNIVERSAL_GEO_VERSION`,
+this document, and `readme.txt`'s `Stable tag`) is enforced automatically by
+`tests/unit/VersionParityTest.php`, which runs on every PR/CI build — no
+longer a manual check.
 
-**Current plugin version: `0.4.0`**
+**Current plugin version: `1.0.0`**
 
 ## Version support
 
@@ -12,7 +13,11 @@ land.
 |---|---|---|
 | PHP | **8.1** | 8.4 |
 | WordPress | **6.5** | 7.0 |
-| WooCommerce | Optional | 10.9 |
+| WooCommerce | Optional, **10.9.4** minimum when active | 10.9 |
+
+The WooCommerce floor is the version CI's integration matrix pins on every
+leg (`.github/workflows/ci.yml`) — the practical minimum this plugin is
+actually verified against, not an arbitrary number.
 
 ## Plugin header
 

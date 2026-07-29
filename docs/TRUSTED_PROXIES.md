@@ -1,6 +1,6 @@
 # Trusted Proxies — Deployment Recipes
 
-**Status: M2 complete.** The trust-gate algorithm (`src/Http/ClientIpResolver.php`),
+**Status: M2 complete; current through M5.** The trust-gate algorithm (`src/Http/ClientIpResolver.php`),
 the effective trusted set (`src/Http/TrustedProxies.php`), and the two admin
 settings (`trusted_proxies`, `trust_cloudflare`, under Settings → Universal Geo Context)
 are implemented and tested — the full 15-row spoofing matrix, both Cloudflare
@@ -99,6 +99,9 @@ when applicable: **Trust this peer** (adds the observed peer's `/32` or
 actually inside a Cloudflare range) — both explicit admin actions, never
 automatic.
 
-A CLI process (`wp eval`, WP-CLI commands from M5) has no HTTP request and
-therefore no peer to verify — header-trust behavior can only ever be
-confirmed through a real browser request against the Diagnostics tab.
+A CLI process (`wp eval`, the `wp universal-geo context`/`diagnostics`
+commands) has no HTTP request and therefore no peer to verify —
+header-trust behavior can only ever be confirmed through a real browser
+request against the Diagnostics tab. `context --ip=<ip>` probes the
+provider chain directly for that address; it never exercises this trust
+gate.

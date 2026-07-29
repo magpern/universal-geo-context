@@ -1,9 +1,15 @@
 # Security Considerations
 
-**Status: M4 complete.** The trust-boundary threats (spoofing, header
-precedence, provider hardening), the MaxMind file-read threat, and the
-remote-provider threats (SSRF, API-key disclosure, DoS via latency) below
-are implemented and tested.
+**Status: M4 complete; current through M5.** The trust-boundary threats
+(spoofing, header precedence, provider hardening), the MaxMind file-read
+threat, and the remote-provider threats (SSRF, API-key disclosure, DoS via
+latency) below are implemented and tested. M5 (WP-CLI, Site Health
+`debug_information`, Privacy Policy Guide integration) introduces no new
+threat class: WP-CLI access already implies server/deploy-level trust
+equivalent to `wp eval`, and both the `diagnostics` command and the
+`debug_information` section reuse the same already-masked
+`DiagnosticsService::report()` the admin Diagnostics tab does — no new
+code path can expose a credential or a complete IP address.
 
 ## Threat model
 

@@ -28,6 +28,24 @@ jobs:
       - run: composer install --prefer-dist --no-progress
       - run: composer phpcs
 
+  i18n:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        id: setup-php
+        with:
+          php-version: '8.3'
+          coverage: none
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-
+      - run: composer install --prefer-dist --no-progress
+      - run: composer make-pot:check
+
   unit:
     runs-on: ubuntu-latest
     strategy:
@@ -149,6 +167,7 @@ jobs:
             ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-
       - run: composer install --no-dev --prefer-dist --no-progress --optimize-autoloader
       - run: bash bin/build-zip.sh
+      - run: bash bin/release-audit.sh
       - uses: actions/upload-artifact@v5
         with:
           name: universal-geo-context

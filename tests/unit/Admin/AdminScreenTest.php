@@ -184,6 +184,7 @@ final class AdminScreenTest extends TestCase {
 		$this->assertNotSame( '', $this->invoke_private( $screen, 'notice_message', array( 'saved' ) ) );
 		$this->assertNotSame( '', $this->invoke_private( $screen, 'notice_message', array( 'peer_trusted' ) ) );
 		$this->assertNotSame( '', $this->invoke_private( $screen, 'notice_message', array( 'cf_preset_enabled' ) ) );
+		$this->assertNotSame( '', $this->invoke_private( $screen, 'notice_message', array( 'default_country_rejected' ) ) );
 	}
 
 	public function test_notice_message_unknown_key_is_empty(): void {
