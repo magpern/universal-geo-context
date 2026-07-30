@@ -139,6 +139,32 @@ if ( ! function_exists( 'esc_html' ) ) {
 	}
 }
 
+if ( ! function_exists( 'esc_attr' ) ) {
+	function esc_attr( $text ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return $text;
+	}
+}
+
+if ( ! function_exists( 'esc_url' ) ) {
+	function esc_url( $url ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return $url;
+	}
+}
+
+if ( ! function_exists( 'wp_nonce_field' ) ) {
+	function wp_nonce_field( $action = -1, $name = '_wpnonce', $referer = true, $display = true ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		if ( $display ) {
+			echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="test-nonce" />';
+		}
+	}
+}
+
+if ( ! function_exists( 'submit_button' ) ) {
+	function submit_button( $text = null, $type = 'primary', $name = 'submit', $wrap = true, $other_attributes = null ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		echo '<input type="submit" name="' . esc_attr( $name ) . '" class="button" value="' . esc_attr( (string) $text ) . '" />';
+	}
+}
+
 if ( ! function_exists( 'esc_html__' ) ) {
 	/**
 	 * Identity translate-and-escape stub (M5): both the __() and esc_html()

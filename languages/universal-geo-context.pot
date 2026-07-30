@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-30T21:46:56+00:00\n"
+"POT-Creation-Date: 2026-07-30T21:57:19+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: universal-geo-context\n"
@@ -183,17 +183,17 @@ msgid "Provider health"
 msgstr ""
 
 #: src/Admin/DiagnosticsPage.php:131
-#: src/Admin/OverviewPage.php:171
+#: src/Admin/OverviewPage.php:170
 msgid "Cache"
 msgstr ""
 
 #: src/Admin/DiagnosticsPage.php:134
-#: src/Admin/OverviewPage.php:178
+#: src/Admin/OverviewPage.php:177
 msgid "Environment"
 msgstr ""
 
 #: src/Admin/FirstRunNotice.php:62
-#: src/Admin/OverviewPage.php:194
+#: src/Admin/OverviewPage.php:193
 #: src/Admin/SettingsPage.php:157
 #: src/Admin/SettingsPage.php:236
 #: src/Admin/SettingsPage.php:253
@@ -243,29 +243,29 @@ msgstr ""
 msgid "No provider failure records on file."
 msgstr ""
 
-#: src/Admin/OverviewPage.php:151
+#: src/Admin/OverviewPage.php:150
 msgid "Refresh now"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:157
+#: src/Admin/OverviewPage.php:156
 msgid "Remote Provider"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:164
+#: src/Admin/OverviewPage.php:163
 #: src/Admin/TrustedProxiesPage.php:66
 #: src/Admin/TrustedProxiesPage.php:75
 msgid "Trusted Proxies"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:271
+#: src/Admin/OverviewPage.php:270
 msgid "Overall health: critical issues detected"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:272
+#: src/Admin/OverviewPage.php:271
 msgid "Overall health: recommended improvements available"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:273
+#: src/Admin/OverviewPage.php:272
 msgid "Overall health: good"
 msgstr ""
 
