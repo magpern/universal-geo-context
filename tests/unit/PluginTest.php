@@ -899,7 +899,9 @@ final class PluginTest extends TestCase {
 	private function base_settings(
 		string $maxmind_db_path = '',
 		string $remote_account_id = '',
-		string $remote_license_key = ''
+		string $remote_license_key = '',
+		string $maxmind_account_id = '',
+		string $maxmind_license_key = ''
 	): array {
 		return array(
 			'schema_version'               => Settings::SCHEMA_VERSION,
@@ -913,6 +915,8 @@ final class PluginTest extends TestCase {
 			'remote_account_id'            => $remote_account_id,
 			'remote_license_key'           => $remote_license_key,
 			'remote_transfer_acknowledged' => false,
+			'maxmind_account_id'           => $maxmind_account_id,
+			'maxmind_license_key'          => $maxmind_license_key,
 		);
 	}
 
@@ -921,8 +925,8 @@ final class PluginTest extends TestCase {
 	 *
 	 * @return array{account_id: string, license_key: string, source: string}
 	 */
-	private function resolved_remote_credentials( array $settings ): array {
-		$reflection = new ReflectionMethod( Plugin::class, 'resolved_remote_credentials' );
+	private function resolved_maxmind_credentials( array $settings ): array {
+		$reflection = new ReflectionMethod( Plugin::class, 'resolved_maxmind_credentials' );
 		$reflection->setAccessible( true );
 
 		return $reflection->invoke( Plugin::instance(), $settings );
@@ -1072,10 +1076,10 @@ final class PluginTest extends TestCase {
 		$this->assertSame( $outside, $result );
 	}
 
-	// ---- M4: resolved_remote_credentials() precedence chain --------------------
+	// ---- M4/M6: resolved_maxmind_credentials() precedence chain ----------------
 
-	public function test_remote_credentials_none_when_nothing_configured(): void {
-		$result = $this->resolved_remote_credentials( $this->base_settings() );
+	public function test_maxmind_credentials_none_when_nothing_configured(): void {
+		$result = $this->resolved_maxmind_credentials( $this->base_settings() );
 
 		$this->assertSame(
 			array(
@@ -1087,8 +1091,8 @@ final class PluginTest extends TestCase {
 		);
 	}
 
-	public function test_remote_credentials_uses_the_settings_pair_when_both_present(): void {
-		$result = $this->resolved_remote_credentials( $this->base_settings( '', '12345', 'abc123XYZ' ) );
+	public function test_maxmind_credentials_uses_the_canonical_settings_pair_when_both_present(): void {
+		$result = $this->resolved_maxmind_credentials( $this->base_settings( '', '', '', '12345', 'abc123XYZ' ) );
 
 		$this->assertSame(
 			array(
@@ -1100,14 +1104,14 @@ final class PluginTest extends TestCase {
 		);
 	}
 
-	public function test_remote_credentials_none_when_only_account_id_is_present(): void {
-		$result = $this->resolved_remote_credentials( $this->base_settings( '', '12345', '' ) );
+	public function test_maxmind_credentials_none_when_only_canonical_account_id_is_present(): void {
+		$result = $this->resolved_maxmind_credentials( $this->base_settings( '', '', '', '12345', '' ) );
 
 		$this->assertSame( 'none', $result['source'] );
 	}
 
-	public function test_remote_credentials_none_when_only_license_key_is_present(): void {
-		$result = $this->resolved_remote_credentials( $this->base_settings( '', '', 'abc123XYZ' ) );
+	public function test_maxmind_credentials_none_when_only_canonical_license_key_is_present(): void {
+		$result = $this->resolved_maxmind_credentials( $this->base_settings( '', '', '', '', 'abc123XYZ' ) );
 
 		$this->assertSame( 'none', $result['source'] );
 	}
@@ -1116,11 +1120,11 @@ final class PluginTest extends TestCase {
 	 * @runInSeparateProcess
 	 * @preserveGlobalState disabled
 	 */
-	public function test_remote_credentials_constants_win_over_settings(): void {
-		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'constant-account' );
-		define( 'UNIVERSAL_GEO_REMOTE_LICENSE_KEY', 'constant-license' );
+	public function test_maxmind_credentials_canonical_constants_win_over_settings(): void {
+		define( 'UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID', 'constant-account' );
+		define( 'UNIVERSAL_GEO_MAXMIND_LICENSE_KEY', 'constant-license' );
 
-		$result = $this->resolved_remote_credentials( $this->base_settings( '', 'settings-account', 'settings-license' ) );
+		$result = $this->resolved_maxmind_credentials( $this->base_settings( '', '', '', 'settings-account', 'settings-license' ) );
 
 		$this->assertSame(
 			array(
@@ -1136,15 +1140,70 @@ final class PluginTest extends TestCase {
 	 * @runInSeparateProcess
 	 * @preserveGlobalState disabled
 	 */
-	public function test_remote_credentials_never_combines_one_constant_with_one_setting(): void {
-		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'constant-account' );
+	public function test_maxmind_credentials_canonical_constants_win_over_legacy_constants(): void {
+		define( 'UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID', 'canonical-constant-account' );
+		define( 'UNIVERSAL_GEO_MAXMIND_LICENSE_KEY', 'canonical-constant-license' );
+		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'legacy-constant-account' );
+		define( 'UNIVERSAL_GEO_REMOTE_LICENSE_KEY', 'legacy-constant-license' );
+
+		$result = $this->resolved_maxmind_credentials( $this->base_settings() );
+
+		$this->assertSame(
+			array(
+				'account_id'  => 'canonical-constant-account',
+				'license_key' => 'canonical-constant-license',
+				'source'      => 'constants',
+			),
+			$result
+		);
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_maxmind_credentials_legacy_constants_win_over_settings(): void {
+		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'legacy-constant-account' );
+		define( 'UNIVERSAL_GEO_REMOTE_LICENSE_KEY', 'legacy-constant-license' );
+
+		$result = $this->resolved_maxmind_credentials( $this->base_settings( '', '', '', 'settings-account', 'settings-license' ) );
+
+		$this->assertSame(
+			array(
+				'account_id'  => 'legacy-constant-account',
+				'license_key' => 'legacy-constant-license',
+				'source'      => 'legacy_constants',
+			),
+			$result
+		);
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_maxmind_credentials_never_combines_one_canonical_constant_with_one_setting(): void {
+		define( 'UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID', 'constant-account' );
+		// UNIVERSAL_GEO_MAXMIND_LICENSE_KEY intentionally left undefined.
+
+		$result = $this->resolved_maxmind_credentials( $this->base_settings( '', '', '', '', 'settings-license' ) );
+
+		// Falls through to the legacy constants (also incomplete/undefined),
+		// then the settings pair evaluation, which also fails (account_id is
+		// '' in settings) — never a constant paired with a setting.
+		$this->assertSame( 'none', $result['source'] );
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_maxmind_credentials_never_combines_one_legacy_constant_with_one_setting(): void {
+		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'legacy-constant-account' );
 		// UNIVERSAL_GEO_REMOTE_LICENSE_KEY intentionally left undefined.
 
-		$result = $this->resolved_remote_credentials( $this->base_settings( '', '', 'settings-license' ) );
+		$result = $this->resolved_maxmind_credentials( $this->base_settings( '', '', '', '', 'settings-license' ) );
 
-		// Falls through to the settings pair evaluation, which also fails
-		// (account_id is '' in settings) — never a constant paired with a
-		// setting.
 		$this->assertSame( 'none', $result['source'] );
 	}
 

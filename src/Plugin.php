@@ -326,7 +326,7 @@ final class Plugin {
 		$default_country    = $this->filtered_default_country( $settings['default_country'] );
 		$maxmind_db_path    = $this->resolved_maxmind_db_path( $settings );
 		$maxmind_provider   = new MaxMindProvider( $maxmind_db_path );
-		$remote_credentials = $this->resolved_remote_credentials( $settings );
+		$remote_credentials = $this->resolved_maxmind_credentials( $settings );
 		$circuit_breaker    = new CircuitBreaker();
 		$remote_provider    = new ReferenceRemoteProvider(
 			$settings['remote_enabled'],
@@ -567,24 +567,52 @@ final class Plugin {
 	}
 
 	/**
-	 * Resolves the effective remote-provider credential pair and its source
-	 * (M4 frozen decision), the one place in the codebase this precedence is
-	 * decided: constants win only when *both* `UNIVERSAL_GEO_REMOTE_ACCOUNT_ID`
-	 * and `UNIVERSAL_GEO_REMOTE_LICENSE_KEY` are defined as non-empty
-	 * strings — never one constant paired with one setting. Otherwise, the
-	 * settings pair is used only when *both* `remote_account_id` and
-	 * `remote_license_key` sanitize to non-empty strings; a single configured
-	 * credential without its pair is treated identically to having neither
-	 * (the provider "requires both credentials"). `DiagnosticsService`
-	 * receives only the resulting source scalar — never re-deriving this
-	 * precedence itself, per the M4 report's frozen decision that credential
-	 * source is resolved exactly once, here.
+	 * Resolves the effective, shared MaxMind credential pair and its source
+	 * (M4 frozen decision, generalized in M6 decision #2/#4): one canonical
+	 * account id/license key, consumed by both `ReferenceRemoteProvider` and
+	 * (from M6E onward) `MaxMind\DatabaseManager` — a MaxMind account has one
+	 * credential pair regardless of which MaxMind product it authenticates
+	 * against. The one place in the codebase this precedence is decided,
+	 * checked in order:
+	 *
+	 * 1. `UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID` / `UNIVERSAL_GEO_MAXMIND_LICENSE_KEY`
+	 *    — the canonical wp-config.php constant pair. Wins outright when
+	 *    *both* are defined as non-empty strings.
+	 * 2. `UNIVERSAL_GEO_REMOTE_ACCOUNT_ID` / `UNIVERSAL_GEO_REMOTE_LICENSE_KEY`
+	 *    — the legacy M4 constant pair, still honored as a deprecated
+	 *    fallback (`docs/COMPATIBILITY.md`), when *both* are defined as
+	 *    non-empty strings.
+	 * 3. The sanitized `maxmind_account_id`/`maxmind_license_key` settings
+	 *    pair — already migrated from any legacy `remote_account_id`/
+	 *    `remote_license_key` settings values by `Settings::sanitize()`
+	 *    itself, so no separate settings-level legacy fallback is needed
+	 *    here.
+	 * 4. None.
+	 *
+	 * At every level, a single configured credential without its pair is
+	 * treated identically to having neither — never one constant/setting
+	 * paired with a value from a different level (the frozen M4 "requires
+	 * both credentials" rule, unchanged). `DiagnosticsService` receives only
+	 * the resulting source scalar — never re-deriving this precedence
+	 * itself, per the M4 report's frozen decision that credential source is
+	 * resolved exactly once, here.
 	 *
 	 * @param array<string, mixed> $settings The sanitized settings array.
 	 *
-	 * @return array{account_id: string, license_key: string, source: string} `source` is one of 'constants', 'settings', or 'none'.
+	 * @return array{account_id: string, license_key: string, source: string} `source` is one of 'constants', 'legacy_constants', 'settings', or 'none'.
 	 */
-	private function resolved_remote_credentials( array $settings ): array {
+	private function resolved_maxmind_credentials( array $settings ): array {
+		if (
+			defined( 'UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID' ) && is_string( UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID ) && '' !== UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID
+			&& defined( 'UNIVERSAL_GEO_MAXMIND_LICENSE_KEY' ) && is_string( UNIVERSAL_GEO_MAXMIND_LICENSE_KEY ) && '' !== UNIVERSAL_GEO_MAXMIND_LICENSE_KEY
+		) {
+			return array(
+				'account_id'  => UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID,
+				'license_key' => UNIVERSAL_GEO_MAXMIND_LICENSE_KEY,
+				'source'      => 'constants',
+			);
+		}
+
 		if (
 			defined( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID' ) && is_string( UNIVERSAL_GEO_REMOTE_ACCOUNT_ID ) && '' !== UNIVERSAL_GEO_REMOTE_ACCOUNT_ID
 			&& defined( 'UNIVERSAL_GEO_REMOTE_LICENSE_KEY' ) && is_string( UNIVERSAL_GEO_REMOTE_LICENSE_KEY ) && '' !== UNIVERSAL_GEO_REMOTE_LICENSE_KEY
@@ -592,14 +620,14 @@ final class Plugin {
 			return array(
 				'account_id'  => UNIVERSAL_GEO_REMOTE_ACCOUNT_ID,
 				'license_key' => UNIVERSAL_GEO_REMOTE_LICENSE_KEY,
-				'source'      => 'constants',
+				'source'      => 'legacy_constants',
 			);
 		}
 
-		if ( '' !== $settings['remote_account_id'] && '' !== $settings['remote_license_key'] ) {
+		if ( '' !== $settings['maxmind_account_id'] && '' !== $settings['maxmind_license_key'] ) {
 			return array(
-				'account_id'  => $settings['remote_account_id'],
-				'license_key' => $settings['remote_license_key'],
+				'account_id'  => $settings['maxmind_account_id'],
+				'license_key' => $settings['maxmind_license_key'],
 				'source'      => 'settings',
 			);
 		}

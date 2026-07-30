@@ -264,12 +264,14 @@ final class AdminScreen {
 	}
 
 	/**
-	 * Whether both remote-provider credential constants are defined as
-	 * non-empty strings — the same pair-wise "both or neither" test
-	 * `Plugin::resolved_remote_credentials()` applies at graph build, kept
-	 * here as its own small, display-only check rather than shared: this one
-	 * decides whether to render the two credential fields disabled, never
-	 * resolution behavior itself.
+	 * Whether both legacy remote-provider credential constants are defined
+	 * as non-empty strings — the same pair-wise "both or neither" test
+	 * `Plugin::resolved_maxmind_credentials()` applies at graph build (as
+	 * one precedence level among several, as of M6), kept here as its own
+	 * small, display-only check rather than shared: this one decides whether
+	 * to render the two legacy credential fields disabled, never resolution
+	 * behavior itself. The M6F admin UI restructuring is expected to extend
+	 * this check to the new canonical constant pair too.
 	 *
 	 * @return bool
 	 */
