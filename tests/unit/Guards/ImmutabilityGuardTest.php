@@ -16,6 +16,8 @@ use UniversalGeo\Model\GeoCandidate;
 use UniversalGeo\Model\ResolvedClientIp;
 use UniversalGeo\Model\VisitorContext;
 use UniversalGeo\Providers\MaxMindMetadata;
+use UniversalGeo\Providers\Remote\DownloadResult;
+use UniversalGeo\Providers\Remote\RedirectResult;
 use UniversalGeo\Providers\Remote\TransportResponse;
 
 /**
@@ -58,6 +60,8 @@ final class ImmutabilityGuardTest extends TestCase {
 		ServerRequest::class,
 		MaxMindMetadata::class,
 		TransportResponse::class,
+		RedirectResult::class,
+		DownloadResult::class,
 	);
 
 	/**
