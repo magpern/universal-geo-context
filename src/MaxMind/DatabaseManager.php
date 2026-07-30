@@ -181,6 +181,32 @@ final class DatabaseManager {
 	}
 
 	/**
+	 * Re-validates the currently installed active database file,
+	 * structurally — no network call, no lock (read-only, never mutates the
+	 * managed directory or the lock's own state). The single method behind
+	 * both the admin "Check database" action and the WP-CLI `validate`
+	 * command, so the two surfaces can never disagree about what counts as
+	 * valid.
+	 *
+	 * @return DatabaseUpdateResult
+	 */
+	public function validate_installed(): DatabaseUpdateResult {
+		$path = $this->active_path();
+
+		if ( ! is_file( $path ) ) {
+			return DatabaseUpdateResult::failure( 'not_installed', 'No managed database is installed.' );
+		}
+
+		try {
+			$this->validate_file( $path );
+		} catch ( DatabaseValidationException $e ) {
+			return DatabaseUpdateResult::failure( 'validation_failed', $e->getMessage() );
+		}
+
+		return DatabaseUpdateResult::success( 'ok', 'The installed database passed validation.' );
+	}
+
+	/**
 	 * Downloads, validates, and installs the latest GeoLite2 Country
 	 * database. See this class's docblock for the lock/action shape.
 	 *

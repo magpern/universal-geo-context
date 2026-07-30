@@ -651,4 +651,59 @@ final class DatabaseManagerTest extends TestCase {
 		$this->assertFalse( $result->success );
 		$this->assertSame( 'validation_failed', $result->code );
 	}
+
+	// ---- validate_installed() -------------------------------------------------------
+
+	public function test_validate_installed_fails_with_not_installed_when_nothing_is_present(): void {
+		$result = $this->manager( new FakeHttpTransport() )->validate_installed();
+
+		$this->assertFalse( $result->success );
+		$this->assertSame( 'not_installed', $result->code );
+	}
+
+	public function test_validate_installed_passes_for_a_freshly_installed_database(): void {
+		$transport = new FakeHttpTransport();
+		$archive   = $this->build_valid_archive();
+		$this->queue_successful_download( $transport, $archive );
+
+		$manager = $this->manager( $transport );
+		$manager->download_now( 'admin' );
+
+		$result = $manager->validate_installed();
+
+		$this->assertTrue( $result->success );
+		$this->assertSame( 'ok', $result->code );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		unlink( $archive );
+	}
+
+	public function test_validate_installed_fails_for_a_corrupted_active_file(): void {
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir
+		mkdir( $this->managed_dir, 0755, true );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		file_put_contents( $this->managed_dir . '/GeoLite2-Country.mmdb', 'not-a-real-database' );
+
+		$result = $this->manager( new FakeHttpTransport() )->validate_installed();
+
+		$this->assertFalse( $result->success );
+		$this->assertSame( 'validation_failed', $result->code );
+	}
+
+	public function test_validate_installed_does_not_require_the_lock(): void {
+		$lock = new UpdateLock( static fn (): int => self::FIXED_NOW );
+		$lock->acquire( 'someone-else' );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir
+		mkdir( $this->managed_dir, 0755, true );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		file_put_contents( $this->managed_dir . '/GeoLite2-Country.mmdb', 'not-a-real-database' );
+
+		$result = $this->manager( new FakeHttpTransport(), 'a', 'b', true, $lock )->validate_installed();
+
+		// A failure here must be 'validation_failed' (the file itself is
+		// corrupt), never 'already_running' — proving the lock was never
+		// consulted.
+		$this->assertSame( 'validation_failed', $result->code );
+	}
 }

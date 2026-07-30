@@ -58,12 +58,13 @@ final class AdminScreenTest extends WP_UnitTestCase {
 		parent::tearDown();
 	}
 
-	private function screen(): AdminScreen {
-		$request          = ServerRequest::capture( $_SERVER ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$trusted_proxies  = new TrustedProxies( array(), false );
-		$ip_resolver      = new ClientIpResolver( $request, $trusted_proxies );
-		$resolver         = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$database_manager = new DatabaseManager(
+	private function screen( ?DatabaseManager $database_manager = null ): AdminScreen {
+		$request         = ServerRequest::capture( $_SERVER ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$trusted_proxies = new TrustedProxies( array(), false );
+		$ip_resolver     = new ClientIpResolver( $request, $trusted_proxies );
+		$resolver        = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
+
+		$database_manager = $database_manager ?? new DatabaseManager(
 			sys_get_temp_dir() . '/ugeo-admin-screen-test-unused',
 			'',
 			'',
@@ -87,7 +88,7 @@ final class AdminScreenTest extends WP_UnitTestCase {
 			'none'
 		);
 
-		return new AdminScreen( $diagnostics, $request, new UpdateScheduler( $database_manager ) );
+		return new AdminScreen( $diagnostics, $request, new UpdateScheduler( $database_manager ), $database_manager );
 	}
 
 	/**
@@ -264,15 +265,15 @@ final class AdminScreenTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'universal_geo_msg=remote_enable_requires_acknowledgement', $location );
 	}
 
-	// ---- M4: credential clearing behavior ----------------------------------------
+	// ---- M4/M6: shared MaxMind credential clearing behavior -----------------------
 
-	public function test_blank_credential_submission_keeps_the_previously_stored_value(): void {
+	public function test_blank_maxmind_credential_submission_keeps_the_previously_stored_value(): void {
 		update_option(
 			Settings::OPTION_NAME,
 			Settings::sanitize(
 				array(
-					'remote_account_id'  => 'existing-account',
-					'remote_license_key' => 'existing-license',
+					'maxmind_account_id'  => 'existing-account',
+					'maxmind_license_key' => 'existing-license',
 				)
 			)
 		);
@@ -283,45 +284,78 @@ final class AdminScreenTest extends WP_UnitTestCase {
 
 		$stored = get_option( Settings::OPTION_NAME );
 
-		$this->assertSame( 'existing-account', $stored['remote_account_id'] );
-		$this->assertSame( 'existing-license', $stored['remote_license_key'] );
+		$this->assertSame( 'existing-account', $stored['maxmind_account_id'] );
+		$this->assertSame( 'existing-license', $stored['maxmind_license_key'] );
 	}
 
-	public function test_non_blank_credential_submission_replaces_the_stored_value(): void {
-		update_option(
-			Settings::OPTION_NAME,
-			Settings::sanitize( array( 'remote_account_id' => 'old-account' ) )
-		);
-
-		$this->submit( array( 'remote_account_id' => 'new-account' ) );
-
-		$stored = get_option( Settings::OPTION_NAME );
-
-		$this->assertSame( 'new-account', $stored['remote_account_id'] );
-	}
-
-	public function test_clear_credentials_checkbox_blanks_both_fields_regardless_of_what_is_also_typed(): void {
+	public function test_non_blank_maxmind_credential_submission_replaces_the_stored_value(): void {
 		update_option(
 			Settings::OPTION_NAME,
 			Settings::sanitize(
 				array(
-					'remote_account_id'  => 'existing-account',
-					'remote_license_key' => 'existing-license',
+					'maxmind_account_id'  => 'old-account',
+					'maxmind_license_key' => 'old-license',
+				)
+			)
+		);
+
+		$this->submit( array( 'maxmind_account_id' => 'new-account' ) );
+
+		$stored = get_option( Settings::OPTION_NAME );
+
+		$this->assertSame( 'new-account', $stored['maxmind_account_id'] );
+	}
+
+	public function test_maxmind_clear_credentials_checkbox_blanks_both_fields_regardless_of_what_is_also_typed(): void {
+		update_option(
+			Settings::OPTION_NAME,
+			Settings::sanitize(
+				array(
+					'maxmind_account_id'  => 'existing-account',
+					'maxmind_license_key' => 'existing-license',
 				)
 			)
 		);
 
 		$this->submit(
 			array(
-				'remote_account_id'        => 'typed-but-ignored',
-				'remote_clear_credentials' => '1',
+				'maxmind_account_id'        => 'typed-but-ignored',
+				'maxmind_clear_credentials' => '1',
 			)
 		);
 
 		$stored = get_option( Settings::OPTION_NAME );
 
-		$this->assertSame( '', $stored['remote_account_id'] );
-		$this->assertSame( '', $stored['remote_license_key'] );
+		$this->assertSame( '', $stored['maxmind_account_id'] );
+		$this->assertSame( '', $stored['maxmind_license_key'] );
+	}
+
+	/**
+	 * M6: the remote-provider section no longer has credential fields of
+	 * its own — a save that never touches them must still carry the legacy
+	 * remote_account_id/remote_license_key values through unedited (not
+	 * zero them out), so Settings::sanitize()'s own legacy->canonical
+	 * migration keeps working on a later save.
+	 */
+	public function test_legacy_remote_credentials_are_carried_through_unedited_by_a_save(): void {
+		update_option(
+			Settings::OPTION_NAME,
+			Settings::sanitize(
+				array(
+					'maxmind_account_id'  => 'canonical-account',
+					'maxmind_license_key' => 'canonical-license',
+					'remote_account_id'   => 'legacy-account',
+					'remote_license_key'  => 'legacy-license',
+				)
+			)
+		);
+
+		$this->submit( array( 'default_country' => 'de' ) );
+
+		$stored = get_option( Settings::OPTION_NAME );
+
+		$this->assertSame( 'legacy-account', $stored['remote_account_id'] );
+		$this->assertSame( 'legacy-license', $stored['remote_license_key'] );
 	}
 
 	// ---- M5 D2: default_country rejection ------------------------------------------

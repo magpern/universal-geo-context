@@ -194,7 +194,7 @@ final class Plugin {
 		if ( $register_admin ) {
 			$diagnostics->register();
 
-			( new AdminScreen( $diagnostics, $graph['server_request'], $graph['update_scheduler'] ) )->register();
+			( new AdminScreen( $diagnostics, $graph['server_request'], $graph['update_scheduler'], $graph['database_manager'] ) )->register();
 
 			$privacy_content = new PrivacyPolicyContent( $graph['settings']['remote_enabled'] );
 

@@ -92,10 +92,13 @@ final class AdminScreenTest extends TestCase {
 	}
 
 	private function screen( ?DiagnosticsService $diagnostics = null ): AdminScreen {
+		$database_manager = $this->unused_database_manager();
+
 		return new AdminScreen(
 			$diagnostics ?? $this->diagnostics(),
 			ServerRequestFactory::make(),
-			new UpdateScheduler( $this->unused_database_manager() )
+			new UpdateScheduler( $database_manager ),
+			$database_manager
 		);
 	}
 
@@ -329,39 +332,50 @@ final class AdminScreenTest extends TestCase {
 		$this->assertTrue( $result );
 	}
 
-	// ---- remote_credentials_locked_by_constants() (M4) -------------------------
+	// ---- maxmind_credentials_locked_by_constants() (M4, extended M6) -----------
 
-	public function test_remote_credentials_not_locked_when_no_constants_defined(): void {
-		$this->assertFalse( $this->invoke_private( $this->screen(), 'remote_credentials_locked_by_constants' ) );
+	public function test_maxmind_credentials_not_locked_when_no_constants_defined(): void {
+		$this->assertFalse( $this->invoke_private( $this->screen(), 'maxmind_credentials_locked_by_constants' ) );
 	}
 
 	/**
 	 * @runInSeparateProcess
 	 * @preserveGlobalState disabled
 	 */
-	public function test_remote_credentials_locked_when_both_constants_defined(): void {
+	public function test_maxmind_credentials_locked_when_both_canonical_constants_defined(): void {
+		define( 'UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID', 'constant-account' );
+		define( 'UNIVERSAL_GEO_MAXMIND_LICENSE_KEY', 'constant-license' );
+
+		$this->assertTrue( $this->invoke_private( $this->screen(), 'maxmind_credentials_locked_by_constants' ) );
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_maxmind_credentials_locked_when_both_legacy_constants_defined(): void {
 		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'constant-account' );
 		define( 'UNIVERSAL_GEO_REMOTE_LICENSE_KEY', 'constant-license' );
 
-		$this->assertTrue( $this->invoke_private( $this->screen(), 'remote_credentials_locked_by_constants' ) );
+		$this->assertTrue( $this->invoke_private( $this->screen(), 'maxmind_credentials_locked_by_constants' ) );
 	}
 
 	/**
 	 * @runInSeparateProcess
 	 * @preserveGlobalState disabled
 	 */
-	public function test_remote_credentials_not_locked_when_only_one_constant_defined(): void {
-		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'constant-account' );
+	public function test_maxmind_credentials_not_locked_when_only_one_constant_defined(): void {
+		define( 'UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID', 'constant-account' );
 
-		$this->assertFalse( $this->invoke_private( $this->screen(), 'remote_credentials_locked_by_constants' ) );
+		$this->assertFalse( $this->invoke_private( $this->screen(), 'maxmind_credentials_locked_by_constants' ) );
 	}
 
-	// ---- submitted_credential() (M4 credential clearing behavior) ---------------
+	// ---- submitted_credential() (M4 credential clearing behavior, generalized M6) --
 
 	public function test_submitted_credential_blank_submission_keeps_the_previous_value(): void {
-		$_POST = array( 'remote_account_id' => '' ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$_POST = array( 'maxmind_account_id' => '' ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
-		$result = $this->invoke_private( $this->screen(), 'submitted_credential', array( 'remote_account_id', 'previous-value' ) );
+		$result = $this->invoke_private( $this->screen(), 'submitted_credential', array( 'maxmind_account_id', 'previous-value', 'maxmind_clear_credentials' ) );
 
 		$_POST = array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$this->assertSame( 'previous-value', $result );
@@ -370,15 +384,15 @@ final class AdminScreenTest extends TestCase {
 	public function test_submitted_credential_omitted_field_keeps_the_previous_value(): void {
 		$_POST = array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
-		$result = $this->invoke_private( $this->screen(), 'submitted_credential', array( 'remote_account_id', 'previous-value' ) );
+		$result = $this->invoke_private( $this->screen(), 'submitted_credential', array( 'maxmind_account_id', 'previous-value', 'maxmind_clear_credentials' ) );
 
 		$this->assertSame( 'previous-value', $result );
 	}
 
 	public function test_submitted_credential_non_blank_submission_replaces_the_previous_value(): void {
-		$_POST = array( 'remote_account_id' => 'new-value' ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$_POST = array( 'maxmind_account_id' => 'new-value' ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
-		$result = $this->invoke_private( $this->screen(), 'submitted_credential', array( 'remote_account_id', 'previous-value' ) );
+		$result = $this->invoke_private( $this->screen(), 'submitted_credential', array( 'maxmind_account_id', 'previous-value', 'maxmind_clear_credentials' ) );
 
 		$_POST = array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$this->assertSame( 'new-value', $result );
@@ -386,13 +400,30 @@ final class AdminScreenTest extends TestCase {
 
 	public function test_submitted_credential_clear_checkbox_blanks_regardless_of_typed_value(): void {
 		$_POST = array( // phpcs:ignore WordPress.Security.NonceVerification.Missing
-			'remote_account_id'        => 'typed-value',
-			'remote_clear_credentials' => '1',
+			'maxmind_account_id'        => 'typed-value',
+			'maxmind_clear_credentials' => '1',
 		);
 
-		$result = $this->invoke_private( $this->screen(), 'submitted_credential', array( 'remote_account_id', 'previous-value' ) );
+		$result = $this->invoke_private( $this->screen(), 'submitted_credential', array( 'maxmind_account_id', 'previous-value', 'maxmind_clear_credentials' ) );
 
 		$_POST = array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$this->assertSame( '', $result );
+	}
+
+	/**
+	 * The generalization M6 introduced: a *different* clear-checkbox key
+	 * than the one actually submitted must not blank the credential — the
+	 * checkbox key is a genuine parameter now, not a hardcoded name.
+	 */
+	public function test_submitted_credential_ignores_a_differently_named_clear_checkbox(): void {
+		$_POST = array( // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			'maxmind_account_id'        => 'typed-value',
+			'some_other_clear_checkbox' => '1',
+		);
+
+		$result = $this->invoke_private( $this->screen(), 'submitted_credential', array( 'maxmind_account_id', 'previous-value', 'maxmind_clear_credentials' ) );
+
+		$_POST = array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$this->assertSame( 'typed-value', $result );
 	}
 }
