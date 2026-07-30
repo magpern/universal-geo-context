@@ -49,6 +49,15 @@ final class DatabaseManager {
 	public const ENDPOINT = 'https://download.maxmind.com/geoip/databases/GeoLite2-Country/download?suffix=tar.gz';
 
 	/**
+	 * The matching `.sha256` sidecar endpoint (confirmed live during M6J
+	 * acceptance: same host, same Basic Auth, same redirect-safe two-hop
+	 * shape as ENDPOINT — MaxMind simply appends `.sha256` to the `suffix`
+	 * query value). Response body is one line, `sha256sum`-compatible:
+	 * `<64 lowercase hex chars><one or two spaces><archive filename>`.
+	 */
+	public const CHECKSUM_ENDPOINT = self::ENDPOINT . '.sha256';
+
+	/**
 	 * The installed database's filename, both active and previous.
 	 */
 	public const ACTIVE_FILENAME = 'GeoLite2-Country.mmdb';
@@ -98,6 +107,27 @@ final class DatabaseManager {
 	 * reader library.
 	 */
 	private const MIN_PLAUSIBLE_BYTES = 1024;
+
+	/**
+	 * Caps the downloaded `.sha256` sidecar response's size — the real
+	 * response is under 100 bytes; this is a generous multiple, not a tight
+	 * fit, purely to bound a pathological/hostile response.
+	 */
+	private const MAX_CHECKSUM_BYTES = 4096;
+
+	/**
+	 * The expected shape of the checksum sidecar's filename field —
+	 * confirmed live during M6J acceptance (`GeoLite2-Country_20260728.tar.gz`).
+	 * A response naming something else is treated as an unavailable/untrusted
+	 * checksum rather than parsed further.
+	 */
+	private const CHECKSUM_FILENAME_PATTERN = '/^GeoLite2-Country_\d{8}\.tar\.gz$/';
+
+	/**
+	 * The expected shape of the checksum sidecar's body: one line,
+	 * `sha256sum`-compatible.
+	 */
+	private const CHECKSUM_LINE_PATTERN = '/^([a-f0-9]{64})\s{1,2}(\S+)\s*$/i';
 
 	/**
 	 * A fixed, well-known public IP used solely as a non-blocking smoke
@@ -336,7 +366,7 @@ final class DatabaseManager {
 
 			GeoCache::bump_epoch();
 
-			$this->persist_attempt( DatabaseUpdateResult::success( 'ok', 'The managed database was removed.' ), null );
+			$this->persist_attempt( DatabaseUpdateResult::success( 'ok', 'The managed database was removed.' ), null, true );
 
 			return DatabaseUpdateResult::success( 'ok', 'The managed database was removed.' );
 		} finally {
@@ -417,6 +447,25 @@ final class DatabaseManager {
 			return $fetch;
 		}
 
+		$checksum = $this->fetch_checksum();
+
+		if ( $checksum instanceof DatabaseUpdateResult ) {
+			$this->cleanup_tmp();
+			$this->persist_attempt( $checksum, null );
+
+			return $checksum;
+		}
+
+		$actual_checksum = hash_file( 'sha256', $tmp_archive );
+
+		if ( false === $actual_checksum || ! hash_equals( $checksum, $actual_checksum ) ) {
+			$this->cleanup_tmp();
+			$result = DatabaseUpdateResult::failure( 'checksum_mismatch', 'The downloaded database failed checksum verification.' );
+			$this->persist_attempt( $result, null );
+
+			return $result;
+		}
+
 		$candidate = $this->tmp_dir() . '/candidate-' . $this->unique_token() . '.mmdb';
 
 		try {
@@ -441,10 +490,13 @@ final class DatabaseManager {
 
 		// Decision #3 (flagged): no pre-download "has it changed" check, but
 		// installation itself is short-circuited when the already-validated
-		// candidate's build epoch matches the currently installed one.
+		// candidate's build epoch matches the currently installed one — but
+		// only when a file is actually installed (M6J: a state/filesystem
+		// divergence, e.g. a stale epoch surviving an out-of-band file
+		// deletion, must never be trusted over the filesystem itself).
 		$state = $this->read_state();
 
-		if ( is_int( $state['installed_build_epoch'] ) && $candidate_epoch === $state['installed_build_epoch'] ) {
+		if ( is_int( $state['installed_build_epoch'] ) && $candidate_epoch === $state['installed_build_epoch'] && is_file( $this->active_path() ) ) {
 			$this->cleanup_tmp();
 			$result = DatabaseUpdateResult::success( 'already_current', 'The managed database is already up to date.' );
 			$this->persist_attempt( $result, $candidate_epoch );
@@ -540,6 +592,70 @@ final class DatabaseManager {
 		}
 
 		return DatabaseUpdateResult::success( 'ok', 'Downloaded.' );
+	}
+
+	/**
+	 * Fetches and parses the `.sha256` sidecar via the identical
+	 * redirect-safe two-hop flow `fetch_archive()` uses (confirmed, during
+	 * M6J live acceptance, to redirect through the same host allowlist
+	 * `RedirectValidator` already governs) — the credentials-on-first-hop,
+	 * empty-headers-on-second-hop guarantee applies here too. Any failure
+	 * along the way, including a response that does not match the expected
+	 * one-line `sha256sum` shape or references an unexpected filename, is
+	 * reported as `checksum_unavailable` — this gate fails closed, exactly
+	 * like the structural MMDB validation it sits alongside.
+	 *
+	 * @return string|DatabaseUpdateResult The lowercase hex digest on success, or a failure result.
+	 */
+	private function fetch_checksum(): string|DatabaseUpdateResult {
+		$headers = array(
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- HTTP Basic authentication's own wire format, per RFC 7617.
+			'Authorization' => 'Basic ' . base64_encode( $this->account_id . ':' . $this->license_key ),
+		);
+
+		try {
+			$redirect_check = $this->http_transport->get_redirect_location( self::CHECKSUM_ENDPOINT, $headers, self::REDIRECT_CHECK_TIMEOUT_SECONDS );
+		} catch ( TransportException $e ) {
+			return DatabaseUpdateResult::failure( 'checksum_unavailable', 'The database checksum could not be retrieved.' );
+		}
+
+		if ( ! $redirect_check->is_redirect ) {
+			return DatabaseUpdateResult::failure( 'checksum_unavailable', 'The database checksum could not be retrieved.' );
+		}
+
+		$validated = RedirectValidator::validate( (string) $redirect_check->location );
+
+		if ( ! $validated['ok'] ) {
+			return DatabaseUpdateResult::failure( 'unsafe_redirect', 'The checksum target failed validation and was not followed.' );
+		}
+
+		$destination = $this->tmp_dir() . '/checksum-' . $this->unique_token() . '.sha256';
+
+		try {
+			// Deliberately an empty headers array, for the same reason
+			// fetch_archive()'s second hop is: credentials must never reach
+			// the redirect target.
+			$download = $this->http_transport->download( (string) $validated['url'], $destination, array(), self::DOWNLOAD_TIMEOUT_SECONDS, self::MAX_CHECKSUM_BYTES );
+		} catch ( TransportException $e ) {
+			return DatabaseUpdateResult::failure( 'checksum_unavailable', 'The database checksum could not be retrieved.' );
+		}
+
+		if ( 200 !== $download->status_code || ! is_file( $destination ) ) {
+			return DatabaseUpdateResult::failure( 'checksum_unavailable', 'The database checksum could not be retrieved.' );
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- reading this feature's own tmp file, confined to MaxMind/.
+		$contents = file_get_contents( $destination );
+
+		if ( false === $contents || ! preg_match( self::CHECKSUM_LINE_PATTERN, trim( $contents ), $matches ) ) {
+			return DatabaseUpdateResult::failure( 'checksum_unavailable', 'The database checksum response was not in the expected format.' );
+		}
+
+		if ( 1 !== preg_match( self::CHECKSUM_FILENAME_PATTERN, $matches[2] ) ) {
+			return DatabaseUpdateResult::failure( 'checksum_unavailable', 'The database checksum response referenced an unexpected filename.' );
+		}
+
+		return strtolower( $matches[1] );
 	}
 
 	/**
@@ -805,11 +921,12 @@ final class DatabaseManager {
 	 * last_success_at and (when known) installed_build_epoch.
 	 *
 	 * @param DatabaseUpdateResult $result      The completed action's result.
-	 * @param int|null             $build_epoch The installed file's build epoch, when this attempt is known to have left one installed (null leaves the previously stored value unchanged).
+	 * @param int|null             $build_epoch The installed file's build epoch, when this attempt is known to have left one installed (null leaves the previously stored value unchanged, unless $clear_epoch is true).
+	 * @param bool                 $clear_epoch When true (only `remove_managed_database()` uses this), resets installed_build_epoch to null regardless of $build_epoch — this attempt is known to have left *no* database installed, so a stale epoch must never survive to falsely short-circuit a later download as "already current" (M6J).
 	 *
 	 * @return void
 	 */
-	private function persist_attempt( DatabaseUpdateResult $result, ?int $build_epoch ): void {
+	private function persist_attempt( DatabaseUpdateResult $result, ?int $build_epoch, bool $clear_epoch = false ): void {
 		$state = $this->read_state();
 		$now   = ( $this->clock )();
 
@@ -819,7 +936,9 @@ final class DatabaseManager {
 		if ( $result->success ) {
 			$state['last_success_at'] = $now;
 
-			if ( null !== $build_epoch ) {
+			if ( $clear_epoch ) {
+				$state['installed_build_epoch'] = null;
+			} elseif ( null !== $build_epoch ) {
 				$state['installed_build_epoch'] = $build_epoch;
 			}
 		}

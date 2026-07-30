@@ -895,13 +895,20 @@ genuinely unavailable, not merely because the managed database itself is
 stale — a working higher-precedence custom path covering the gap keeps
 the test at `recommended`.
 
-**Checksum verification**: the `.sha256` sidecar MaxMind's docs describe is
-explicitly **not implemented in M6** — the live contract wasn't confirmed
-against a real account during this milestone's implementation. The sole
-integrity gate is MMDB structural validation (`Reader`-open + metadata +
-non-throwing lookup) over an HTTPS-fetched, redirect-validated archive.
-See `docs/SECURITY.md` for the residual-risk statement and
-`docs/ROADMAP.md` for its deferred status.
+**Checksum verification**: implemented following live-account confirmation
+during M6J acceptance. `DatabaseManager::fetch_checksum()` fetches
+`CHECKSUM_ENDPOINT` (MaxMind's `.sha256` sidecar — the same
+`download.maxmind.com` host, the same Basic Auth, the same redirect-safe
+two-hop shape as the archive itself, confirmed to redirect through the
+identical `RedirectValidator` host allowlist) and compares the reported
+digest, via `hash_equals()`, against `hash_file()`'s own computation over
+the downloaded archive — a gate that runs after a successful archive fetch
+and before extraction, alongside (never instead of) the MMDB structural
+validation (`Reader`-open + metadata + non-throwing lookup). Fails closed:
+an unreachable checksum endpoint, a malformed response, an unexpected
+filename, or a mismatch all abort the update with the previously
+installed database left untouched. See `docs/SECURITY.md` for the
+threat-model entry.
 
 **`maxmind-db/reader`** is promoted from a dev-only to a production
 Composer dependency — the local MaxMind provider's own feature is now

@@ -157,6 +157,18 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 		$this->screen( $this->unused_database_manager() )->handle_maxmind_database_validate();
 	}
 
+	/**
+	 * Queues a matching `.sha256` sidecar redirect-check + download pair
+	 * (M6J) after an already-queued successful archive fetch, so the flow
+	 * proceeds past this new gate exactly as before.
+	 */
+	private function queue_matching_checksum( FakeHttpTransport $transport, string $archive_bytes ): void {
+		$body = hash( 'sha256', $archive_bytes ) . '  GeoLite2-Country_20260101.tar.gz';
+
+		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x.sha256', 302 ) );
+		$transport->will_return_download( new DownloadResult( 200, strlen( $body ) ), $body );
+	}
+
 	private function unused_database_manager(): DatabaseManager {
 		return new DatabaseManager(
 			$this->managed_dir(),
@@ -178,6 +190,7 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 		$archive_bytes = (string) file_get_contents( $archive );
 		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x', 302 ) );
 		$transport->will_return_download( new DownloadResult( 200, strlen( $archive_bytes ) ), $archive_bytes );
+		$this->queue_matching_checksum( $transport, $archive_bytes );
 
 		$database_manager = new DatabaseManager( $this->managed_dir(), 'account', 'license', true, $transport, new ArchiveExtractor(), new UpdateLock() );
 
@@ -233,6 +246,7 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 		$archive_bytes = (string) file_get_contents( $archive );
 		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x', 302 ) );
 		$transport->will_return_download( new DownloadResult( 200, strlen( $archive_bytes ) ), $archive_bytes );
+		$this->queue_matching_checksum( $transport, $archive_bytes );
 
 		$database_manager = new DatabaseManager( $this->managed_dir(), 'account', 'license', true, $transport, new ArchiveExtractor(), new UpdateLock() );
 		$database_manager->download_now( 'admin' );

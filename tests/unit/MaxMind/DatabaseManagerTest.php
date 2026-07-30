@@ -141,6 +141,26 @@ final class DatabaseManagerTest extends TestCase {
 			new DownloadResult( 200, strlen( $archive_bytes ) ),
 			$archive_bytes
 		);
+
+		$this->queue_matching_checksum( $transport, $archive_bytes );
+	}
+
+	/**
+	 * Queues a redirect-check + download pair for the `.sha256` sidecar
+	 * fetch, reporting a checksum that actually matches $archive_bytes, in
+	 * the real live contract's shape (confirmed during M6J acceptance):
+	 * `<64 lowercase hex chars><two spaces><filename>`.
+	 */
+	private function queue_matching_checksum( FakeHttpTransport $transport, string $archive_bytes ): void {
+		$body = hash( 'sha256', $archive_bytes ) . '  GeoLite2-Country_20260101.tar.gz';
+
+		$transport->will_return_redirect(
+			new RedirectResult( true, 'https://abc123.r2.cloudflarestorage.com/signed-checksum?sig=xyz', 302 )
+		);
+		$transport->will_return_download(
+			new DownloadResult( 200, strlen( $body ) ),
+			$body
+		);
 	}
 
 	// ---- Credential / lock short-circuits --------------------------------------
@@ -416,12 +436,20 @@ final class DatabaseManagerTest extends TestCase {
 
 		$this->manager( $transport, 'my-account-id', 'my-license-key' )->download_now( 'admin' );
 
-		$this->assertCount( 1, $transport->redirect_calls );
-		$this->assertArrayHasKey( 'Authorization', $transport->redirect_calls[0]['headers'] );
-		$this->assertStringContainsString( 'Basic ', $transport->redirect_calls[0]['headers']['Authorization'] );
+		// Two redirect-check/download pairs now: the archive fetch, then
+		// the .sha256 sidecar fetch (M6J) — both must independently uphold
+		// the same credential-isolation guarantee.
+		$this->assertCount( 2, $transport->redirect_calls );
+		$this->assertCount( 2, $transport->download_calls );
 
-		$this->assertCount( 1, $transport->download_calls );
-		$this->assertSame( array(), $transport->download_calls[0]['headers'] );
+		foreach ( $transport->redirect_calls as $call ) {
+			$this->assertArrayHasKey( 'Authorization', $call['headers'] );
+			$this->assertStringContainsString( 'Basic ', $call['headers']['Authorization'] );
+		}
+
+		foreach ( $transport->download_calls as $call ) {
+			$this->assertSame( array(), $call['headers'] );
+		}
 
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
 		unlink( $archive );
@@ -452,12 +480,187 @@ final class DatabaseManagerTest extends TestCase {
 		}
 	}
 
+	// ---- Checksum verification (M6J: confirmed live against a real MaxMind account) ----
+
+	public function test_a_checksum_mismatch_is_classified_as_checksum_mismatch(): void {
+		$transport = new FakeHttpTransport();
+		$archive   = $this->build_valid_archive();
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents
+		$archive_bytes = (string) file_get_contents( $archive );
+
+		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x', 302 ) );
+		$transport->will_return_download( new DownloadResult( 200, strlen( $archive_bytes ) ), $archive_bytes );
+
+		// A checksum that does not match the downloaded bytes at all.
+		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x.sha256', 302 ) );
+		$transport->will_return_download(
+			new DownloadResult( 200, 64 ),
+			str_repeat( 'a', 64 ) . '  GeoLite2-Country_20260101.tar.gz'
+		);
+
+		$manager = $this->manager( $transport );
+		$result  = $manager->download_now( 'admin' );
+
+		$this->assertFalse( $result->success );
+		$this->assertSame( 'checksum_mismatch', $result->code );
+		// The previously-installed (absent) database is left untouched — no
+		// extraction or install was ever attempted.
+		$this->assertSame( '', $manager->installed_path() );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		unlink( $archive );
+	}
+
+	public function test_a_transport_exception_on_the_checksum_redirect_check_is_classified_as_checksum_unavailable(): void {
+		$transport = new FakeHttpTransport();
+		$archive   = $this->build_valid_archive();
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents
+		$archive_bytes = (string) file_get_contents( $archive );
+
+		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x', 302 ) );
+		$transport->will_return_download( new DownloadResult( 200, strlen( $archive_bytes ) ), $archive_bytes );
+		$transport->will_throw_on_redirect_check( TransportException::scrubbed( 'DNS failure', 'https://download.maxmind.com/x' ) );
+
+		$result = $this->manager( $transport )->download_now( 'admin' );
+
+		$this->assertFalse( $result->success );
+		$this->assertSame( 'checksum_unavailable', $result->code );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		unlink( $archive );
+	}
+
+	public function test_a_non_redirect_checksum_response_is_classified_as_checksum_unavailable(): void {
+		$transport = new FakeHttpTransport();
+		$archive   = $this->build_valid_archive();
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents
+		$archive_bytes = (string) file_get_contents( $archive );
+
+		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x', 302 ) );
+		$transport->will_return_download( new DownloadResult( 200, strlen( $archive_bytes ) ), $archive_bytes );
+		$transport->will_return_redirect( new RedirectResult( false, null, 401 ) );
+
+		$result = $this->manager( $transport )->download_now( 'admin' );
+
+		$this->assertFalse( $result->success );
+		$this->assertSame( 'checksum_unavailable', $result->code );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		unlink( $archive );
+	}
+
+	public function test_an_unsafe_checksum_redirect_target_is_rejected(): void {
+		$transport = new FakeHttpTransport();
+		$archive   = $this->build_valid_archive();
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents
+		$archive_bytes = (string) file_get_contents( $archive );
+
+		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x', 302 ) );
+		$transport->will_return_download( new DownloadResult( 200, strlen( $archive_bytes ) ), $archive_bytes );
+		$transport->will_return_redirect( new RedirectResult( true, 'https://evil.example.com/x.sha256', 302 ) );
+
+		$result = $this->manager( $transport )->download_now( 'admin' );
+
+		$this->assertFalse( $result->success );
+		$this->assertSame( 'unsafe_redirect', $result->code );
+		// No download call is made against the unvalidated checksum target —
+		// only the archive's own single download call happened.
+		$this->assertCount( 1, $transport->download_calls );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		unlink( $archive );
+	}
+
+	public function test_a_malformed_checksum_body_is_classified_as_checksum_unavailable(): void {
+		$transport = new FakeHttpTransport();
+		$archive   = $this->build_valid_archive();
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents
+		$archive_bytes = (string) file_get_contents( $archive );
+
+		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x', 302 ) );
+		$transport->will_return_download( new DownloadResult( 200, strlen( $archive_bytes ) ), $archive_bytes );
+		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x.sha256', 302 ) );
+		$transport->will_return_download( new DownloadResult( 200, 11 ), 'not-a-checksum-line' );
+
+		$result = $this->manager( $transport )->download_now( 'admin' );
+
+		$this->assertFalse( $result->success );
+		$this->assertSame( 'checksum_unavailable', $result->code );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		unlink( $archive );
+	}
+
+	public function test_a_checksum_response_with_an_unexpected_filename_is_classified_as_checksum_unavailable(): void {
+		$transport = new FakeHttpTransport();
+		$archive   = $this->build_valid_archive();
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents
+		$archive_bytes = (string) file_get_contents( $archive );
+
+		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x', 302 ) );
+		$transport->will_return_download( new DownloadResult( 200, strlen( $archive_bytes ) ), $archive_bytes );
+		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x.sha256', 302 ) );
+		$transport->will_return_download(
+			new DownloadResult( 200, 64 ),
+			hash( 'sha256', $archive_bytes ) . '  totally-unexpected-file.zip'
+		);
+
+		$result = $this->manager( $transport )->download_now( 'admin' );
+
+		$this->assertFalse( $result->success );
+		$this->assertSame( 'checksum_unavailable', $result->code );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		unlink( $archive );
+	}
+
+	public function test_a_matching_checksum_allows_the_download_to_proceed_to_install(): void {
+		$transport = new FakeHttpTransport();
+		$archive   = $this->build_valid_archive();
+		$this->queue_successful_download( $transport, $archive );
+
+		$manager = $this->manager( $transport );
+		$result  = $manager->download_now( 'admin' );
+
+		$this->assertTrue( $result->success );
+		$this->assertNotSame( '', $manager->installed_path() );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		unlink( $archive );
+	}
+
+	public function test_checksum_comparison_is_case_insensitive(): void {
+		$transport = new FakeHttpTransport();
+		$archive   = $this->build_valid_archive();
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents
+		$archive_bytes = (string) file_get_contents( $archive );
+
+		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x', 302 ) );
+		$transport->will_return_download( new DownloadResult( 200, strlen( $archive_bytes ) ), $archive_bytes );
+		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x.sha256', 302 ) );
+		$transport->will_return_download(
+			new DownloadResult( 200, 64 ),
+			strtoupper( hash( 'sha256', $archive_bytes ) ) . '  GeoLite2-Country_20260101.tar.gz'
+		);
+
+		$manager = $this->manager( $transport );
+		$result  = $manager->download_now( 'admin' );
+
+		$this->assertTrue( $result->success );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		unlink( $archive );
+	}
+
 	// ---- Archive / validation failure classification -----------------------------
 
 	public function test_a_malformed_archive_is_classified_as_archive_invalid(): void {
+		$archive_bytes = 'not-a-real-archive!!';
+
 		$transport = new FakeHttpTransport();
 		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x', 302 ) );
-		$transport->will_return_download( new DownloadResult( 200, 20 ), 'not-a-real-archive!!' );
+		$transport->will_return_download( new DownloadResult( 200, strlen( $archive_bytes ) ), $archive_bytes );
+		$this->queue_matching_checksum( $transport, $archive_bytes );
 
 		$result = $this->manager( $transport )->download_now( 'admin' );
 
@@ -480,6 +683,7 @@ final class DatabaseManagerTest extends TestCase {
 		$transport = new FakeHttpTransport();
 		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x', 302 ) );
 		$transport->will_return_download( new DownloadResult( 200, strlen( $archive_bytes ) ), $archive_bytes );
+		$this->queue_matching_checksum( $transport, $archive_bytes );
 
 		$result = $this->manager( $transport )->download_now( 'admin' );
 
@@ -505,6 +709,7 @@ final class DatabaseManagerTest extends TestCase {
 		$transport = new FakeHttpTransport();
 		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x', 302 ) );
 		$transport->will_return_download( new DownloadResult( 200, strlen( $archive_bytes ) ), $archive_bytes );
+		$this->queue_matching_checksum( $transport, $archive_bytes );
 
 		$result = $this->manager( $transport )->download_now( 'admin' );
 
@@ -515,9 +720,12 @@ final class DatabaseManagerTest extends TestCase {
 	public function test_validation_failure_does_not_install_or_bump_the_cache_epoch(): void {
 		update_option( 'universal_geo_cache_epoch', 3 );
 
+		$archive_bytes = 'not-a-real-archive!!';
+
 		$transport = new FakeHttpTransport();
 		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x', 302 ) );
-		$transport->will_return_download( new DownloadResult( 200, 20 ), 'not-a-real-archive!!' );
+		$transport->will_return_download( new DownloadResult( 200, strlen( $archive_bytes ) ), $archive_bytes );
+		$this->queue_matching_checksum( $transport, $archive_bytes );
 
 		$manager = $this->manager( $transport );
 		$manager->download_now( 'admin' );
@@ -577,6 +785,61 @@ final class DatabaseManagerTest extends TestCase {
 
 		$this->assertTrue( $result->success );
 		$this->assertSame( '', $manager->installed_path() );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		unlink( $archive );
+	}
+
+	/**
+	 * Regression (found live, M6J): removal must clear the persisted
+	 * installed_build_epoch, not merely delete the file — otherwise a
+	 * stale epoch survives in `status()`, misleadingly implying a specific
+	 * build is still installed when nothing is.
+	 */
+	public function test_remove_clears_the_persisted_installed_build_epoch(): void {
+		$transport = new FakeHttpTransport();
+		$archive   = $this->build_valid_archive();
+		$this->queue_successful_download( $transport, $archive );
+
+		$manager = $this->manager( $transport );
+		$manager->download_now( 'admin' );
+		$this->assertIsInt( $manager->status()['installed_build_epoch'] );
+
+		$manager->remove_managed_database( 'admin' );
+
+		$this->assertNull( $manager->status()['installed_build_epoch'] );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		unlink( $archive );
+	}
+
+	/**
+	 * Regression (found live, M6J): before the fix, a download attempt
+	 * after `remove_managed_database()` reported success with code
+	 * 'already_current' — because the stale installed_build_epoch still
+	 * matched the freshly re-fetched candidate's epoch — while leaving
+	 * *no* file actually installed. The short-circuit must never trust a
+	 * matching epoch when the active file itself is absent.
+	 */
+	public function test_a_download_after_remove_reinstalls_rather_than_reporting_already_current(): void {
+		$transport = new FakeHttpTransport();
+		$archive   = $this->build_valid_archive();
+		$this->queue_successful_download( $transport, $archive );
+
+		$manager = $this->manager( $transport );
+		$manager->download_now( 'admin' );
+		$manager->remove_managed_database( 'admin' );
+		$this->assertSame( '', $manager->installed_path() );
+
+		// A second, identical archive/checksum pair — same build epoch as
+		// the one just removed.
+		$this->queue_successful_download( $transport, $archive );
+
+		$result = $manager->download_now( 'admin' );
+
+		$this->assertTrue( $result->success );
+		$this->assertSame( 'ok', $result->code );
+		$this->assertNotSame( '', $manager->installed_path() );
 
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
 		unlink( $archive );

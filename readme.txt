@@ -112,6 +112,7 @@ its public functions — decide what those facts mean.
 = 1.1.0 =
 * Managed GeoLite2 Country database downloads: opt-in, admin-triggered or scheduled (weekly/twice-weekly via WP-Cron), download/validate/install of the official database with atomic install and automatic rollback on failure.
 * Redirect-safe download flow: MaxMind account credentials are sent only to MaxMind's own download endpoint and never reach the storage host it redirects to.
+* Checksum verification: every downloaded database is verified against MaxMind's published `.sha256` checksum, in addition to structural validation, before it is installed.
 * One shared MaxMind account (account id / license key) now used by both the remote provider and managed downloads, with backward-compatible migration from the previous remote-only credential fields.
 * New `universal_geo_maxmind_managed` Site Health test and a new Diagnostics tab section for managed-database status.
 * New WP-CLI subcommands: `wp universal-geo database status|download|validate|remove|restore`.

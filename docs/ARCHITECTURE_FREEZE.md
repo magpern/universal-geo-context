@@ -454,15 +454,23 @@ The following are enforced by the guard test `CompositionRootTest`:
 - **Remote provider** (M4): Disabled by default; requires an explicit transfer acknowledgement checkbox.
 - **Managed database** (M6+): Requires credential entry and an explicit opt-in toggle.
 
-### 12.3 Redirect safety (M4+)
+### 12.3 Redirect safety (M6)
 
-The `ReferenceRemoteProvider` implements a redirect-safe two-request download flow:
+`MaxMind\DatabaseManager` implements a redirect-safe two-request download
+flow for managed GeoLite2 downloads (confirmed against a live MaxMind
+account during M6J acceptance):
 
-1. First request to `download.maxmind.com` includes HTTP Basic Auth header.
-2. Validates the 302 Location header strictly (https-only, whitelisted hosts, no userinfo).
-3. Second request to the validated target includes **no** Authorization header.
+1. First request to `download.maxmind.com` includes the HTTP Basic Auth header, with redirect-following disabled — it only detects a 3xx response, never follows it.
+2. `RedirectValidator` validates the `Location` header strictly (https-only, no userinfo, allowlisted hosts — `r2.cloudflarestorage.com`).
+3. Second request to the validated target includes **no** Authorization header, and itself disables redirect-following — no third hop is ever attempted.
+4. The downloaded archive's SHA-256 digest is verified against MaxMind's `.sha256` sidecar, fetched via the identical two-hop flow, before extraction.
 
-This prevents credentials from traveling to untrusted hosts after a redirect.
+This prevents credentials from traveling to untrusted hosts after a
+redirect, and prevents a corrupted-but-structurally-plausible archive from
+being installed. `ReferenceRemoteProvider` (M4) does not download files
+and uses this pattern's redirect-disabling half only (`redirection => 0`
+on its single request) — it never runs a second hop, since it has no
+archive to fetch.
 
 ---
 

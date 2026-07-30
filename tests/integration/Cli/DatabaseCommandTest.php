@@ -92,6 +92,12 @@ final class DatabaseCommandTest extends WP_UnitTestCase {
 		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x', 302 ) );
 		$transport->will_return_download( new DownloadResult( 200, strlen( $archive_bytes ) ), $archive_bytes );
 
+		// The .sha256 sidecar fetch (M6J): a matching checksum so the flow
+		// proceeds past this new gate to extraction/install as before.
+		$checksum_body = hash( 'sha256', $archive_bytes ) . '  GeoLite2-Country_20260101.tar.gz';
+		$transport->will_return_redirect( new RedirectResult( true, 'https://abc.r2.cloudflarestorage.com/x.sha256', 302 ) );
+		$transport->will_return_download( new DownloadResult( 200, strlen( $checksum_body ) ), $checksum_body );
+
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
 		unlink( $archive );
 

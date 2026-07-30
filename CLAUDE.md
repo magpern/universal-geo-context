@@ -48,7 +48,6 @@ Remaining deferred items, all 1.2+:
 - Additional GeoIP data (city, postcode, timezone, ASN)
 - Additional Site Health tests (cache health, empty-provider-chain)
 - Additional WP-CLI commands (`providers`, `trusted-proxies --test`, `cloudflare-ranges --update`)
-- GeoLite2 download checksum (`.sha256` sidecar) verification — deferred pending a live contract check; see `docs/SECURITY.md`
 - ADR-0001/0004 backfill
 
 Full list: `docs/ROADMAP.md`.
