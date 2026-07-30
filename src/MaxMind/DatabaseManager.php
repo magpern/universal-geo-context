@@ -827,8 +827,8 @@ final class DatabaseManager {
 	 */
 	private function ensure_directories(): bool {
 		foreach ( array( $this->managed_dir, $this->tmp_dir() ) as $dir ) {
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir -- creating this feature's own managed directory under {uploads}, confined to MaxMind/.
-			if ( ! is_dir( $dir ) && ! mkdir( $dir, 0755, true ) && ! is_dir( $dir ) ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir, WordPress.PHP.NoSilencedErrors.Discouraged -- creating this feature's own managed directory under {uploads}, confined to MaxMind/; a permission failure here is an expected, explicitly-checked outcome (a misconfigured host), not a condition that should emit a PHP warning.
+			if ( ! is_dir( $dir ) && ! @mkdir( $dir, 0755, true ) && ! is_dir( $dir ) ) {
 				return false;
 			}
 		}
