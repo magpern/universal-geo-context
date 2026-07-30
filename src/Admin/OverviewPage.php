@@ -137,12 +137,11 @@ final class OverviewPage implements Page {
 
 				if ( array() === $sections['provider_health'] ) {
 					echo '<p>' . esc_html__( 'No provider failure records on file.', 'universal-geo-context' ) . '</p>';
-					return;
-				}
-
-				foreach ( $sections['provider_health'] as $provider_id => $row ) {
-					echo '<h3>' . esc_html( (string) $provider_id ) . '</h3>';
-					$this->renderer->render_definition_list( $row );
+				} else {
+					foreach ( $sections['provider_health'] as $provider_id => $row ) {
+						echo '<h3>' . esc_html( (string) $provider_id ) . '</h3>';
+						$this->renderer->render_definition_list( $row );
+					}
 				}
 
 				echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:1em">';

@@ -215,4 +215,24 @@ final class AdminComponentsTest extends TestCase {
 	public function test_overview_page_is_final(): void {
 		$this->assertTrue( ( new ReflectionClass( SettingsPage::class ) )->isFinal() );
 	}
+
+	public function test_overview_renders_refresh_now_when_provider_health_is_empty(): void {
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.1';
+		\UniversalGeo\Plugin::instance()->init();
+
+		$diagnostics = $this->diagnostics();
+		$resolver    = new ContextResolver(
+			new ClientIpResolver( ServerRequestFactory::make(), new TrustedProxies( array(), false ) ),
+			array(),
+			new GeoCache( false, 900, 'sig' )
+		);
+		$page        = new OverviewPage( $diagnostics, $resolver, new ReportRenderer( $diagnostics ), new AdminNotices() );
+
+		ob_start();
+		$page->render();
+		$html = ob_get_clean();
+
+		$this->assertStringContainsString( 'name="action" value="universal_geo_refresh_providers"', $html );
+		$this->assertStringContainsString( 'Refresh now', $html );
+	}
 }
