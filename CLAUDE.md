@@ -36,17 +36,19 @@ Approved Revision 3 architecture plan (§27 audit findings applied, verdict: APP
 - Machine-specific dev-environment notes belong in `CLAUDE.local.md` (gitignored) — never in this file.
 - Release: bump the `Version:` plugin header, `UNIVERSAL_GEO_VERSION`, and version in `docs/COMPATIBILITY.md` together; tag `vX.Y.Z` matching the header, push the tag only when explicitly approved by the Product Owner. The Release workflow builds and publishes the installable zip.
 
-## Deferred to 1.1+
+## Deferred to 1.2+
 
-M1–M5 are shipped in full (public API, Site Health tests, MaxMind
-integration, remote providers, WP-CLI, and translation infrastructure are
-all live — see `docs/ROADMAP.md`). Remaining deferred items, all 1.1+:
+M1–M6 are shipped in full (public API, Site Health tests, MaxMind
+integration, remote providers, WP-CLI, translation infrastructure, and
+managed GeoLite2 database downloads are all live — see `docs/ROADMAP.md`).
+Remaining deferred items, all 1.2+:
 
 - Region support
 - REST API
 - Additional GeoIP data (city, postcode, timezone, ASN)
 - Additional Site Health tests (cache health, empty-provider-chain)
 - Additional WP-CLI commands (`providers`, `trusted-proxies --test`, `cloudflare-ranges --update`)
+- GeoLite2 download checksum (`.sha256` sidecar) verification — deferred pending a live contract check; see `docs/SECURITY.md`
 - ADR-0001/0004 backfill
 
 Full list: `docs/ROADMAP.md`.

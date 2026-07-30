@@ -4,7 +4,7 @@ Tags: geolocation, country, geoip, woocommerce, privacy
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,20 +26,29 @@ functions.
 Built for WooCommerce, but works standalone: WooCommerce is one optional
 provider, guarded at call time, never a hard dependency.
 
+The local MaxMind database can be kept up to date automatically: an
+opt-in managed-download feature fetches, validates, and installs the
+official GeoLite2 Country database using the site's own MaxMind account,
+with weekly or twice-weekly auto-update via WP-Cron.
+
 = Privacy =
 
 Raw IP addresses are read for the duration of a request only and are never
 stored in plain form. When the optional derived-context cache is active,
 only a salted, one-way hash of the address is stored as part of a cache
 key. No IP address is ever sent off-server unless an administrator
-explicitly enables and acknowledges the optional remote provider. See
-`docs/PRIVACY.md` in the plugin source for the full privacy model.
+explicitly enables and acknowledges the optional remote provider. The
+optional managed-download feature never sends visitor data of any kind —
+only the site's own MaxMind credentials, to fetch a published database
+file. See `docs/PRIVACY.md` in the plugin source for the full privacy
+model.
 
 = WP-CLI =
 
 * `wp universal-geo context [--ip=<ip>] [--format=<format>] [--allow-full-ip]`
 * `wp universal-geo diagnostics [--format=<format>] [--allow-full-ip]`
 * `wp universal-geo cache flush`
+* `wp universal-geo database status|download|validate|remove|restore [--format=<format>]`
 
 A WP-CLI process has no HTTP request, so `context --ip=` probes the
 provider chain directly for that address; it does not exercise
@@ -86,12 +95,28 @@ Only if an administrator explicitly enables the optional remote provider
 settings submission, that visitor IP addresses will be transferred to
 MaxMind, Inc. This provider is disabled by default.
 
+= Does the managed database download feature send visitor data anywhere? =
+
+No. It sends only the site's own MaxMind account credentials to MaxMind's
+download endpoint to fetch a published database file — no visitor IP or
+other visitor data is ever part of that request. This is disabled by
+default and entirely separate from the remote provider above.
+
 = Does this plugin resolve currency or language? =
 
 No. It detects geographic facts only. Consumers — other plugins reading
 its public functions — decide what those facts mean.
 
 == Changelog ==
+
+= 1.1.0 =
+* Managed GeoLite2 Country database downloads: opt-in, admin-triggered or scheduled (weekly/twice-weekly via WP-Cron), download/validate/install of the official database with atomic install and automatic rollback on failure.
+* Redirect-safe download flow: MaxMind account credentials are sent only to MaxMind's own download endpoint and never reach the storage host it redirects to.
+* One shared MaxMind account (account id / license key) now used by both the remote provider and managed downloads, with backward-compatible migration from the previous remote-only credential fields.
+* New `universal_geo_maxmind_managed` Site Health test and a new Diagnostics tab section for managed-database status.
+* New WP-CLI subcommands: `wp universal-geo database status|download|validate|remove|restore`.
+* New admin UI: a shared MaxMind account section and a managed-database section with download/validate/remove/restore actions.
+* `maxmind-db/reader` is now a required dependency, so local MaxMind database lookups work on any site, independent of WooCommerce.
 
 = 1.0.0 =
 * WP-CLI: `context`, `diagnostics`, and `cache flush` commands.
@@ -120,6 +145,9 @@ its public functions — decide what those facts mean.
 * Core domain and public API.
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+No settings or stored data are changed or removed on upgrade. Managed database downloads are disabled by default; existing remote-provider credentials are migrated automatically, non-destructively, to the new shared MaxMind account fields the first time settings are saved.
 
 = 1.0.0 =
 No settings or stored data change on upgrade. WP-CLI, Site Health, and Privacy Policy Guide integration are additive.

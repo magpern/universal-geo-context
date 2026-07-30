@@ -1,7 +1,7 @@
 # Architecture
 
-**Status: M1 complete (frozen, tag `m1`); M2 complete; M3–M5 complete (see
-"M3–M5" at the end of this document).** This document records the M1
+**Status: M1 complete (frozen, tag `m1`); M2 complete; M3–M6 complete (see
+"M3–M5" and "M6" at the end of this document).** This document records the M1
 reconciliation history verbatim, below, as the record of how the frozen
 public API and composition patterns were decided. M2 replaced
 `RemoteAddrOnlyResolver` with the full trust-boundary stack (`ServerRequest`,
@@ -822,3 +822,88 @@ only), and `AdminScreen::handle_dismiss_notice()` now checks
 handler in that class. See `docs/COMPATIBILITY.md`, `docs/PRIVACY.md`, and
 `readme.txt` for M5's release-maturity surface (version parity,
 `bin/release-audit.sh`).
+
+## M6 — Managed GeoLite2 Country database downloads (v1.1.0)
+
+Summarized in the same spirit as M2–M5 above. An **operational service
+wrapped around** the existing, frozen provider architecture — not a
+redesign of it: `VisitorContext`, `ContextResolver`'s contract, both
+frozen interfaces, the public API, the seven public hooks, and the
+composition-root/cache/privacy architecture established through M1–M5 are
+all unchanged. See `docs/ARCHITECTURE_FREEZE.md` for the frozen contracts
+this milestone was built to preserve.
+
+New namespace `UniversalGeo\MaxMind\` (`src/MaxMind/`), deliberately
+separate from `src/Providers/` — keeping "operational service around the
+provider" structurally distinct from provider architecture, per
+`ARCHITECTURE_FREEZE.md` §6.4 ("operational services are not providers").
+
+- **`DatabaseManager`** — orchestrates download → extract → validate →
+  atomic install → rollback → cleanup, and the `remove`/`restore`/
+  `validate_installed` actions. Owns the managed directory
+  (`{uploads}/universal-geo-context/maxmind/`) and the
+  `universal_geo_maxmind_update_state` option.
+- **`ArchiveExtractor`** — extracts the single expected
+  `GeoLite2-Country.mmdb` entry from an untrusted `.tar.gz` via `PharData`,
+  matching by exact basename only (never `extractTo()`), making path
+  traversal structurally impossible rather than merely filtered.
+- **`RedirectValidator`** — stateless, static-only (like `IpUtils`), gates
+  the redirect-safe download flow's second hop: https-only, no userinfo,
+  an exact-suffix host allowlist.
+- **`UpdateLock`** — a cooperative, option-backed lock guarding
+  `DatabaseManager`'s three action methods against admin/cron/CLI
+  triggering concurrently, the same ownership shape `CircuitBreaker`
+  already established.
+- **`UpdateScheduler`** — WP-Cron registration and reconciliation for two
+  new custom `cron_schedules` intervals (weekly, twice-weekly) matching
+  GeoLite2 Country's real publication rhythm.
+- **`Cli\DatabaseCommand`** — `wp universal-geo database status|download|validate|remove|restore`,
+  the symmetric counterpart to `Cli\Command`.
+
+**Redirect-safe download flow**: the Basic Auth header reaches
+`download.maxmind.com` and only that host. `HttpTransport` gained two
+methods, `get_redirect_location()` and `download()`, both confined to
+`WordPressHttpTransport.php` like `get()` (`PrivacyGuardTest` rule 8): the
+first hop carries credentials and only detects a redirect without
+following it; `RedirectValidator` independently validates the target; the
+second hop fetches the validated target with an empty headers array. No
+third hop is ever attempted — a redirect loop is structurally impossible,
+not merely detected. See `docs/SECURITY.md` for the full design rationale.
+
+**Shared MaxMind credentials**: one canonical pair,
+`maxmind_account_id`/`maxmind_license_key` (schema v5), consumed by both
+the remote lookup provider and managed downloads —
+`Plugin::resolved_maxmind_credentials()` (renamed from
+`resolved_remote_credentials()`) resolves canonical constants → legacy
+constants → canonical settings, in that order. The legacy
+`remote_account_id`/`remote_license_key` fields remain in the schema as a
+deprecated fallback/migration source; see `docs/COMPATIBILITY.md`.
+
+**Path-resolution precedence** (`Plugin::resolved_maxmind_db_path()`) gains
+a new tier between the settings path and WooCommerate auto-detection:
+constant → settings path → `DatabaseManager::installed_path()` (when
+`maxmind_managed_enabled`) → WooCommerce auto-detect → filter. The method
+now returns `array{path, source}` instead of a bare string, so diagnostics
+can report which tier resolved the effective path.
+
+**Diagnostics/Site Health**: a new `maxmind_managed` report section, and
+the fourth v1.x Site Health test, `universal_geo_maxmind_managed`, with
+its own 14/30-day thresholds — distinct from the custom-path MaxMind
+test's 30/90-day constants, since a managed database updates itself
+automatically. Critical only when the overall resolved MaxMind source is
+genuinely unavailable, not merely because the managed database itself is
+stale — a working higher-precedence custom path covering the gap keeps
+the test at `recommended`.
+
+**Checksum verification**: the `.sha256` sidecar MaxMind's docs describe is
+explicitly **not implemented in M6** — the live contract wasn't confirmed
+against a real account during this milestone's implementation. The sole
+integrity gate is MMDB structural validation (`Reader`-open + metadata +
+non-throwing lookup) over an HTTPS-fetched, redirect-validated archive.
+See `docs/SECURITY.md` for the residual-risk statement and
+`docs/ROADMAP.md` for its deferred status.
+
+**`maxmind-db/reader`** is promoted from a dev-only to a production
+Composer dependency — the local MaxMind provider's own feature is now
+usable on any site, not only ones where WooCommerce happens to provide the
+reader class.
