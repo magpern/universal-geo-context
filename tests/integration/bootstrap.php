@@ -24,6 +24,10 @@ require_once __DIR__ . '/Support/FixedResultClientIpResolver.php';
 
 define( 'UNIVERSAL_GEO_VERSION', '0.0.0-test' );
 
+if ( ! defined( 'UNIVERSAL_GEO_PLUGIN_FILE' ) ) {
+	define( 'UNIVERSAL_GEO_PLUGIN_FILE', $ugeo_root . '/universal-geo-context.php' );
+}
+
 $ugeo_tests_dir = getenv( 'WP_TESTS_DIR' );
 if ( ! $ugeo_tests_dir ) {
 	$ugeo_tests_dir = $ugeo_root . '/vendor/wp-phpunit/wp-phpunit';

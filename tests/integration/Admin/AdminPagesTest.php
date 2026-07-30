@@ -1,6 +1,6 @@
 <?php
 /**
- * Integration tests for UniversalGeo\Admin\AdminScreen::handle_save_settings().
+ * Integration tests for UniversalGeo\Admin\SettingsPage and related handlers.
  *
  * @package UniversalGeoContext
  */
@@ -9,7 +9,12 @@ declare( strict_types=1 );
 
 namespace UniversalGeo\Tests\Integration\Admin;
 
-use UniversalGeo\Admin\AdminScreen;
+use UniversalGeo\Admin\AdminNotices;
+use UniversalGeo\Admin\AdminPageSlugs;
+use UniversalGeo\Admin\FirstRunNotice;
+use UniversalGeo\Admin\Menu;
+use UniversalGeo\Admin\SettingsPage;
+use UniversalGeo\Admin\TrustedProxiesPage;
 use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Diagnostics\DiagnosticsService;
 use UniversalGeo\Diagnostics\ProviderHealthStore;
@@ -40,7 +45,7 @@ use WP_UnitTestCase;
  * `wp_redirect()` with a throwing filter so execution unwinds before the
  * fatal exit.
  */
-final class AdminScreenTest extends WP_UnitTestCase {
+final class AdminPagesTest extends WP_UnitTestCase {
 
 	private const COUNTRY_DB = __DIR__ . '/../../fixtures/GeoIP2-Country-Test.mmdb';
 
@@ -58,14 +63,31 @@ final class AdminScreenTest extends WP_UnitTestCase {
 		parent::tearDown();
 	}
 
-	private function screen( ?DatabaseManager $database_manager = null ): AdminScreen {
+	private function settings_page( ?DatabaseManager $database_manager = null ): SettingsPage {
+		$database_manager = $database_manager ?? new DatabaseManager(
+			sys_get_temp_dir() . '/ugeo-admin-settings-test-unused',
+			'',
+			'',
+			true,
+			new FakeHttpTransport(),
+			new ArchiveExtractor(),
+			new UpdateLock()
+		);
+
+		return new SettingsPage(
+			new UpdateScheduler( $database_manager ),
+			$database_manager,
+			new AdminNotices()
+		);
+	}
+
+	private function trusted_proxies_page(): TrustedProxiesPage {
 		$request         = ServerRequest::capture( $_SERVER ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$trusted_proxies = new TrustedProxies( array(), false );
 		$ip_resolver     = new ClientIpResolver( $request, $trusted_proxies );
 		$resolver        = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-
-		$database_manager = $database_manager ?? new DatabaseManager(
-			sys_get_temp_dir() . '/ugeo-admin-screen-test-unused',
+		$database_manager = new DatabaseManager(
+			sys_get_temp_dir() . '/ugeo-admin-trusted-test-unused',
 			'',
 			'',
 			true,
@@ -88,7 +110,12 @@ final class AdminScreenTest extends WP_UnitTestCase {
 			'none'
 		);
 
-		return new AdminScreen( $diagnostics, $request, new UpdateScheduler( $database_manager ), $database_manager );
+		return new TrustedProxiesPage(
+			$diagnostics,
+			$request,
+			new \UniversalGeo\Admin\ReportRenderer( $diagnostics ),
+			new AdminNotices()
+		);
 	}
 
 	/**
@@ -110,7 +137,7 @@ final class AdminScreenTest extends WP_UnitTestCase {
 		);
 
 		try {
-			$this->screen()->handle_save_settings();
+			$this->settings_page()->handle_save_settings();
 			$this->fail( 'Expected the redirect trap to interrupt execution.' );
 		} catch ( \RuntimeException $e ) {
 			$this->assertSame( 'redirect-trap', $e->getMessage() );
@@ -386,14 +413,44 @@ final class AdminScreenTest extends WP_UnitTestCase {
 	public function test_other_settings_still_save_when_the_default_country_is_rejected(): void {
 		$this->submit(
 			array(
-				'default_country'  => 'ZZ',
-				'trust_cloudflare' => '1',
+				'default_country'       => 'ZZ',
+				'derived_cache_enabled' => '1',
 			)
 		);
 
 		$stored = get_option( Settings::OPTION_NAME );
 
-		$this->assertTrue( $stored['trust_cloudflare'] );
+		$this->assertTrue( $stored['derived_cache_enabled'] );
+	}
+
+	private function first_run_notice(): FirstRunNotice {
+		$request         = ServerRequest::capture( $_SERVER ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$trusted_proxies = new TrustedProxies( array(), false );
+		$ip_resolver     = new ClientIpResolver( $request, $trusted_proxies );
+
+		$diagnostics = new DiagnosticsService(
+			new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) ),
+			$ip_resolver,
+			$request,
+			$trusted_proxies,
+			array(),
+			new ProviderHealthStore(),
+			new MaxMindProvider( '' ),
+			new CircuitBreaker(),
+			'none',
+			new DatabaseManager(
+				sys_get_temp_dir() . '/ugeo-notice-test',
+				'',
+				'',
+				true,
+				new FakeHttpTransport(),
+				new ArchiveExtractor(),
+				new UpdateLock()
+			),
+			'none'
+		);
+
+		return new FirstRunNotice( $diagnostics );
 	}
 
 	// ---- M5: handle_dismiss_notice() capability check ------------------------------
@@ -406,7 +463,7 @@ final class AdminScreenTest extends WP_UnitTestCase {
 
 		$this->expectException( \WPDieException::class );
 
-		$this->screen()->handle_dismiss_notice();
+		$this->first_run_notice()->handle_dismiss_notice();
 	}
 
 	public function test_dismiss_notice_succeeds_for_manage_options(): void {
@@ -421,7 +478,7 @@ final class AdminScreenTest extends WP_UnitTestCase {
 		);
 
 		try {
-			$this->screen()->handle_dismiss_notice();
+			$this->first_run_notice()->handle_dismiss_notice();
 			$this->fail( 'Expected the redirect trap to interrupt execution.' );
 		} catch ( \RuntimeException $e ) {
 			$this->assertSame( 'redirect-trap', $e->getMessage() );
@@ -432,18 +489,127 @@ final class AdminScreenTest extends WP_UnitTestCase {
 		$this->assertEquals( 1, get_user_meta( get_current_user_id(), 'universal_geo_first_run_notice_dismissed', true ) );
 	}
 
-	// ---- M4: AdminScreen::uninstall() --------------------------------------------
+	// ---- M4: FirstRunNotice::uninstall() --------------------------------------------
 
 	public function test_uninstall_deletes_the_first_run_notice_meta_for_every_user(): void {
 		$user_a = self::factory()->user->create();
 		$user_b = self::factory()->user->create();
 
-		update_user_meta( $user_a, 'universal_geo_first_run_notice_dismissed', 1 );
-		update_user_meta( $user_b, 'universal_geo_first_run_notice_dismissed', 1 );
+		update_user_meta( $user_a, FirstRunNotice::NOTICE_DISMISSED_META, 1 );
+		update_user_meta( $user_b, FirstRunNotice::NOTICE_DISMISSED_META, 1 );
 
-		AdminScreen::uninstall();
+		FirstRunNotice::uninstall();
 
-		$this->assertSame( '', get_user_meta( $user_a, 'universal_geo_first_run_notice_dismissed', true ) );
-		$this->assertSame( '', get_user_meta( $user_b, 'universal_geo_first_run_notice_dismissed', true ) );
+		$this->assertSame( '', get_user_meta( $user_a, FirstRunNotice::NOTICE_DISMISSED_META, true ) );
+		$this->assertSame( '', get_user_meta( $user_b, FirstRunNotice::NOTICE_DISMISSED_META, true ) );
+	}
+
+	public function test_legacy_settings_url_redirects_to_overview(): void {
+		set_current_screen( 'options-general' );
+
+		$_GET['page'] = AdminPageSlugs::LEGACY_OPTIONS_PAGE;
+		global $pagenow;
+		$pagenow = 'options-general.php';
+
+		$menu = new Menu(
+			new \UniversalGeo\Admin\OverviewPage( $this->diagnostics_for_menu(), $this->resolver_for_menu(), new \UniversalGeo\Admin\ReportRenderer( $this->diagnostics_for_menu() ), new AdminNotices() ),
+			new \UniversalGeo\Admin\DetectionPage(),
+			new \UniversalGeo\Admin\ProvidersPage(),
+			$this->trusted_proxies_page(),
+			new \UniversalGeo\Admin\DiagnosticsPage( $this->diagnostics_for_menu(), new \UniversalGeo\Admin\ReportRenderer( $this->diagnostics_for_menu() ) ),
+			$this->settings_page()
+		);
+
+		$captured = '';
+		add_filter(
+			'wp_redirect',
+			static function ( $location ) use ( &$captured ) {
+				$captured = $location;
+				throw new \RuntimeException( 'redirect-trap' );
+			}
+		);
+
+		try {
+			$menu->maybe_redirect_legacy_page_url();
+			$this->fail( 'Expected redirect trap.' );
+		} catch ( \RuntimeException $e ) {
+			$this->assertSame( 'redirect-trap', $e->getMessage() );
+		}
+
+		$this->assertStringContainsString( 'page=' . AdminPageSlugs::OVERVIEW, $captured );
+		unset( $_GET['page'] );
+	}
+
+	public function test_legacy_diagnostics_tab_url_redirects_to_diagnostics_page(): void {
+		set_current_screen( 'options-general' );
+
+		$_GET['page'] = AdminPageSlugs::LEGACY_OPTIONS_PAGE;
+		$_GET['tab']  = 'diagnostics';
+		global $pagenow;
+		$pagenow = 'options-general.php';
+
+		$menu = new Menu(
+			new \UniversalGeo\Admin\OverviewPage( $this->diagnostics_for_menu(), $this->resolver_for_menu(), new \UniversalGeo\Admin\ReportRenderer( $this->diagnostics_for_menu() ), new AdminNotices() ),
+			new \UniversalGeo\Admin\DetectionPage(),
+			new \UniversalGeo\Admin\ProvidersPage(),
+			$this->trusted_proxies_page(),
+			new \UniversalGeo\Admin\DiagnosticsPage( $this->diagnostics_for_menu(), new \UniversalGeo\Admin\ReportRenderer( $this->diagnostics_for_menu() ) ),
+			$this->settings_page()
+		);
+
+		$captured = '';
+		add_filter(
+			'wp_redirect',
+			static function ( $location ) use ( &$captured ) {
+				$captured = $location;
+				throw new \RuntimeException( 'redirect-trap' );
+			}
+		);
+
+		try {
+			$menu->maybe_redirect_legacy_page_url();
+			$this->fail( 'Expected redirect trap.' );
+		} catch ( \RuntimeException $e ) {
+			$this->assertSame( 'redirect-trap', $e->getMessage() );
+		}
+
+		$this->assertStringContainsString( 'page=' . AdminPageSlugs::DIAGNOSTICS, $captured );
+		unset( $_GET['page'], $_GET['tab'] );
+	}
+
+	private function diagnostics_for_menu(): DiagnosticsService {
+		$request         = ServerRequest::capture( $_SERVER ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$trusted_proxies = new TrustedProxies( array(), false );
+		$ip_resolver     = new ClientIpResolver( $request, $trusted_proxies );
+
+		return new DiagnosticsService(
+			new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) ),
+			$ip_resolver,
+			$request,
+			$trusted_proxies,
+			array(),
+			new ProviderHealthStore(),
+			new MaxMindProvider( '' ),
+			new CircuitBreaker(),
+			'none',
+			new DatabaseManager(
+				sys_get_temp_dir() . '/ugeo-menu-test',
+				'',
+				'',
+				true,
+				new FakeHttpTransport(),
+				new ArchiveExtractor(),
+				new UpdateLock()
+			),
+			'none'
+		);
+	}
+
+	private function resolver_for_menu(): ContextResolver {
+		$request         = ServerRequest::capture( $_SERVER ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$trusted_proxies = new TrustedProxies( array(), false );
+		$ip_resolver     = new ClientIpResolver( $request, $trusted_proxies );
+
+		return new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
 	}
 }

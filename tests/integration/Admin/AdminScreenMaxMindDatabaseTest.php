@@ -10,7 +10,8 @@ declare( strict_types=1 );
 
 namespace UniversalGeo\Tests\Integration\Admin;
 
-use UniversalGeo\Admin\AdminScreen;
+use UniversalGeo\Admin\AdminNotices;
+use UniversalGeo\Admin\SettingsPage;
 use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Diagnostics\DiagnosticsService;
 use UniversalGeo\Diagnostics\ProviderHealthStore;
@@ -58,27 +59,12 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 		return sys_get_temp_dir() . '/ugeo-admin-maxmind-db-test-' . uniqid( '', true );
 	}
 
-	private function screen( DatabaseManager $database_manager ): AdminScreen {
-		$request         = ServerRequest::capture( $_SERVER ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$trusted_proxies = new TrustedProxies( array(), false );
-		$ip_resolver     = new ClientIpResolver( $request, $trusted_proxies );
-		$resolver        = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-
-		$diagnostics = new DiagnosticsService(
-			$resolver,
-			$ip_resolver,
-			$request,
-			$trusted_proxies,
-			array(),
-			new ProviderHealthStore(),
-			new MaxMindProvider( '' ),
-			new CircuitBreaker(),
-			'none',
+	private function settings_page( DatabaseManager $database_manager ): SettingsPage {
+		return new SettingsPage(
+			new UpdateScheduler( $database_manager ),
 			$database_manager,
-			'none'
+			new AdminNotices()
 		);
-
-		return new AdminScreen( $diagnostics, $request, new UpdateScheduler( $database_manager ), $database_manager );
 	}
 
 	/**
@@ -86,7 +72,7 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 	 * four handlers) and captures the redirect location, mirroring
 	 * AdminScreenTest::submit()'s own redirect-trap technique.
 	 */
-	private function trigger( AdminScreen $screen, string $nonce_action, callable $handler ): string {
+	private function trigger( SettingsPage $page, string $nonce_action, callable $handler ): string {
 		$_REQUEST['_wpnonce'] = wp_create_nonce( $nonce_action ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.InputNotValidated
 
 		$captured = '';
@@ -99,7 +85,7 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 		);
 
 		try {
-			$handler( $screen );
+			$handler( $page );
 			$this->fail( 'Expected the redirect trap to interrupt execution.' );
 		} catch ( \RuntimeException $e ) {
 			$this->assertSame( 'redirect-trap', $e->getMessage() );
@@ -121,7 +107,7 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 
 		$this->expectException( \WPDieException::class );
 
-		$this->screen( $this->unused_database_manager() )->handle_maxmind_database_download();
+		$this->settings_page( $this->unused_database_manager() )->handle_maxmind_database_download();
 	}
 
 	public function test_remove_requires_manage_options(): void {
@@ -132,7 +118,7 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 
 		$this->expectException( \WPDieException::class );
 
-		$this->screen( $this->unused_database_manager() )->handle_maxmind_database_remove();
+		$this->settings_page( $this->unused_database_manager() )->handle_maxmind_database_remove();
 	}
 
 	public function test_restore_requires_manage_options(): void {
@@ -143,7 +129,7 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 
 		$this->expectException( \WPDieException::class );
 
-		$this->screen( $this->unused_database_manager() )->handle_maxmind_database_restore();
+		$this->settings_page( $this->unused_database_manager() )->handle_maxmind_database_restore();
 	}
 
 	public function test_validate_requires_manage_options(): void {
@@ -154,7 +140,7 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 
 		$this->expectException( \WPDieException::class );
 
-		$this->screen( $this->unused_database_manager() )->handle_maxmind_database_validate();
+		$this->settings_page( $this->unused_database_manager() )->handle_maxmind_database_validate();
 	}
 
 	/**
@@ -195,10 +181,10 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 		$database_manager = new DatabaseManager( $this->managed_dir(), 'account', 'license', true, $transport, new ArchiveExtractor(), new UpdateLock() );
 
 		$location = $this->trigger(
-			$this->screen( $database_manager ),
+			$this->settings_page( $database_manager ),
 			'universal_geo_maxmind_database_download',
-			static function ( AdminScreen $screen ): void {
-				$screen->handle_maxmind_database_download();
+			static function ( SettingsPage $page ): void {
+				$page->handle_maxmind_database_download();
 			}
 		);
 
@@ -214,10 +200,10 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 		$database_manager = $this->unused_database_manager();
 
 		$location = $this->trigger(
-			$this->screen( $database_manager ),
+			$this->settings_page( $database_manager ),
 			'universal_geo_maxmind_database_download',
-			static function ( AdminScreen $screen ): void {
-				$screen->handle_maxmind_database_download();
+			static function ( SettingsPage $page ): void {
+				$page->handle_maxmind_database_download();
 			}
 		);
 
@@ -229,10 +215,10 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 		$database_manager = $this->unused_database_manager();
 
 		$location = $this->trigger(
-			$this->screen( $database_manager ),
+			$this->settings_page( $database_manager ),
 			'universal_geo_maxmind_database_validate',
-			static function ( AdminScreen $screen ): void {
-				$screen->handle_maxmind_database_validate();
+			static function ( SettingsPage $page ): void {
+				$page->handle_maxmind_database_validate();
 			}
 		);
 
@@ -255,10 +241,10 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 		unlink( $archive );
 
 		$location = $this->trigger(
-			$this->screen( $database_manager ),
+			$this->settings_page( $database_manager ),
 			'universal_geo_maxmind_database_remove',
-			static function ( AdminScreen $screen ): void {
-				$screen->handle_maxmind_database_remove();
+			static function ( SettingsPage $page ): void {
+				$page->handle_maxmind_database_remove();
 			}
 		);
 
@@ -270,10 +256,10 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 		$database_manager = $this->unused_database_manager();
 
 		$location = $this->trigger(
-			$this->screen( $database_manager ),
+			$this->settings_page( $database_manager ),
 			'universal_geo_maxmind_database_restore',
-			static function ( AdminScreen $screen ): void {
-				$screen->handle_maxmind_database_restore();
+			static function ( SettingsPage $page ): void {
+				$page->handle_maxmind_database_restore();
 			}
 		);
 

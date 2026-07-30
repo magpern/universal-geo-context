@@ -93,7 +93,7 @@ final class PrivacyGuardTest extends TestCase {
 		'add_user_meta',
 	);
 
-	private const USER_META_ALLOWED_FILE = 'Admin/AdminScreen.php';
+	private const USER_META_ALLOWED_FILE = 'Admin/FirstRunNotice.php';
 
 	private const OPTION_WRITE_FUNCTIONS = array(
 		'update_option',

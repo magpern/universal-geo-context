@@ -191,6 +191,22 @@ if ( ! function_exists( 'admin_url' ) ) {
 	}
 }
 
+if ( ! function_exists( 'plugin_basename' ) ) {
+	function plugin_basename( $file ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return basename( dirname( (string) $file ) ) . '/' . basename( (string) $file );
+	}
+}
+
+if ( ! function_exists( 'get_plugin_data' ) ) {
+	function get_plugin_data( $file, $markup = true, $translate = true ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		unset( $file, $markup, $translate );
+
+		return array(
+			'PluginURI' => 'https://github.com/magpern/universal-geo-context',
+		);
+	}
+}
+
 if ( ! function_exists( 'add_query_arg' ) ) {
 	function add_query_arg( $key, $value = null, $url = null ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
 		if ( is_array( $key ) ) {
