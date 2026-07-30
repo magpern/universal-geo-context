@@ -17,13 +17,23 @@ namespace UniversalGeo\MaxMind;
  * `universal_geo_maxmind_update` cron event against the configured
  * enabled/frequency settings.
  *
+ * `$enabled`/`$frequency` are deliberately **not** constructor state:
+ * `register()` is called once, in `Plugin::init()`, but `ensure_scheduled()`
+ * must also run again, in the same request, from
+ * `AdminScreen::handle_save_settings()` — immediately after a settings save
+ * — using the just-sanitized values, not the ones `Plugin::build_graph()`
+ * resolved at the start of the request. Taking them as call-time parameters
+ * instead avoids a second `UpdateScheduler` construction (which would
+ * violate the composition-root invariant, `Plugin` being the exclusive
+ * constructor of internal services) while still always reconciling against
+ * current, not stale, configuration.
+ *
  * `register()` is called unconditionally from `Plugin::init()` — cron
  * requests are neither `is_admin()` nor WP-CLI, so this cannot live inside
  * either existing gated construction branch. `ensure_scheduled()` is
- * self-healing reconciliation: safe to call on every admin page load and
- * again explicitly from `AdminScreen::handle_save_settings()`, since it only
- * ever schedules/reschedules/clears based on the current configured state,
- * never accumulating duplicate events.
+ * self-healing reconciliation: safe to call repeatedly, since it only ever
+ * schedules/reschedules/clears based on the arguments given, never
+ * accumulating duplicate events.
  *
  * @internal
  * @final
@@ -74,19 +84,13 @@ final class UpdateScheduler {
 	private $clock;
 
 	/**
-	 * Stores the injected dependencies. $enabled and $frequency are
-	 * settings-derived values Plugin::build_graph() has already resolved —
-	 * this class never reads settings itself.
+	 * Stores the injected dependencies.
 	 *
 	 * @param DatabaseManager      $database_manager The manager run() delegates to.
-	 * @param bool                 $enabled          Whether auto-update is enabled (maxmind_managed_auto_update_enabled, already AND-gated against maxmind_managed_enabled by Settings::sanitize()).
-	 * @param string               $frequency        'weekly' or 'twice_weekly'.
-	 * @param callable(): int|null $clock            Returns the current Unix timestamp. Defaults to `static fn(): int => time()`.
+	 * @param callable(): int|null $clock             Returns the current Unix timestamp. Defaults to `static fn(): int => time()`.
 	 */
 	public function __construct(
 		private readonly DatabaseManager $database_manager,
-		private readonly bool $enabled,
-		private readonly string $frequency,
 		?callable $clock = null
 	) {
 		$this->clock = $clock ?? static fn (): int => time();
@@ -94,17 +98,20 @@ final class UpdateScheduler {
 
 	/**
 	 * Registers the custom cron_schedules intervals and the cron hook's
-	 * callback, then reconciles the scheduled event against the current
+	 * callback, then reconciles the scheduled event against the given
 	 * configuration. Called unconditionally from Plugin::init().
+	 *
+	 * @param bool   $enabled   Whether auto-update is enabled (maxmind_managed_auto_update_enabled, already AND-gated against maxmind_managed_enabled by Settings::sanitize()).
+	 * @param string $frequency 'weekly' or 'twice_weekly'.
 	 *
 	 * @return void
 	 */
-	public function register(): void {
+	public function register( bool $enabled, string $frequency ): void {
 		// phpcs:ignore WordPress.WP.CronInterval.ChangeDetected -- registers this plugin's own new intervals (SCHEDULE_WEEKLY/SCHEDULE_TWICE_WEEKLY), never modifies an existing one; the sniff cannot statically see filter_cron_schedules()'s own interval values.
 		add_filter( 'cron_schedules', array( $this, 'filter_cron_schedules' ) );
 		add_action( self::CRON_HOOK, array( $this, 'run' ) );
 
-		$this->ensure_scheduled();
+		$this->ensure_scheduled( $enabled, $frequency );
 	}
 
 	/**
@@ -130,25 +137,31 @@ final class UpdateScheduler {
 
 	/**
 	 * Self-healing reconciliation: schedules a fresh event (with a jittered
-	 * first-run offset) when auto-update is enabled and none is currently
+	 * first-run offset) when $enabled is true and none is currently
 	 * scheduled, reschedules when the currently scheduled recurrence no
-	 * longer matches the configured frequency, and clears any scheduled
-	 * event when auto-update is disabled. Idempotent and safe to call
-	 * repeatedly — never accumulates duplicate events.
+	 * longer matches $frequency, and clears any scheduled event when
+	 * $enabled is false. Idempotent and safe to call repeatedly — never
+	 * accumulates duplicate events. Called both from register() (once per
+	 * request, at graph build) and directly from
+	 * AdminScreen::handle_save_settings() (with the just-sanitized values,
+	 * immediately after a save).
+	 *
+	 * @param bool   $enabled   Whether auto-update is enabled.
+	 * @param string $frequency 'weekly' or 'twice_weekly'.
 	 *
 	 * @return void
 	 */
-	public function ensure_scheduled(): void {
-		if ( ! $this->enabled ) {
+	public function ensure_scheduled( bool $enabled, string $frequency ): void {
+		if ( ! $enabled ) {
 			$this->clear_scheduled();
 			return;
 		}
 
-		$schedule_name = $this->schedule_name();
+		$schedule_name = $this->schedule_name( $frequency );
 		$next          = wp_next_scheduled( self::CRON_HOOK );
 
 		if ( false === $next ) {
-			wp_schedule_event( $this->jittered_first_run_offset(), $schedule_name, self::CRON_HOOK );
+			wp_schedule_event( $this->jittered_first_run_offset( $frequency ), $schedule_name, self::CRON_HOOK );
 			return;
 		}
 
@@ -156,7 +169,7 @@ final class UpdateScheduler {
 
 		if ( false !== $event && $event->schedule !== $schedule_name ) {
 			wp_unschedule_event( $next, self::CRON_HOOK );
-			wp_schedule_event( $this->jittered_first_run_offset(), $schedule_name, self::CRON_HOOK );
+			wp_schedule_event( $this->jittered_first_run_offset( $frequency ), $schedule_name, self::CRON_HOOK );
 		}
 	}
 
@@ -197,25 +210,29 @@ final class UpdateScheduler {
 	}
 
 	/**
-	 * The custom interval name matching the configured frequency.
+	 * The custom interval name matching $frequency.
+	 *
+	 * @param string $frequency 'weekly' or 'twice_weekly'.
 	 *
 	 * @return string
 	 */
-	private function schedule_name(): string {
-		return 'twice_weekly' === $this->frequency ? self::SCHEDULE_TWICE_WEEKLY : self::SCHEDULE_WEEKLY;
+	private function schedule_name( string $frequency ): string {
+		return 'twice_weekly' === $frequency ? self::SCHEDULE_TWICE_WEEKLY : self::SCHEDULE_WEEKLY;
 	}
 
 	/**
-	 * A first-run timestamp jittered by up to ±10% of the configured
+	 * A first-run timestamp jittered by up to ±10% of $frequency's
 	 * interval, never before "now" — only ever computed when scheduling a
 	 * brand-new event (no event currently exists), so this naturally
 	 * applies exactly once per site until the schedule is later cleared.
 	 *
+	 * @param string $frequency 'weekly' or 'twice_weekly'.
+	 *
 	 * @return int
 	 */
-	private function jittered_first_run_offset(): int {
+	private function jittered_first_run_offset( string $frequency ): int {
 		$now      = ( $this->clock )();
-		$interval = 'twice_weekly' === $this->frequency ? self::TWICE_WEEKLY_SECONDS : self::WEEKLY_SECONDS;
+		$interval = 'twice_weekly' === $frequency ? self::TWICE_WEEKLY_SECONDS : self::WEEKLY_SECONDS;
 		$range    = (int) ( $interval * self::JITTER_FRACTION );
 
 		if ( $range <= 0 ) {

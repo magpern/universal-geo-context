@@ -20,7 +20,11 @@ use UniversalGeo\Tests\Support\FakeHttpTransport;
  * Covers cron registration/reconciliation against the in-memory
  * single-event-per-hook WP-Cron stub (tests/unit/bootstrap.php): scheduling,
  * rescheduling on a frequency change, clearing when disabled, jitter bounds,
- * and idempotent no-op reconciliation.
+ * and idempotent no-op reconciliation. $enabled/$frequency are call-time
+ * parameters, not constructor state (so the same instance can reconcile
+ * against fresh, just-saved settings from AdminScreen) — every test reuses
+ * one instance across multiple register()/ensure_scheduled() calls with
+ * different arguments to prove that.
  */
 final class UpdateSchedulerTest extends TestCase {
 
@@ -44,11 +48,9 @@ final class UpdateSchedulerTest extends TestCase {
 		);
 	}
 
-	private function scheduler( bool $enabled, string $frequency = 'weekly' ): UpdateScheduler {
+	private function scheduler(): UpdateScheduler {
 		return new UpdateScheduler(
 			$this->database_manager(),
-			$enabled,
-			$frequency,
 			static fn (): int => self::FIXED_NOW
 		);
 	}
@@ -56,7 +58,7 @@ final class UpdateSchedulerTest extends TestCase {
 	// ---- ensure_scheduled(): enabling --------------------------------------------
 
 	public function test_enabled_with_nothing_scheduled_schedules_a_weekly_event(): void {
-		$this->scheduler( true, 'weekly' )->ensure_scheduled();
+		$this->scheduler()->ensure_scheduled( true, 'weekly' );
 
 		$event = wp_get_scheduled_event( UpdateScheduler::CRON_HOOK );
 
@@ -65,7 +67,7 @@ final class UpdateSchedulerTest extends TestCase {
 	}
 
 	public function test_enabled_with_nothing_scheduled_schedules_a_twice_weekly_event(): void {
-		$this->scheduler( true, 'twice_weekly' )->ensure_scheduled();
+		$this->scheduler()->ensure_scheduled( true, 'twice_weekly' );
 
 		$event = wp_get_scheduled_event( UpdateScheduler::CRON_HOOK );
 
@@ -73,7 +75,7 @@ final class UpdateSchedulerTest extends TestCase {
 	}
 
 	public function test_the_first_run_offset_is_never_before_now(): void {
-		$this->scheduler( true, 'weekly' )->ensure_scheduled();
+		$this->scheduler()->ensure_scheduled( true, 'weekly' );
 
 		$next = wp_next_scheduled( UpdateScheduler::CRON_HOOK );
 
@@ -81,7 +83,7 @@ final class UpdateSchedulerTest extends TestCase {
 	}
 
 	public function test_the_first_run_offset_is_within_the_jitter_window(): void {
-		$this->scheduler( true, 'weekly' )->ensure_scheduled();
+		$this->scheduler()->ensure_scheduled( true, 'weekly' );
 
 		$next   = wp_next_scheduled( UpdateScheduler::CRON_HOOK );
 		$offset = $next - self::FIXED_NOW;
@@ -92,24 +94,32 @@ final class UpdateSchedulerTest extends TestCase {
 
 	// ---- ensure_scheduled(): idempotence -----------------------------------------
 
-	public function test_calling_ensure_scheduled_twice_does_not_change_an_already_correct_schedule(): void {
-		$scheduler = $this->scheduler( true, 'weekly' );
-		$scheduler->ensure_scheduled();
+	public function test_calling_ensure_scheduled_twice_with_the_same_arguments_does_not_change_the_schedule(): void {
+		$scheduler = $this->scheduler();
+		$scheduler->ensure_scheduled( true, 'weekly' );
 
 		$first_next = wp_next_scheduled( UpdateScheduler::CRON_HOOK );
 
-		$scheduler->ensure_scheduled();
+		$scheduler->ensure_scheduled( true, 'weekly' );
 
 		$this->assertSame( $first_next, wp_next_scheduled( UpdateScheduler::CRON_HOOK ) );
 	}
 
 	// ---- ensure_scheduled(): frequency change reschedules ------------------------
 
-	public function test_a_frequency_change_reschedules_the_event(): void {
-		$this->scheduler( true, 'weekly' )->ensure_scheduled();
+	/**
+	 * The scenario UpdateScheduler exists to support: the same instance,
+	 * reconciling twice in one request with different arguments — the
+	 * shape AdminScreen::handle_save_settings() needs (fresh just-saved
+	 * values, not the constructor-time settings).
+	 */
+	public function test_a_frequency_change_on_the_same_instance_reschedules_the_event(): void {
+		$scheduler = $this->scheduler();
+
+		$scheduler->ensure_scheduled( true, 'weekly' );
 		$this->assertSame( 'universal_geo_weekly', wp_get_scheduled_event( UpdateScheduler::CRON_HOOK )->schedule );
 
-		$this->scheduler( true, 'twice_weekly' )->ensure_scheduled();
+		$scheduler->ensure_scheduled( true, 'twice_weekly' );
 
 		$this->assertSame( 'universal_geo_twice_weekly', wp_get_scheduled_event( UpdateScheduler::CRON_HOOK )->schedule );
 	}
@@ -117,16 +127,17 @@ final class UpdateSchedulerTest extends TestCase {
 	// ---- ensure_scheduled(): disabling clears -------------------------------------
 
 	public function test_disabled_with_an_event_scheduled_clears_it(): void {
-		$this->scheduler( true, 'weekly' )->ensure_scheduled();
+		$scheduler = $this->scheduler();
+		$scheduler->ensure_scheduled( true, 'weekly' );
 		$this->assertNotFalse( wp_next_scheduled( UpdateScheduler::CRON_HOOK ) );
 
-		$this->scheduler( false )->ensure_scheduled();
+		$scheduler->ensure_scheduled( false, 'weekly' );
 
 		$this->assertFalse( wp_next_scheduled( UpdateScheduler::CRON_HOOK ) );
 	}
 
 	public function test_disabled_with_nothing_scheduled_is_a_no_op(): void {
-		$this->scheduler( false )->ensure_scheduled();
+		$this->scheduler()->ensure_scheduled( false, 'weekly' );
 
 		$this->assertFalse( wp_next_scheduled( UpdateScheduler::CRON_HOOK ) );
 	}
@@ -134,7 +145,7 @@ final class UpdateSchedulerTest extends TestCase {
 	// ---- filter_cron_schedules() ---------------------------------------------------
 
 	public function test_filter_cron_schedules_adds_both_custom_intervals(): void {
-		$schedules = $this->scheduler( true )->filter_cron_schedules( array() );
+		$schedules = $this->scheduler()->filter_cron_schedules( array() );
 
 		$this->assertArrayHasKey( 'universal_geo_weekly', $schedules );
 		$this->assertArrayHasKey( 'universal_geo_twice_weekly', $schedules );
@@ -142,7 +153,7 @@ final class UpdateSchedulerTest extends TestCase {
 	}
 
 	public function test_filter_cron_schedules_preserves_existing_entries(): void {
-		$schedules = $this->scheduler( true )->filter_cron_schedules(
+		$schedules = $this->scheduler()->filter_cron_schedules(
 			array(
 				'hourly' => array(
 					'interval' => 3600,
@@ -157,25 +168,25 @@ final class UpdateSchedulerTest extends TestCase {
 	// ---- register() ------------------------------------------------------------------
 
 	public function test_register_hooks_the_cron_action(): void {
-		$this->scheduler( true )->register();
+		$this->scheduler()->register( true, 'weekly' );
 
 		$this->assertArrayHasKey( UpdateScheduler::CRON_HOOK, $GLOBALS['universal_geo_test_actions'] );
 	}
 
 	public function test_register_hooks_the_cron_schedules_filter(): void {
-		$this->scheduler( true )->register();
+		$this->scheduler()->register( true, 'weekly' );
 
 		$this->assertArrayHasKey( 'cron_schedules', $GLOBALS['universal_geo_test_filters'] );
 	}
 
 	public function test_register_schedules_the_event_when_enabled(): void {
-		$this->scheduler( true )->register();
+		$this->scheduler()->register( true, 'weekly' );
 
 		$this->assertNotFalse( wp_next_scheduled( UpdateScheduler::CRON_HOOK ) );
 	}
 
 	public function test_register_does_not_schedule_when_disabled(): void {
-		$this->scheduler( false )->register();
+		$this->scheduler()->register( false, 'weekly' );
 
 		$this->assertFalse( wp_next_scheduled( UpdateScheduler::CRON_HOOK ) );
 	}
@@ -183,7 +194,7 @@ final class UpdateSchedulerTest extends TestCase {
 	// ---- uninstall() -----------------------------------------------------------------
 
 	public function test_uninstall_clears_the_scheduled_event(): void {
-		$this->scheduler( true )->ensure_scheduled();
+		$this->scheduler()->ensure_scheduled( true, 'weekly' );
 		$this->assertNotFalse( wp_next_scheduled( UpdateScheduler::CRON_HOOK ) );
 
 		UpdateScheduler::uninstall();
