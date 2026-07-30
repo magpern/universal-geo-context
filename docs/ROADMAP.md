@@ -2,6 +2,8 @@
 
 **Status: M1–M5 shipped. v1.0.0 is the first production-ready release.**
 
+**Architecture governance**: See `docs/ARCHITECTURE_FREEZE.md` for the frozen contracts of the v1.x series and guidance on architectural evolution for future milestones.
+
 ## Milestone timeline
 
 - **v0.1.0 (M1)** — Core domain and public API; `RemoteAddrOnlyResolver` only. Shipped.
