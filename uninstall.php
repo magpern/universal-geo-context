@@ -12,8 +12,7 @@
  * managed-database feature): `Settings::uninstall()` (its own option,
  * `ProviderHealthStore`'s option, the circuit breaker's option, and — M6 —
  * `UpdateLock`'s and `DatabaseManager`'s state options), `GeoCache::uninstall()`
- * (the cache salt and epoch options), `AdminScreen::uninstall()` (the
- * per-user first-run-notice meta), `UpdateScheduler::uninstall()` (clears
+ * (the per-user first-run-notice meta), `UpdateScheduler::uninstall()` (clears
  * the managed-database cron hook), and `DatabaseManager::uninstall_files()`
  * (deletes the managed directory's files, by exact filename, never a glob).
  * This script performs no cleanup of its own and runs no raw SQL.
@@ -35,6 +34,6 @@ if ( ! class_exists( \UniversalGeo\Settings::class ) ) {
 
 \UniversalGeo\Settings::uninstall();
 \UniversalGeo\Cache\GeoCache::uninstall();
-\UniversalGeo\Admin\AdminScreen::uninstall();
+\UniversalGeo\Admin\FirstRunNotice::uninstall();
 \UniversalGeo\MaxMind\UpdateScheduler::uninstall();
 \UniversalGeo\MaxMind\DatabaseManager::uninstall_files( \UniversalGeo\MaxMind\DatabaseManager::managed_directory() );

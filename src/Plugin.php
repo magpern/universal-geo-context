@@ -9,7 +9,17 @@ declare( strict_types=1 );
 
 namespace UniversalGeo;
 
-use UniversalGeo\Admin\AdminScreen;
+use UniversalGeo\Admin\AdminNotices;
+use UniversalGeo\Admin\DetectionPage;
+use UniversalGeo\Admin\DiagnosticsPage;
+use UniversalGeo\Admin\FirstRunNotice;
+use UniversalGeo\Admin\Menu;
+use UniversalGeo\Admin\OverviewPage;
+use UniversalGeo\Admin\ProvidersPage;
+use UniversalGeo\Admin\ReportRenderer;
+use UniversalGeo\Admin\RowLinks;
+use UniversalGeo\Admin\SettingsPage;
+use UniversalGeo\Admin\TrustedProxiesPage;
 use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Cli\Command as CliCommand;
 use UniversalGeo\Cli\DatabaseCommand;
@@ -195,7 +205,47 @@ final class Plugin {
 		if ( $register_admin ) {
 			$diagnostics->register();
 
-			( new AdminScreen( $diagnostics, $graph['server_request'], $graph['update_scheduler'], $graph['database_manager'] ) )->register();
+			$notices         = new AdminNotices();
+			$report_renderer = new ReportRenderer( $diagnostics );
+
+			$overview_page = new OverviewPage(
+				$diagnostics,
+				$graph['resolver'],
+				$report_renderer,
+				$notices
+			);
+
+			$detection_page = new DetectionPage();
+			$providers_page = new ProvidersPage();
+
+			$trusted_proxies_page = new TrustedProxiesPage(
+				$diagnostics,
+				$graph['server_request'],
+				$report_renderer,
+				$notices
+			);
+
+			$diagnostics_page = new DiagnosticsPage( $diagnostics, $report_renderer );
+
+			$settings_page = new SettingsPage(
+				$graph['update_scheduler'],
+				$graph['database_manager'],
+				$notices
+			);
+
+			( new Menu(
+				$overview_page,
+				$detection_page,
+				$providers_page,
+				$trusted_proxies_page,
+				$diagnostics_page,
+				$settings_page
+			) )->register();
+
+			$notices->register();
+
+			( new FirstRunNotice( $diagnostics ) )->register();
+			( new RowLinks() )->register();
 
 			$privacy_content = new PrivacyPolicyContent( $graph['settings']['remote_enabled'] );
 
