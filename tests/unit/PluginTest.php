@@ -13,10 +13,14 @@ use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionMethod;
 use UniversalGeo\Contracts\GeoProviderInterface;
+use UniversalGeo\MaxMind\ArchiveExtractor;
+use UniversalGeo\MaxMind\DatabaseManager;
+use UniversalGeo\MaxMind\UpdateLock;
 use UniversalGeo\Model\GeoCandidate;
 use UniversalGeo\Model\VisitorContext;
 use UniversalGeo\Plugin;
 use UniversalGeo\Settings;
+use UniversalGeo\Tests\Support\FakeHttpTransport;
 use UniversalGeo\Tests\Unit\Doubles\TrackingGeoProvider;
 
 /**
@@ -887,32 +891,54 @@ final class PluginTest extends TestCase {
 	private const FIXTURE_COUNTRY_DB = __DIR__ . '/../fixtures/GeoIP2-Country-Test.mmdb';
 
 	/**
-	 * @param array<string, mixed> $settings The sanitized settings array.
+	 * @param array<string, mixed> $settings         The sanitized settings array.
+	 * @param DatabaseManager|null $database_manager Defaults to an inert instance (empty credentials, a tmp dir it never actually writes to in these tests — only installed_path() is ever consulted, a cheap file_exists() check).
+	 *
+	 * @return array{path: string, source: string}
 	 */
-	private function resolved_maxmind_db_path( array $settings ): string {
+	private function resolved_maxmind_db_path( array $settings, ?DatabaseManager $database_manager = null ): array {
 		$reflection = new ReflectionMethod( Plugin::class, 'resolved_maxmind_db_path' );
 		$reflection->setAccessible( true );
 
-		return $reflection->invoke( Plugin::instance(), $settings );
+		return $reflection->invoke( Plugin::instance(), $settings, $database_manager ?? $this->unused_database_manager() );
+	}
+
+	private function unused_database_manager(): DatabaseManager {
+		return new DatabaseManager(
+			sys_get_temp_dir() . '/ugeo-plugin-test-unused',
+			'',
+			'',
+			true,
+			new FakeHttpTransport(),
+			new ArchiveExtractor(),
+			new UpdateLock()
+		);
 	}
 
 	private function base_settings(
 		string $maxmind_db_path = '',
 		string $remote_account_id = '',
-		string $remote_license_key = ''
+		string $remote_license_key = '',
+		string $maxmind_account_id = '',
+		string $maxmind_license_key = '',
+		bool $maxmind_managed_enabled = false
 	): array {
 		return array(
-			'schema_version'               => Settings::SCHEMA_VERSION,
-			'default_country'              => '',
-			'trusted_proxies'              => array(),
-			'trust_cloudflare'             => false,
-			'derived_cache_enabled'        => true,
-			'derived_cache_ttl'            => 900,
-			'maxmind_db_path'              => $maxmind_db_path,
-			'remote_enabled'               => false,
-			'remote_account_id'            => $remote_account_id,
-			'remote_license_key'           => $remote_license_key,
-			'remote_transfer_acknowledged' => false,
+			'schema_version'                  => Settings::SCHEMA_VERSION,
+			'default_country'                 => '',
+			'trusted_proxies'                 => array(),
+			'trust_cloudflare'                => false,
+			'derived_cache_enabled'           => true,
+			'derived_cache_ttl'               => 900,
+			'maxmind_db_path'                 => $maxmind_db_path,
+			'remote_enabled'                  => false,
+			'remote_account_id'               => $remote_account_id,
+			'remote_license_key'              => $remote_license_key,
+			'remote_transfer_acknowledged'    => false,
+			'maxmind_account_id'              => $maxmind_account_id,
+			'maxmind_license_key'             => $maxmind_license_key,
+			'maxmind_managed_enabled'         => $maxmind_managed_enabled,
+			'maxmind_managed_retain_previous' => true,
 		);
 	}
 
@@ -921,8 +947,8 @@ final class PluginTest extends TestCase {
 	 *
 	 * @return array{account_id: string, license_key: string, source: string}
 	 */
-	private function resolved_remote_credentials( array $settings ): array {
-		$reflection = new ReflectionMethod( Plugin::class, 'resolved_remote_credentials' );
+	private function resolved_maxmind_credentials( array $settings ): array {
+		$reflection = new ReflectionMethod( Plugin::class, 'resolved_maxmind_credentials' );
 		$reflection->setAccessible( true );
 
 		return $reflection->invoke( Plugin::instance(), $settings );
@@ -934,7 +960,9 @@ final class PluginTest extends TestCase {
 		// degrades to '' rather than fatal, deterministically, here too.
 		$this->assertFalse( function_exists( 'wp_upload_dir' ) );
 
-		$this->assertSame( '', $this->resolved_maxmind_db_path( $this->base_settings() ) );
+		$result = $this->resolved_maxmind_db_path( $this->base_settings() );
+		$this->assertSame( '', $result['path'] );
+		$this->assertSame( 'none', $result['source'] );
 	}
 
 	public function test_resolved_maxmind_db_path_accepts_a_path_contained_under_wp_content_dir(): void {
@@ -944,7 +972,8 @@ final class PluginTest extends TestCase {
 		$result = $this->resolved_maxmind_db_path( $this->base_settings( $path ) );
 
 		unlink( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
-		$this->assertSame( $path, $result );
+		$this->assertSame( $path, $result['path'] );
+		$this->assertSame( 'settings', $result['source'] );
 	}
 
 	public function test_resolved_maxmind_db_path_rejects_a_path_outside_wp_content_dir(): void {
@@ -952,13 +981,14 @@ final class PluginTest extends TestCase {
 		// fake WP_CONTENT_DIR fixture directory bootstrap.php defines.
 		$result = $this->resolved_maxmind_db_path( $this->base_settings( self::FIXTURE_COUNTRY_DB ) );
 
-		$this->assertSame( '', $result );
+		$this->assertSame( '', $result['path'] );
+		$this->assertSame( 'none', $result['source'] );
 	}
 
 	public function test_resolved_maxmind_db_path_rejects_a_nonexistent_settings_path(): void {
 		$result = $this->resolved_maxmind_db_path( $this->base_settings( WP_CONTENT_DIR . '/does-not-exist.mmdb' ) );
 
-		$this->assertSame( '', $result );
+		$this->assertSame( '', $result['path'] );
 	}
 
 	public function test_resolved_maxmind_db_path_filter_overrides_an_empty_result(): void {
@@ -966,7 +996,8 @@ final class PluginTest extends TestCase {
 
 		$result = $this->resolved_maxmind_db_path( $this->base_settings() );
 
-		$this->assertSame( self::FIXTURE_COUNTRY_DB, $result );
+		$this->assertSame( self::FIXTURE_COUNTRY_DB, $result['path'] );
+		$this->assertSame( 'filter', $result['source'] );
 	}
 
 	public function test_resolved_maxmind_db_path_filter_receives_the_pre_filter_path(): void {
@@ -995,8 +1026,62 @@ final class PluginTest extends TestCase {
 		$result = $this->resolved_maxmind_db_path( $this->base_settings() );
 		restore_error_handler();
 
-		$this->assertSame( '', $result );
+		$this->assertSame( '', $result['path'] );
 	}
+
+	// ---- M6: managed-path precedence tier -----------------------------------------
+
+	public function test_resolved_maxmind_db_path_uses_the_managed_path_when_enabled_and_settings_is_blank(): void {
+		$managed_dir = sys_get_temp_dir() . '/ugeo-plugin-test-managed-' . uniqid( '', true );
+		mkdir( $managed_dir, 0755, true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir
+		copy( self::FIXTURE_COUNTRY_DB, $managed_dir . '/GeoLite2-Country.mmdb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_copy
+
+		$database_manager = new DatabaseManager( $managed_dir, '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() );
+
+		$result = $this->resolved_maxmind_db_path( $this->base_settings( '', '', '', '', '', true ), $database_manager );
+
+		unlink( $managed_dir . '/GeoLite2-Country.mmdb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		rmdir( $managed_dir ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
+
+		$this->assertSame( $managed_dir . '/GeoLite2-Country.mmdb', $result['path'] );
+		$this->assertSame( 'managed', $result['source'] );
+	}
+
+	public function test_resolved_maxmind_db_path_ignores_the_managed_path_when_disabled(): void {
+		$managed_dir = sys_get_temp_dir() . '/ugeo-plugin-test-managed-' . uniqid( '', true );
+		mkdir( $managed_dir, 0755, true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir
+		copy( self::FIXTURE_COUNTRY_DB, $managed_dir . '/GeoLite2-Country.mmdb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_copy
+
+		$database_manager = new DatabaseManager( $managed_dir, '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() );
+
+		$result = $this->resolved_maxmind_db_path( $this->base_settings( '', '', '', '', '', false ), $database_manager );
+
+		unlink( $managed_dir . '/GeoLite2-Country.mmdb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		rmdir( $managed_dir ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
+
+		$this->assertSame( '', $result['path'] );
+	}
+
+	public function test_resolved_maxmind_db_path_settings_wins_over_managed(): void {
+		$settings_path = WP_CONTENT_DIR . '/plugin-resolution-settings-over-managed-test.mmdb';
+		copy( self::FIXTURE_COUNTRY_DB, $settings_path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_copy
+
+		$managed_dir = sys_get_temp_dir() . '/ugeo-plugin-test-managed-' . uniqid( '', true );
+		mkdir( $managed_dir, 0755, true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir
+		copy( self::FIXTURE_COUNTRY_DB, $managed_dir . '/GeoLite2-Country.mmdb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_copy
+
+		$database_manager = new DatabaseManager( $managed_dir, '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() );
+
+		$result = $this->resolved_maxmind_db_path( $this->base_settings( $settings_path, '', '', '', '', true ), $database_manager );
+
+		unlink( $settings_path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		unlink( $managed_dir . '/GeoLite2-Country.mmdb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		rmdir( $managed_dir ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
+
+		$this->assertSame( $settings_path, $result['path'] );
+		$this->assertSame( 'settings', $result['source'] );
+	}
+
 
 	public function test_maxmind_provider_resolves_via_full_plugin_wiring_using_the_filter(): void {
 		// Proves the whole chain end-to-end: filter -> Plugin -> MaxMindProvider
@@ -1053,7 +1138,8 @@ final class PluginTest extends TestCase {
 
 		$result = $this->resolved_maxmind_db_path( $this->base_settings( self::FIXTURE_COUNTRY_DB ) );
 
-		$this->assertSame( '/etc/somewhere/outside/wp-content/geo.mmdb', $result );
+		$this->assertSame( '/etc/somewhere/outside/wp-content/geo.mmdb', $result['path'] );
+		$this->assertSame( 'constant', $result['source'] );
 		$this->assertFalse( $filter_called, 'The filter must not be consulted when the constant wins.' );
 	}
 
@@ -1069,13 +1155,13 @@ final class PluginTest extends TestCase {
 		$result = $this->resolved_maxmind_db_path( $this->base_settings() );
 
 		unlink( $outside ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
-		$this->assertSame( $outside, $result );
+		$this->assertSame( $outside, $result['path'] );
 	}
 
-	// ---- M4: resolved_remote_credentials() precedence chain --------------------
+	// ---- M4/M6: resolved_maxmind_credentials() precedence chain ----------------
 
-	public function test_remote_credentials_none_when_nothing_configured(): void {
-		$result = $this->resolved_remote_credentials( $this->base_settings() );
+	public function test_maxmind_credentials_none_when_nothing_configured(): void {
+		$result = $this->resolved_maxmind_credentials( $this->base_settings() );
 
 		$this->assertSame(
 			array(
@@ -1087,8 +1173,8 @@ final class PluginTest extends TestCase {
 		);
 	}
 
-	public function test_remote_credentials_uses_the_settings_pair_when_both_present(): void {
-		$result = $this->resolved_remote_credentials( $this->base_settings( '', '12345', 'abc123XYZ' ) );
+	public function test_maxmind_credentials_uses_the_canonical_settings_pair_when_both_present(): void {
+		$result = $this->resolved_maxmind_credentials( $this->base_settings( '', '', '', '12345', 'abc123XYZ' ) );
 
 		$this->assertSame(
 			array(
@@ -1100,14 +1186,14 @@ final class PluginTest extends TestCase {
 		);
 	}
 
-	public function test_remote_credentials_none_when_only_account_id_is_present(): void {
-		$result = $this->resolved_remote_credentials( $this->base_settings( '', '12345', '' ) );
+	public function test_maxmind_credentials_none_when_only_canonical_account_id_is_present(): void {
+		$result = $this->resolved_maxmind_credentials( $this->base_settings( '', '', '', '12345', '' ) );
 
 		$this->assertSame( 'none', $result['source'] );
 	}
 
-	public function test_remote_credentials_none_when_only_license_key_is_present(): void {
-		$result = $this->resolved_remote_credentials( $this->base_settings( '', '', 'abc123XYZ' ) );
+	public function test_maxmind_credentials_none_when_only_canonical_license_key_is_present(): void {
+		$result = $this->resolved_maxmind_credentials( $this->base_settings( '', '', '', '', 'abc123XYZ' ) );
 
 		$this->assertSame( 'none', $result['source'] );
 	}
@@ -1116,11 +1202,11 @@ final class PluginTest extends TestCase {
 	 * @runInSeparateProcess
 	 * @preserveGlobalState disabled
 	 */
-	public function test_remote_credentials_constants_win_over_settings(): void {
-		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'constant-account' );
-		define( 'UNIVERSAL_GEO_REMOTE_LICENSE_KEY', 'constant-license' );
+	public function test_maxmind_credentials_canonical_constants_win_over_settings(): void {
+		define( 'UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID', 'constant-account' );
+		define( 'UNIVERSAL_GEO_MAXMIND_LICENSE_KEY', 'constant-license' );
 
-		$result = $this->resolved_remote_credentials( $this->base_settings( '', 'settings-account', 'settings-license' ) );
+		$result = $this->resolved_maxmind_credentials( $this->base_settings( '', '', '', 'settings-account', 'settings-license' ) );
 
 		$this->assertSame(
 			array(
@@ -1136,15 +1222,70 @@ final class PluginTest extends TestCase {
 	 * @runInSeparateProcess
 	 * @preserveGlobalState disabled
 	 */
-	public function test_remote_credentials_never_combines_one_constant_with_one_setting(): void {
-		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'constant-account' );
+	public function test_maxmind_credentials_canonical_constants_win_over_legacy_constants(): void {
+		define( 'UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID', 'canonical-constant-account' );
+		define( 'UNIVERSAL_GEO_MAXMIND_LICENSE_KEY', 'canonical-constant-license' );
+		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'legacy-constant-account' );
+		define( 'UNIVERSAL_GEO_REMOTE_LICENSE_KEY', 'legacy-constant-license' );
+
+		$result = $this->resolved_maxmind_credentials( $this->base_settings() );
+
+		$this->assertSame(
+			array(
+				'account_id'  => 'canonical-constant-account',
+				'license_key' => 'canonical-constant-license',
+				'source'      => 'constants',
+			),
+			$result
+		);
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_maxmind_credentials_legacy_constants_win_over_settings(): void {
+		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'legacy-constant-account' );
+		define( 'UNIVERSAL_GEO_REMOTE_LICENSE_KEY', 'legacy-constant-license' );
+
+		$result = $this->resolved_maxmind_credentials( $this->base_settings( '', '', '', 'settings-account', 'settings-license' ) );
+
+		$this->assertSame(
+			array(
+				'account_id'  => 'legacy-constant-account',
+				'license_key' => 'legacy-constant-license',
+				'source'      => 'legacy_constants',
+			),
+			$result
+		);
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_maxmind_credentials_never_combines_one_canonical_constant_with_one_setting(): void {
+		define( 'UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID', 'constant-account' );
+		// UNIVERSAL_GEO_MAXMIND_LICENSE_KEY intentionally left undefined.
+
+		$result = $this->resolved_maxmind_credentials( $this->base_settings( '', '', '', '', 'settings-license' ) );
+
+		// Falls through to the legacy constants (also incomplete/undefined),
+		// then the settings pair evaluation, which also fails (account_id is
+		// '' in settings) — never a constant paired with a setting.
+		$this->assertSame( 'none', $result['source'] );
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_maxmind_credentials_never_combines_one_legacy_constant_with_one_setting(): void {
+		define( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID', 'legacy-constant-account' );
 		// UNIVERSAL_GEO_REMOTE_LICENSE_KEY intentionally left undefined.
 
-		$result = $this->resolved_remote_credentials( $this->base_settings( '', '', 'settings-license' ) );
+		$result = $this->resolved_maxmind_credentials( $this->base_settings( '', '', '', '', 'settings-license' ) );
 
-		// Falls through to the settings pair evaluation, which also fails
-		// (account_id is '' in settings) — never a constant paired with a
-		// setting.
 		$this->assertSame( 'none', $result['source'] );
 	}
 

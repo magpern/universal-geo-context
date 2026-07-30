@@ -6,3 +6,5 @@
 
 # Gitignored working notes for this machine only (see CLAUDE.local.md)
 /CLAUDE.local.md
+.maxmind-live-test-credentials
+.live-test-scripts/

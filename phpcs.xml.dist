@@ -46,6 +46,11 @@
 		     test-suite constants (DB_NAME, ABSPATH, WP_TESTS_DOMAIN, etc.) —
 		     names WordPress itself mandates and this plugin cannot prefix. -->
 		<exclude-pattern>*/tests/wp-tests-config.php</exclude-pattern>
+		<!-- tests/unit/bootstrap.php stubs WordPress core's own DAY_IN_SECONDS
+		     constant (M6, UpdateScheduler's interval math) for the no-WordPress
+		     unit bootstrap — the same "can't prefix WordPress' own name"
+		     exemption as wp-tests-config.php above. -->
+		<exclude-pattern>*/tests/unit/bootstrap.php</exclude-pattern>
 	</rule>
 
 	<!-- Test method names are self-describing; don't demand full docblocks
@@ -118,5 +123,12 @@
 	     reason (a CLI diagnostic, not a WordPress-free pure class) differs. -->
 	<rule ref="WordPress.Security.EscapeOutput.ExceptionNotEscaped">
 		<exclude-pattern>*src/Cli/Command.php</exclude-pattern>
+	</rule>
+
+	<!-- M6: Cli\DatabaseCommand's resolve_format() is the identical pattern,
+	     copied deliberately (see its own docblock) rather than shared —
+	     same exclusion, same reason. -->
+	<rule ref="WordPress.Security.EscapeOutput.ExceptionNotEscaped">
+		<exclude-pattern>*src/Cli/DatabaseCommand.php</exclude-pattern>
 	</rule>
 </ruleset>

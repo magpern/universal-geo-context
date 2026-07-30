@@ -14,24 +14,31 @@ use ReflectionClass;
 use UniversalGeo\Providers\Remote\HttpTransport;
 
 /**
- * Enforces the frozen "one-method interface" shape (M4): a provider-facing
- * contract with exactly one public method, get(). Not a guard test —
- * Revision 3 §2 caps those at four — an ordinary structural unit test, the
- * same shape CompositionRootTest already is.
+ * Enforces the transport contract's exact shape: get() (M4, the provider-
+ * facing single-request method) plus get_redirect_location() and download()
+ * (M6, the two-hop redirect-safe download flow — used exclusively by
+ * MaxMind\DatabaseManager, never by ReferenceRemoteProvider). Not a guard
+ * test — Revision 3 §2 caps those at four — an ordinary structural unit
+ * test, the same shape CompositionRootTest already is.
  */
 final class HttpTransportTest extends TestCase {
+
+	private const EXPECTED_METHODS = array( 'get', 'get_redirect_location', 'download' );
 
 	public function test_is_an_interface(): void {
 		$this->assertTrue( ( new ReflectionClass( HttpTransport::class ) )->isInterface() );
 	}
 
-	public function test_declares_exactly_one_method(): void {
-		$this->assertCount( 1, ( new ReflectionClass( HttpTransport::class ) )->getMethods() );
-	}
+	public function test_declares_exactly_the_expected_methods(): void {
+		$methods = array_map(
+			static fn( $method ) => $method->getName(),
+			( new ReflectionClass( HttpTransport::class ) )->getMethods()
+		);
 
-	public function test_the_one_method_is_named_get(): void {
-		$methods = ( new ReflectionClass( HttpTransport::class ) )->getMethods();
+		sort( $methods );
+		$expected = self::EXPECTED_METHODS;
+		sort( $expected );
 
-		$this->assertSame( 'get', $methods[0]->getName() );
+		$this->assertSame( $expected, $methods );
 	}
 }

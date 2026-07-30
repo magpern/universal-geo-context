@@ -28,6 +28,10 @@ if ( ! is_dir( WP_CONTENT_DIR ) ) {
 	mkdir( WP_CONTENT_DIR, 0777, true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir
 }
 
+if ( ! defined( 'DAY_IN_SECONDS' ) ) {
+	define( 'DAY_IN_SECONDS', 86400 );
+}
+
 // Minimal WordPress stubs for unit tests without WordPress loaded.
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals
 
@@ -248,6 +252,60 @@ if ( ! function_exists( 'delete_option' ) ) {
 		$existed = array_key_exists( $option, $GLOBALS['universal_geo_test_options'] );
 		unset( $GLOBALS['universal_geo_test_options'][ $option ] );
 		return $existed;
+	}
+}
+
+// In-memory single-event-per-hook WP-Cron stub (M6): this plugin only ever
+// schedules one hook (universal_geo_maxmind_update, no args), so the stub
+// tracks at most one {timestamp, schedule} pair per hook name rather than a
+// full cron array — enough to exercise UpdateScheduler's own logic without
+// WordPress loaded.
+$GLOBALS['universal_geo_test_cron'] = array();
+
+if ( ! function_exists( 'wp_next_scheduled' ) ) {
+	function wp_next_scheduled( $hook, $args = array() ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		return $GLOBALS['universal_geo_test_cron'][ $hook ]['timestamp'] ?? false;
+	}
+}
+
+if ( ! function_exists( 'wp_schedule_event' ) ) {
+	function wp_schedule_event( $timestamp, $recurrence, $hook, $args = array() ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		$GLOBALS['universal_geo_test_cron'][ $hook ] = array(
+			'timestamp' => $timestamp,
+			'schedule'  => $recurrence,
+		);
+		return true;
+	}
+}
+
+if ( ! function_exists( 'wp_unschedule_event' ) ) {
+	function wp_unschedule_event( $timestamp, $hook, $args = array() ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		unset( $GLOBALS['universal_geo_test_cron'][ $hook ] );
+		return true;
+	}
+}
+
+if ( ! function_exists( 'wp_clear_scheduled_hook' ) ) {
+	function wp_clear_scheduled_hook( $hook, $args = array() ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		unset( $GLOBALS['universal_geo_test_cron'][ $hook ] );
+		return true;
+	}
+}
+
+if ( ! function_exists( 'wp_get_scheduled_event' ) ) {
+	function wp_get_scheduled_event( $hook, $args = array(), $timestamp = null ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		if ( ! isset( $GLOBALS['universal_geo_test_cron'][ $hook ] ) ) {
+			return false;
+		}
+
+		$event = $GLOBALS['universal_geo_test_cron'][ $hook ];
+
+		return (object) array(
+			'hook'      => $hook,
+			'timestamp' => $event['timestamp'],
+			'schedule'  => $event['schedule'],
+			'args'      => array(),
+		);
 	}
 }
 

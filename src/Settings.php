@@ -32,14 +32,46 @@ use UniversalGeo\Resolver\GeoValidator;
  * `remote_enabled`, `remote_account_id`, `remote_license_key`,
  * `remote_transfer_acknowledged`, and `remote_timeout`.
  *
- * **The structural acknowledgement rule (M4 frozen decision):**
- * `sanitize()` forces `remote_enabled` to `false` unless
+ * Schema v5 (M6) adds six keys for managed GeoLite2 database downloads:
+ * `maxmind_account_id` / `maxmind_license_key` (the new canonical, shared
+ * MaxMind credential pair — see "Credential migration" below),
+ * `maxmind_managed_enabled`, `maxmind_managed_auto_update_enabled`,
+ * `maxmind_managed_auto_update_frequency`, and
+ * `maxmind_managed_retain_previous`. `remote_account_id` and
+ * `remote_license_key` remain in the schema, unchanged, as deprecated
+ * fallback/migration sources — a compatibility-period decision (kept through
+ * at least v1.2.0, `docs/COMPATIBILITY.md`), not a literal one-shot key
+ * rename, so that no other code (`AdminScreen`, `ReferenceRemoteProvider`'s
+ * credential resolution) needs to change in this same step.
+ *
+ * **Credential migration (M6):** a MaxMind account has one account
+ * id/license key regardless of which MaxMind product it authenticates
+ * against, so `maxmind_account_id`/`maxmind_license_key` are the one
+ * canonical pair both the remote lookup provider and managed downloads
+ * consume (via `Plugin::resolved_maxmind_credentials()`). `sanitize()`
+ * performs the migration itself, purely: when both canonical fields are
+ * blank in the input **and** both legacy `remote_account_id`/
+ * `remote_license_key` fields are non-blank in the same input, the
+ * sanitized output's canonical fields are populated from the legacy
+ * values. Nothing is discarded — the legacy fields remain present in the
+ * output too, unchanged, so this is a one-way, non-destructive copy, not a
+ * rename; a site never silently loses a working remote-provider credential
+ * because a settings save happened to run before the admin visited the new
+ * "MaxMind account" UI (M6F).
+ *
+ * **The structural acknowledgement rule (M4 frozen decision, generalized in
+ * M6):** `sanitize()` forces `remote_enabled` to `false` unless
  * `remote_transfer_acknowledged` itself sanitizes to `true` — a pure
  * sanitization rule (a boolean AND against another field in the same input),
  * not I/O, not a merge against previously stored state. An admin cannot
  * enable the remote provider in the same request that first sets the
  * acknowledgement to false, and cannot enable it at all without the
- * acknowledgement present in that same submission.
+ * acknowledgement present in that same submission. M6 adds the identical
+ * shape for managed downloads: `maxmind_managed_auto_update_enabled` can
+ * never sanitize to `true` unless `maxmind_managed_enabled` also sanitizes
+ * to `true` on that same input. The two AND-gates are fully independent —
+ * enabling/acknowledging the remote provider has no bearing on managed
+ * downloads, and vice versa.
  *
  * **Purity boundary** (Revision 3 §11, audit finding F6; M3 architecture
  * report §6 3B): sanitize() performs *syntactic* checks only — CIDR shape,
@@ -68,7 +100,20 @@ final class Settings {
 	/**
 	 * Current schema version.
 	 */
-	const SCHEMA_VERSION = 4;
+	const SCHEMA_VERSION = 5;
+
+	/**
+	 * Accepted values for maxmind_managed_auto_update_frequency (M6). No
+	 * 'daily' option — GeoLite2 Country publishes at most twice a week
+	 * (Tue/Fri); a daily check would just poll for no new data most of the
+	 * time.
+	 */
+	private const UPDATE_FREQUENCIES = array( 'weekly', 'twice_weekly' );
+
+	/**
+	 * Default maxmind_managed_auto_update_frequency (M6).
+	 */
+	private const DEFAULT_UPDATE_FREQUENCY = 'weekly';
 
 	/**
 	 * Default derived-context cache TTL in seconds (Revision 3 §11).
@@ -111,18 +156,24 @@ final class Settings {
 	 */
 	public static function defaults(): array {
 		return array(
-			'schema_version'               => self::SCHEMA_VERSION,
-			'default_country'              => '',
-			'trusted_proxies'              => array(),
-			'trust_cloudflare'             => false,
-			'derived_cache_enabled'        => true,
-			'derived_cache_ttl'            => self::DEFAULT_CACHE_TTL,
-			'maxmind_db_path'              => '',
-			'remote_enabled'               => false,
-			'remote_account_id'            => '',
-			'remote_license_key'           => '',
-			'remote_transfer_acknowledged' => false,
-			'remote_timeout'               => self::DEFAULT_REMOTE_TIMEOUT,
+			'schema_version'                        => self::SCHEMA_VERSION,
+			'default_country'                       => '',
+			'trusted_proxies'                       => array(),
+			'trust_cloudflare'                      => false,
+			'derived_cache_enabled'                 => true,
+			'derived_cache_ttl'                     => self::DEFAULT_CACHE_TTL,
+			'maxmind_db_path'                       => '',
+			'remote_enabled'                        => false,
+			'remote_account_id'                     => '',
+			'remote_license_key'                    => '',
+			'remote_transfer_acknowledged'          => false,
+			'remote_timeout'                        => self::DEFAULT_REMOTE_TIMEOUT,
+			'maxmind_account_id'                    => '',
+			'maxmind_license_key'                   => '',
+			'maxmind_managed_enabled'               => false,
+			'maxmind_managed_auto_update_enabled'   => false,
+			'maxmind_managed_auto_update_frequency' => self::DEFAULT_UPDATE_FREQUENCY,
+			'maxmind_managed_retain_previous'       => true,
 		);
 	}
 
@@ -143,25 +194,96 @@ final class Settings {
 		}
 
 		$transfer_acknowledged = self::sanitize_bool( $data['remote_transfer_acknowledged'] ?? false );
+		$managed_enabled       = self::sanitize_bool( $data['maxmind_managed_enabled'] ?? false );
+
+		$legacy_account_id  = self::sanitize_credential( $data['remote_account_id'] ?? '' );
+		$legacy_license_key = self::sanitize_credential( $data['remote_license_key'] ?? '' );
+
+		list( $maxmind_account_id, $maxmind_license_key ) = self::migrated_maxmind_credentials(
+			self::sanitize_credential( $data['maxmind_account_id'] ?? '' ),
+			self::sanitize_credential( $data['maxmind_license_key'] ?? '' ),
+			$legacy_account_id,
+			$legacy_license_key
+		);
 
 		return array(
-			'schema_version'               => self::SCHEMA_VERSION,
-			'default_country'              => self::sanitize_country( $data['default_country'] ?? '' ),
-			'trusted_proxies'              => self::sanitize_trusted_proxies( $data['trusted_proxies'] ?? array() ),
-			'trust_cloudflare'             => self::sanitize_bool( $data['trust_cloudflare'] ?? false ),
-			'derived_cache_enabled'        => self::sanitize_bool( $data['derived_cache_enabled'] ?? true ),
-			'derived_cache_ttl'            => self::sanitize_ttl( $data['derived_cache_ttl'] ?? self::DEFAULT_CACHE_TTL ),
-			'maxmind_db_path'              => self::sanitize_maxmind_db_path( $data['maxmind_db_path'] ?? '' ),
+			'schema_version'                        => self::SCHEMA_VERSION,
+			'default_country'                       => self::sanitize_country( $data['default_country'] ?? '' ),
+			'trusted_proxies'                       => self::sanitize_trusted_proxies( $data['trusted_proxies'] ?? array() ),
+			'trust_cloudflare'                      => self::sanitize_bool( $data['trust_cloudflare'] ?? false ),
+			'derived_cache_enabled'                 => self::sanitize_bool( $data['derived_cache_enabled'] ?? true ),
+			'derived_cache_ttl'                     => self::sanitize_ttl( $data['derived_cache_ttl'] ?? self::DEFAULT_CACHE_TTL ),
+			'maxmind_db_path'                       => self::sanitize_maxmind_db_path( $data['maxmind_db_path'] ?? '' ),
 			// The structural acknowledgement rule (M4, frozen): remote_enabled
 			// can never sanitize to true unless the acknowledgement does too —
 			// a pure boolean AND, evaluated on this same input, never against
 			// previously stored state.
-			'remote_enabled'               => self::sanitize_bool( $data['remote_enabled'] ?? false ) && $transfer_acknowledged,
-			'remote_account_id'            => self::sanitize_credential( $data['remote_account_id'] ?? '' ),
-			'remote_license_key'           => self::sanitize_credential( $data['remote_license_key'] ?? '' ),
-			'remote_transfer_acknowledged' => $transfer_acknowledged,
-			'remote_timeout'               => self::sanitize_remote_timeout( $data['remote_timeout'] ?? self::DEFAULT_REMOTE_TIMEOUT ),
+			'remote_enabled'                        => self::sanitize_bool( $data['remote_enabled'] ?? false ) && $transfer_acknowledged,
+			'remote_account_id'                     => $legacy_account_id,
+			'remote_license_key'                    => $legacy_license_key,
+			'remote_transfer_acknowledged'          => $transfer_acknowledged,
+			'remote_timeout'                        => self::sanitize_remote_timeout( $data['remote_timeout'] ?? self::DEFAULT_REMOTE_TIMEOUT ),
+			'maxmind_account_id'                    => $maxmind_account_id,
+			'maxmind_license_key'                   => $maxmind_license_key,
+			'maxmind_managed_enabled'               => $managed_enabled,
+			// M6's identical AND-gate: auto-update can never sanitize to true
+			// unless managed downloads are also enabled on this same input.
+			'maxmind_managed_auto_update_enabled'   => self::sanitize_bool( $data['maxmind_managed_auto_update_enabled'] ?? false ) && $managed_enabled,
+			'maxmind_managed_auto_update_frequency' => self::sanitize_update_frequency( $data['maxmind_managed_auto_update_frequency'] ?? self::DEFAULT_UPDATE_FREQUENCY ),
+			'maxmind_managed_retain_previous'       => self::sanitize_bool( $data['maxmind_managed_retain_previous'] ?? true ),
 		);
+	}
+
+	/**
+	 * Migrates the shared MaxMind credential pair from the legacy
+	 * remote-provider-only fields, non-destructively: only when both
+	 * canonical fields are blank and both legacy fields are non-blank. The
+	 * legacy fields are never cleared by this — they remain in the output
+	 * schema unchanged (see the class docblock's "Credential migration"
+	 * section) — so this is a one-way copy into the new canonical fields,
+	 * never a rename.
+	 *
+	 * @param string $canonical_account_id  The already-sanitized maxmind_account_id from the input.
+	 * @param string $canonical_license_key The already-sanitized maxmind_license_key from the input.
+	 * @param string $legacy_account_id     The already-sanitized remote_account_id from the input.
+	 * @param string $legacy_license_key    The already-sanitized remote_license_key from the input.
+	 *
+	 * @return array{0: string, 1: string} The effective [account_id, license_key] pair.
+	 */
+	private static function migrated_maxmind_credentials(
+		string $canonical_account_id,
+		string $canonical_license_key,
+		string $legacy_account_id,
+		string $legacy_license_key
+	): array {
+		$canonical_blank = '' === $canonical_account_id && '' === $canonical_license_key;
+		$legacy_present  = '' !== $legacy_account_id && '' !== $legacy_license_key;
+
+		if ( $canonical_blank && $legacy_present ) {
+			return array( $legacy_account_id, $legacy_license_key );
+		}
+
+		return array( $canonical_account_id, $canonical_license_key );
+	}
+
+	/**
+	 * Normalizes maxmind_managed_auto_update_frequency: an unrecognized value
+	 * falls back to the default ('weekly') outright — the same "reject
+	 * outright, no partial validity" shape sanitize_country() uses for a
+	 * non-membership country code.
+	 *
+	 * @param mixed $raw Arbitrary input.
+	 *
+	 * @return string
+	 */
+	private static function sanitize_update_frequency( $raw ): string {
+		if ( ! is_string( $raw ) ) {
+			return self::DEFAULT_UPDATE_FREQUENCY;
+		}
+
+		$value = strtolower( trim( $raw ) );
+
+		return in_array( $value, self::UPDATE_FREQUENCIES, true ) ? $value : self::DEFAULT_UPDATE_FREQUENCY;
 	}
 
 	/**
@@ -432,15 +554,18 @@ final class Settings {
 	 *
 	 * All-or-nothing retention (CLAUDE.md core invariant 4): the settings
 	 * option (this class's own), `universal_geo_provider_health`
-	 * (`ProviderHealthStore`'s option, M3), and — as of M4 — the circuit
-	 * breaker's `universal_geo_remote_circuit` option: `CircuitBreaker` is
-	 * the sole runtime writer of that option, but its deletion is assigned to
-	 * this class (the frozen M4 ownership split), the same "owns writing,
-	 * doesn't own deleting" shape `ProviderHealthStore` already established.
-	 * `GeoCache::uninstall()` and `AdminScreen::uninstall()` own the
-	 * remaining M2/M3 gap this same invariant left open (cache salt/epoch,
-	 * the first-run notice meta) — `uninstall.php` calls all three, closing
-	 * the gap in full as of M4.
+	 * (`ProviderHealthStore`'s option, M3), the circuit breaker's
+	 * `universal_geo_remote_circuit` option (M4), and — as of M6 —
+	 * `UpdateLock`'s `universal_geo_maxmind_update_lock` option and
+	 * `DatabaseManager`'s `universal_geo_maxmind_update_state` option: each
+	 * of those classes is the sole runtime writer of its own option, but
+	 * deletion is assigned to this class (the same "owns writing, doesn't
+	 * own deleting" ownership split `ProviderHealthStore`/`CircuitBreaker`
+	 * already established). `GeoCache::uninstall()`, `AdminScreen::uninstall()`,
+	 * and — as of M6 — `UpdateScheduler::uninstall()` (clears the cron hook)
+	 * and `DatabaseManager::uninstall_files()` (deletes the managed
+	 * directory's files) own the remaining gaps this same invariant left
+	 * open; `uninstall.php` calls all of them, closing the gap in full.
 	 *
 	 * @return void
 	 */
@@ -448,5 +573,7 @@ final class Settings {
 		delete_option( self::OPTION_NAME );
 		delete_option( 'universal_geo_provider_health' );
 		delete_option( 'universal_geo_remote_circuit' );
+		delete_option( 'universal_geo_maxmind_update_lock' );
+		delete_option( 'universal_geo_maxmind_update_state' );
 	}
 }

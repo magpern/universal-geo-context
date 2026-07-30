@@ -40,11 +40,17 @@ final class SettingsTest extends TestCase {
 		'remote_license_key',
 		'remote_transfer_acknowledged',
 		'remote_timeout',
+		'maxmind_account_id',
+		'maxmind_license_key',
+		'maxmind_managed_enabled',
+		'maxmind_managed_auto_update_enabled',
+		'maxmind_managed_auto_update_frequency',
+		'maxmind_managed_retain_previous',
 	);
 
 	// ---- defaults() -----------------------------------------------------------
 
-	public function test_defaults_contain_exactly_twelve_keys(): void {
+	public function test_defaults_contain_exactly_eighteen_keys(): void {
 		$this->assertSame( self::EXPECTED_KEYS, array_keys( Settings::defaults() ) );
 	}
 
@@ -94,6 +100,30 @@ final class SettingsTest extends TestCase {
 
 	public function test_defaults_remote_timeout_is_2(): void {
 		$this->assertSame( 2, Settings::defaults()['remote_timeout'] );
+	}
+
+	public function test_defaults_maxmind_account_id_is_empty(): void {
+		$this->assertSame( '', Settings::defaults()['maxmind_account_id'] );
+	}
+
+	public function test_defaults_maxmind_license_key_is_empty(): void {
+		$this->assertSame( '', Settings::defaults()['maxmind_license_key'] );
+	}
+
+	public function test_defaults_maxmind_managed_enabled_is_false(): void {
+		$this->assertFalse( Settings::defaults()['maxmind_managed_enabled'] );
+	}
+
+	public function test_defaults_maxmind_managed_auto_update_enabled_is_false(): void {
+		$this->assertFalse( Settings::defaults()['maxmind_managed_auto_update_enabled'] );
+	}
+
+	public function test_defaults_maxmind_managed_auto_update_frequency_is_weekly(): void {
+		$this->assertSame( 'weekly', Settings::defaults()['maxmind_managed_auto_update_frequency'] );
+	}
+
+	public function test_defaults_maxmind_managed_retain_previous_is_true(): void {
+		$this->assertTrue( Settings::defaults()['maxmind_managed_retain_previous'] );
 	}
 
 	public function test_defaults_are_deterministic(): void {
@@ -511,9 +541,9 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( 3, Settings::sanitize( array( 'remote_timeout' => 3.9 ) )['remote_timeout'] );
 	}
 
-	// ---- v2/v3 -> v4 migration ---------------------------------------------------
+	// ---- v2/v3/v4 -> v5 migration ---------------------------------------------------
 
-	public function test_v2_settings_migrate_to_v4_with_remote_fields_defaulted(): void {
+	public function test_v2_settings_migrate_to_v5_with_remote_and_managed_fields_defaulted(): void {
 		$result = Settings::sanitize(
 			array(
 				'schema_version'        => 2,
@@ -525,7 +555,7 @@ final class SettingsTest extends TestCase {
 			)
 		);
 
-		$this->assertSame( 4, $result['schema_version'] );
+		$this->assertSame( 5, $result['schema_version'] );
 		$this->assertSame( 'SE', $result['default_country'] );
 		$this->assertSame( '', $result['maxmind_db_path'] );
 		$this->assertFalse( $result['remote_enabled'] );
@@ -533,10 +563,13 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( '', $result['remote_license_key'] );
 		$this->assertFalse( $result['remote_transfer_acknowledged'] );
 		$this->assertSame( 2, $result['remote_timeout'] );
+		$this->assertSame( '', $result['maxmind_account_id'] );
+		$this->assertSame( '', $result['maxmind_license_key'] );
+		$this->assertFalse( $result['maxmind_managed_enabled'] );
 		$this->assertSame( self::EXPECTED_KEYS, array_keys( $result ) );
 	}
 
-	public function test_v3_settings_migrate_to_v4_with_remote_fields_defaulted(): void {
+	public function test_v3_settings_migrate_to_v5_with_remote_and_managed_fields_defaulted(): void {
 		$result = Settings::sanitize(
 			array(
 				'schema_version'        => 3,
@@ -549,11 +582,184 @@ final class SettingsTest extends TestCase {
 			)
 		);
 
-		$this->assertSame( 4, $result['schema_version'] );
+		$this->assertSame( 5, $result['schema_version'] );
 		$this->assertSame( '/var/www/html/wp-content/uploads/geo.mmdb', $result['maxmind_db_path'] );
 		$this->assertFalse( $result['remote_enabled'] );
 		$this->assertSame( 2, $result['remote_timeout'] );
 		$this->assertSame( self::EXPECTED_KEYS, array_keys( $result ) );
+	}
+
+	public function test_v4_settings_migrate_to_v5_with_managed_fields_defaulted(): void {
+		$result = Settings::sanitize(
+			array(
+				'schema_version'               => 4,
+				'default_country'              => 'SE',
+				'remote_enabled'               => false,
+				'remote_account_id'            => '',
+				'remote_license_key'           => '',
+				'remote_transfer_acknowledged' => false,
+				'remote_timeout'               => 2,
+			)
+		);
+
+		$this->assertSame( 5, $result['schema_version'] );
+		$this->assertSame( '', $result['maxmind_account_id'] );
+		$this->assertSame( '', $result['maxmind_license_key'] );
+		$this->assertFalse( $result['maxmind_managed_enabled'] );
+		$this->assertFalse( $result['maxmind_managed_auto_update_enabled'] );
+		$this->assertSame( 'weekly', $result['maxmind_managed_auto_update_frequency'] );
+		$this->assertTrue( $result['maxmind_managed_retain_previous'] );
+		$this->assertSame( self::EXPECTED_KEYS, array_keys( $result ) );
+	}
+
+	// ---- maxmind_account_id / maxmind_license_key (M6) -------------------------
+
+	public function test_maxmind_account_id_is_trimmed(): void {
+		$result = Settings::sanitize( array( 'maxmind_account_id' => '  12345  ' ) );
+		$this->assertSame( '12345', $result['maxmind_account_id'] );
+	}
+
+	public function test_maxmind_license_key_is_trimmed(): void {
+		$result = Settings::sanitize( array( 'maxmind_license_key' => '  abc123XYZ  ' ) );
+		$this->assertSame( 'abc123XYZ', $result['maxmind_license_key'] );
+	}
+
+	public function test_maxmind_account_id_missing_defaults_to_empty(): void {
+		$this->assertSame( '', Settings::sanitize( array() )['maxmind_account_id'] );
+	}
+
+	public function test_maxmind_account_id_null_byte_is_rejected(): void {
+		$result = Settings::sanitize( array( 'maxmind_account_id' => "1234\x005" ) );
+		$this->assertSame( '', $result['maxmind_account_id'] );
+	}
+
+	// ---- legacy -> canonical credential migration (M6) --------------------------
+
+	/**
+	 * The migration this milestone exists for: a site that already has a
+	 * working remote-provider credential pair (schema v4) gets it copied
+	 * automatically to the new canonical fields the first time sanitize()
+	 * runs, without the admin re-entering anything.
+	 */
+	public function test_legacy_credentials_migrate_to_canonical_fields_when_canonical_is_blank(): void {
+		$result = Settings::sanitize(
+			array(
+				'remote_account_id'  => 'legacy-account',
+				'remote_license_key' => 'legacy-license',
+			)
+		);
+
+		$this->assertSame( 'legacy-account', $result['maxmind_account_id'] );
+		$this->assertSame( 'legacy-license', $result['maxmind_license_key'] );
+	}
+
+	/**
+	 * Non-destructive: the legacy fields remain present in the output,
+	 * unchanged, alongside the newly populated canonical fields — this is a
+	 * copy, not a rename.
+	 */
+	public function test_legacy_credential_migration_does_not_clear_the_legacy_fields(): void {
+		$result = Settings::sanitize(
+			array(
+				'remote_account_id'  => 'legacy-account',
+				'remote_license_key' => 'legacy-license',
+			)
+		);
+
+		$this->assertSame( 'legacy-account', $result['remote_account_id'] );
+		$this->assertSame( 'legacy-license', $result['remote_license_key'] );
+	}
+
+	public function test_canonical_credentials_present_are_not_overwritten_by_legacy_values(): void {
+		$result = Settings::sanitize(
+			array(
+				'maxmind_account_id'  => 'canonical-account',
+				'maxmind_license_key' => 'canonical-license',
+				'remote_account_id'   => 'legacy-account',
+				'remote_license_key'  => 'legacy-license',
+			)
+		);
+
+		$this->assertSame( 'canonical-account', $result['maxmind_account_id'] );
+		$this->assertSame( 'canonical-license', $result['maxmind_license_key'] );
+	}
+
+	/**
+	 * Migration requires BOTH legacy fields present — a lone leftover value
+	 * (e.g. a half-typed submission) does not migrate.
+	 */
+	public function test_migration_does_not_happen_when_only_one_legacy_field_is_present(): void {
+		$result = Settings::sanitize( array( 'remote_account_id' => 'legacy-account' ) );
+
+		$this->assertSame( '', $result['maxmind_account_id'] );
+		$this->assertSame( '', $result['maxmind_license_key'] );
+	}
+
+	public function test_no_migration_when_neither_canonical_nor_legacy_credentials_are_present(): void {
+		$result = Settings::sanitize( array() );
+
+		$this->assertSame( '', $result['maxmind_account_id'] );
+		$this->assertSame( '', $result['maxmind_license_key'] );
+	}
+
+	// ---- maxmind_managed_enabled / maxmind_managed_auto_update_enabled (M6) -----
+
+	public function test_managed_auto_update_true_without_managed_enabled_is_forced_false(): void {
+		$result = Settings::sanitize( array( 'maxmind_managed_auto_update_enabled' => true ) );
+		$this->assertFalse( $result['maxmind_managed_auto_update_enabled'] );
+	}
+
+	public function test_managed_auto_update_true_with_managed_enabled_is_kept(): void {
+		$result = Settings::sanitize(
+			array(
+				'maxmind_managed_enabled'             => true,
+				'maxmind_managed_auto_update_enabled' => true,
+			)
+		);
+		$this->assertTrue( $result['maxmind_managed_auto_update_enabled'] );
+	}
+
+	public function test_managed_enabled_alone_does_not_enable_auto_update(): void {
+		$result = Settings::sanitize( array( 'maxmind_managed_enabled' => true ) );
+		$this->assertTrue( $result['maxmind_managed_enabled'] );
+		$this->assertFalse( $result['maxmind_managed_auto_update_enabled'] );
+	}
+
+	// ---- maxmind_managed_auto_update_frequency (M6) ------------------------------
+
+	public function test_managed_auto_update_frequency_accepts_weekly(): void {
+		$result = Settings::sanitize( array( 'maxmind_managed_auto_update_frequency' => 'weekly' ) );
+		$this->assertSame( 'weekly', $result['maxmind_managed_auto_update_frequency'] );
+	}
+
+	public function test_managed_auto_update_frequency_accepts_twice_weekly(): void {
+		$result = Settings::sanitize( array( 'maxmind_managed_auto_update_frequency' => 'twice_weekly' ) );
+		$this->assertSame( 'twice_weekly', $result['maxmind_managed_auto_update_frequency'] );
+	}
+
+	public function test_managed_auto_update_frequency_rejects_daily(): void {
+		$result = Settings::sanitize( array( 'maxmind_managed_auto_update_frequency' => 'daily' ) );
+		$this->assertSame( 'weekly', $result['maxmind_managed_auto_update_frequency'] );
+	}
+
+	public function test_managed_auto_update_frequency_is_case_insensitive(): void {
+		$result = Settings::sanitize( array( 'maxmind_managed_auto_update_frequency' => 'TWICE_WEEKLY' ) );
+		$this->assertSame( 'twice_weekly', $result['maxmind_managed_auto_update_frequency'] );
+	}
+
+	public function test_managed_auto_update_frequency_non_string_falls_back_to_weekly(): void {
+		$this->assertSame( 'weekly', Settings::sanitize( array( 'maxmind_managed_auto_update_frequency' => 123 ) )['maxmind_managed_auto_update_frequency'] );
+		$this->assertSame( 'weekly', Settings::sanitize( array( 'maxmind_managed_auto_update_frequency' => null ) )['maxmind_managed_auto_update_frequency'] );
+	}
+
+	// ---- maxmind_managed_retain_previous (M6) ------------------------------------
+
+	public function test_managed_retain_previous_false_is_kept(): void {
+		$this->assertFalse( Settings::sanitize( array( 'maxmind_managed_retain_previous' => false ) )['maxmind_managed_retain_previous'] );
+	}
+
+	public function test_managed_retain_previous_missing_defaults_to_true(): void {
+		$this->assertTrue( Settings::sanitize( array() )['maxmind_managed_retain_previous'] );
 	}
 
 	// ---- Overall schema shape -----------------------------------------------------------
@@ -583,21 +789,27 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( Settings::SCHEMA_VERSION, $result['schema_version'] );
 	}
 
-	public function test_sanitize_returns_exactly_the_twelve_key_schema(): void {
+	public function test_sanitize_returns_exactly_the_eighteen_key_schema(): void {
 		$result = Settings::sanitize(
 			array(
-				'schema_version'               => 999,
-				'default_country'              => 'se',
-				'trusted_proxies'              => array( '10.0.0.0/8' ),
-				'trust_cloudflare'             => true,
-				'derived_cache_enabled'        => false,
-				'derived_cache_ttl'            => 1234,
-				'maxmind_db_path'              => '/var/www/html/wp-content/uploads/geo.mmdb',
-				'remote_enabled'               => true,
-				'remote_account_id'            => '12345',
-				'remote_license_key'           => 'abc123XYZ',
-				'remote_transfer_acknowledged' => true,
-				'remote_timeout'               => 4,
+				'schema_version'                        => 999,
+				'default_country'                       => 'se',
+				'trusted_proxies'                       => array( '10.0.0.0/8' ),
+				'trust_cloudflare'                      => true,
+				'derived_cache_enabled'                 => false,
+				'derived_cache_ttl'                     => 1234,
+				'maxmind_db_path'                       => '/var/www/html/wp-content/uploads/geo.mmdb',
+				'remote_enabled'                        => true,
+				'remote_account_id'                     => '12345',
+				'remote_license_key'                    => 'abc123XYZ',
+				'remote_transfer_acknowledged'          => true,
+				'remote_timeout'                        => 4,
+				'maxmind_account_id'                    => 'canonical-account',
+				'maxmind_license_key'                   => 'canonical-license',
+				'maxmind_managed_enabled'               => true,
+				'maxmind_managed_auto_update_enabled'   => true,
+				'maxmind_managed_auto_update_frequency' => 'twice_weekly',
+				'maxmind_managed_retain_previous'       => false,
 			)
 		);
 
@@ -614,6 +826,12 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( 'abc123XYZ', $result['remote_license_key'] );
 		$this->assertTrue( $result['remote_transfer_acknowledged'] );
 		$this->assertSame( 4, $result['remote_timeout'] );
+		$this->assertSame( 'canonical-account', $result['maxmind_account_id'] );
+		$this->assertSame( 'canonical-license', $result['maxmind_license_key'] );
+		$this->assertTrue( $result['maxmind_managed_enabled'] );
+		$this->assertTrue( $result['maxmind_managed_auto_update_enabled'] );
+		$this->assertSame( 'twice_weekly', $result['maxmind_managed_auto_update_frequency'] );
+		$this->assertFalse( $result['maxmind_managed_retain_previous'] );
 	}
 
 	public function test_sanitize_of_non_array_returns_defaults(): void {
@@ -701,6 +919,31 @@ final class SettingsTest extends TestCase {
 		Settings::uninstall();
 
 		$this->assertFalse( get_option( 'universal_geo_remote_circuit', false ) );
+	}
+
+	/**
+	 * M6: UpdateLock's option joins Settings::uninstall()'s deletions —
+	 * UpdateLock owns writing it, this class owns deleting it (the same
+	 * split CircuitBreaker's own option already established).
+	 */
+	public function test_uninstall_deletes_universal_geo_maxmind_update_lock(): void {
+		update_option( 'universal_geo_maxmind_update_lock', array( 'locked' => true ) );
+
+		Settings::uninstall();
+
+		$this->assertFalse( get_option( 'universal_geo_maxmind_update_lock', false ) );
+	}
+
+	/**
+	 * M6: DatabaseManager's state option joins Settings::uninstall()'s
+	 * deletions, the same ownership split.
+	 */
+	public function test_uninstall_deletes_universal_geo_maxmind_update_state(): void {
+		update_option( 'universal_geo_maxmind_update_state', array( 'last_result_code' => 'ok' ) );
+
+		Settings::uninstall();
+
+		$this->assertFalse( get_option( 'universal_geo_maxmind_update_state', false ) );
 	}
 
 	/**

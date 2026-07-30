@@ -17,10 +17,14 @@ use UniversalGeo\Diagnostics\ProviderHealthStore;
 use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Http\TrustedProxies;
+use UniversalGeo\MaxMind\ArchiveExtractor;
+use UniversalGeo\MaxMind\DatabaseManager;
+use UniversalGeo\MaxMind\UpdateLock;
 use UniversalGeo\Plugin;
 use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
+use UniversalGeo\Tests\Support\FakeHttpTransport;
 use WP_UnitTestCase;
 
 /**
@@ -74,6 +78,16 @@ final class CommandTest extends WP_UnitTestCase {
 			new ProviderHealthStore(),
 			new MaxMindProvider( '' ),
 			new CircuitBreaker(),
+			'none',
+			new DatabaseManager(
+				sys_get_temp_dir() . '/ugeo-cli-command-integration-test-unused',
+				'',
+				'',
+				true,
+				new FakeHttpTransport(),
+				new ArchiveExtractor(),
+				new UpdateLock()
+			),
 			'none'
 		);
 

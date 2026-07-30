@@ -16,11 +16,15 @@ use UniversalGeo\Diagnostics\ProviderHealthStore;
 use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Http\TrustedProxies;
+use UniversalGeo\MaxMind\ArchiveExtractor;
+use UniversalGeo\MaxMind\DatabaseManager;
+use UniversalGeo\MaxMind\UpdateLock;
 use UniversalGeo\Plugin;
 use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Settings;
+use UniversalGeo\Tests\Support\FakeHttpTransport;
 use WP_UnitTestCase;
 
 /**
@@ -99,6 +103,16 @@ final class LiveAcceptanceTest extends WP_UnitTestCase {
 			new ProviderHealthStore(),
 			$provider,
 			new CircuitBreaker(),
+			'none',
+			new DatabaseManager(
+				sys_get_temp_dir() . '/ugeo-live-acceptance-test-unused',
+				'',
+				'',
+				true,
+				new FakeHttpTransport(),
+				new ArchiveExtractor(),
+				new UpdateLock()
+			),
 			'none'
 		);
 		$this->assertSame( 'critical', $diagnostics->maxmind_site_status_test()['status'] );

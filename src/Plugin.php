@@ -12,12 +12,17 @@ namespace UniversalGeo;
 use UniversalGeo\Admin\AdminScreen;
 use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Cli\Command as CliCommand;
+use UniversalGeo\Cli\DatabaseCommand;
 use UniversalGeo\Contracts\GeoProviderInterface;
 use UniversalGeo\Diagnostics\DiagnosticsService;
 use UniversalGeo\Diagnostics\ProviderHealthStore;
 use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Http\TrustedProxies;
+use UniversalGeo\MaxMind\ArchiveExtractor;
+use UniversalGeo\MaxMind\DatabaseManager;
+use UniversalGeo\MaxMind\UpdateLock;
+use UniversalGeo\MaxMind\UpdateScheduler;
 use UniversalGeo\Model\VisitorContext;
 use UniversalGeo\Privacy\PrivacyPolicyContent;
 use UniversalGeo\Providers\CloudflareHeaderProvider;
@@ -160,6 +165,14 @@ final class Plugin {
 		$graph          = $this->build_graph();
 		$this->resolver = $graph['resolver'];
 
+		// Unconditional (M6): cron requests are neither is_admin() nor
+		// WP-CLI, so cron registration cannot live inside either gated
+		// branch below.
+		$graph['update_scheduler']->register(
+			$graph['settings']['maxmind_managed_auto_update_enabled'],
+			$graph['settings']['maxmind_managed_auto_update_frequency']
+		);
+
 		$register_admin = $this->should_register_admin();
 		$register_cli   = $this->should_register_cli();
 
@@ -173,14 +186,16 @@ final class Plugin {
 				$graph['provider_health_store'],
 				$graph['maxmind_provider'],
 				$graph['circuit_breaker'],
-				$graph['remote_credential_source']
+				$graph['remote_credential_source'],
+				$graph['database_manager'],
+				$graph['maxmind_path_source']
 			);
 		}
 
 		if ( $register_admin ) {
 			$diagnostics->register();
 
-			( new AdminScreen( $diagnostics, $graph['server_request'] ) )->register();
+			( new AdminScreen( $diagnostics, $graph['server_request'], $graph['update_scheduler'], $graph['database_manager'] ) )->register();
 
 			$privacy_content = new PrivacyPolicyContent( $graph['settings']['remote_enabled'] );
 
@@ -199,6 +214,7 @@ final class Plugin {
 
 		if ( $register_cli ) {
 			( new CliCommand( $graph['resolver'], $diagnostics ) )->register();
+			( new DatabaseCommand( $graph['database_manager'] ) )->register();
 		}
 	}
 
@@ -313,7 +329,7 @@ final class Plugin {
 	 * it exactly, as of M4's ReferenceRemoteProvider filling the 'remote'
 	 * slot.
 	 *
-	 * @return array{resolver: ContextResolver, client_ip_resolver: ClientIpResolver, server_request: ServerRequest, provider_health_store: ProviderHealthStore, maxmind_provider: MaxMindProvider, trusted_proxies: TrustedProxies, settings: array<string, mixed>, remote_credential_source: string, remote_provider: ReferenceRemoteProvider, circuit_breaker: CircuitBreaker}
+	 * @return array{resolver: ContextResolver, client_ip_resolver: ClientIpResolver, server_request: ServerRequest, provider_health_store: ProviderHealthStore, maxmind_provider: MaxMindProvider, trusted_proxies: TrustedProxies, settings: array<string, mixed>, remote_credential_source: string, remote_provider: ReferenceRemoteProvider, circuit_breaker: CircuitBreaker, database_manager: DatabaseManager, update_scheduler: UpdateScheduler, maxmind_path_source: string}
 	 */
 	private function build_graph(): array {
 		$settings = Settings::sanitize( get_option( Settings::OPTION_NAME, false ) );
@@ -324,18 +340,40 @@ final class Plugin {
 		$client_ip_resolver = new ClientIpResolver( $server_request, $trusted_proxies );
 
 		$default_country    = $this->filtered_default_country( $settings['default_country'] );
-		$maxmind_db_path    = $this->resolved_maxmind_db_path( $settings );
-		$maxmind_provider   = new MaxMindProvider( $maxmind_db_path );
-		$remote_credentials = $this->resolved_remote_credentials( $settings );
-		$circuit_breaker    = new CircuitBreaker();
-		$remote_provider    = new ReferenceRemoteProvider(
+		$remote_credentials = $this->resolved_maxmind_credentials( $settings );
+
+		// Shared with ReferenceRemoteProvider (M6 decision): one transport
+		// instance, the sole production caller of wp_safe_remote_get()
+		// (PrivacyGuardTest rule 8), reused for both the remote lookup
+		// provider and managed database downloads.
+		$http_transport = new WordPressHttpTransport();
+
+		$database_manager = new DatabaseManager(
+			$this->managed_maxmind_dir(),
+			$remote_credentials['account_id'],
+			$remote_credentials['license_key'],
+			$settings['maxmind_managed_retain_previous'],
+			$http_transport,
+			new ArchiveExtractor(),
+			new UpdateLock()
+		);
+
+		$maxmind_path_result = $this->resolved_maxmind_db_path( $settings, $database_manager );
+		$maxmind_db_path     = $maxmind_path_result['path'];
+		$maxmind_path_source = $maxmind_path_result['source'];
+
+		$maxmind_provider = new MaxMindProvider( $maxmind_db_path );
+		$circuit_breaker  = new CircuitBreaker();
+		$remote_provider  = new ReferenceRemoteProvider(
 			$settings['remote_enabled'],
 			$remote_credentials['account_id'],
 			$remote_credentials['license_key'],
 			$settings['remote_timeout'],
-			new WordPressHttpTransport(),
+			$http_transport,
 			$circuit_breaker
 		);
+
+		$update_scheduler = new UpdateScheduler( $database_manager );
 
 		// PROVIDER_ORDER (frozen, M4): cloudflare, maxmind, woocommerce,
 		// remote, default.
@@ -357,6 +395,7 @@ final class Plugin {
 					'trusted_proxies'              => $settings['trusted_proxies'],
 					'trust_cloudflare'             => $settings['trust_cloudflare'],
 					'maxmind_db_path'              => $maxmind_db_path,
+					'maxmind_managed_enabled'      => $settings['maxmind_managed_enabled'],
 					'remote_enabled'               => $settings['remote_enabled'],
 					'remote_transfer_acknowledged' => $settings['remote_transfer_acknowledged'],
 					'remote_credential_source'     => $remote_credentials['source'],
@@ -397,7 +436,26 @@ final class Plugin {
 			'remote_credential_source' => $remote_credentials['source'],
 			'remote_provider'          => $remote_provider,
 			'circuit_breaker'          => $circuit_breaker,
+			'database_manager'         => $database_manager,
+			'update_scheduler'         => $update_scheduler,
+			'maxmind_path_source'      => $maxmind_path_source,
 		);
+	}
+
+	/**
+	 * The managed GeoLite2 database directory
+	 * ({uploads}/universal-geo-context/maxmind/), M6's own fixed, plugin-
+	 * computed location — never admin-configurable, so unlike
+	 * maxmind_db_path/the WooCommerce-derived candidate, this is not a
+	 * containment-checked user input; it is a formula over wp_upload_dir()
+	 * alone. Delegates to `DatabaseManager::managed_directory()` — the
+	 * single formula both this class and `uninstall.php` use, so the two
+	 * can never compute two different paths for the same thing.
+	 *
+	 * @return string
+	 */
+	private function managed_maxmind_dir(): string {
+		return DatabaseManager::managed_directory();
 	}
 
 	/**
@@ -438,38 +496,81 @@ final class Plugin {
 
 	/**
 	 * Resolves the single effective MaxMind database path (M3 architecture
-	 * report §6 3C), in strict precedence order:
+	 * report §6 3C; precedence extended in M6 decision #3), in strict order:
 	 *
 	 * 1. `UNIVERSAL_GEO_MAXMIND_DB` — a wp-config.php constant. Wins
 	 *    outright when defined as a non-empty string; may point outside
 	 *    WP_CONTENT_DIR (the operator's own escape hatch); the filter is
 	 *    never consulted in this case.
-	 * 2. The sanitized settings value; if empty, the WooCommerce
-	 *    auto-detected candidate. Both are option-derived surfaces and are
-	 *    re-validated as contained under WP_CONTENT_DIR here, at graph
-	 *    construction — never trusting that a stored value necessarily came
-	 *    from the admin save handler's own containment check.
-	 * 3. `universal_geo_maxmind_db_path` — a code-level filter, uncontained,
+	 * 2. The sanitized `maxmind_db_path` setting, if non-empty and contained
+	 *    under WP_CONTENT_DIR — an admin-typed path that fails containment
+	 *    is treated as absent (M3's original behavior, unchanged: it does
+	 *    NOT fall through to a lower tier).
+	 * 3. **New (M6)**: `DatabaseManager::installed_path()`, when
+	 *    `maxmind_managed_enabled` is true — a cheap existence/readability
+	 *    check only, never a `Reader` open. Not containment-checked: this is
+	 *    a fixed, plugin-computed path under `{uploads}/`, never admin-typed
+	 *    input, so there is no user-controlled string to validate here (the
+	 *    same reasoning `managed_maxmind_dir()`'s own docblock states).
+	 * 4. The WooCommerce auto-detected candidate, contained-checked exactly
+	 *    as before.
+	 * 5. `universal_geo_maxmind_db_path` — a code-level filter, uncontained,
 	 *    hardened exactly like filtered_default_country()/filtered_providers().
+	 *    Always consulted (except when the constant already won), even when
+	 *    an earlier tier produced a path — a filter can override any
+	 *    resolved candidate, exactly as before M6.
 	 *
-	 * The result feeds both MaxMindProvider's constructor and config_sig.
+	 * The result feeds MaxMindProvider's constructor, config_sig, and (the
+	 * source half) DiagnosticsService.
 	 *
-	 * @param array<string, mixed> $settings The sanitized settings array.
+	 * @param array<string, mixed> $settings         The sanitized settings array.
+	 * @param DatabaseManager      $database_manager Supplies the managed-path candidate (tier 3).
 	 *
-	 * @return string
+	 * @return array{path: string, source: string} `source` is one of 'constant', 'settings', 'managed', 'woocommerce', 'filter', or 'none'.
 	 */
-	private function resolved_maxmind_db_path( array $settings ): string {
+	private function resolved_maxmind_db_path( array $settings, DatabaseManager $database_manager ): array {
 		if ( defined( 'UNIVERSAL_GEO_MAXMIND_DB' ) && is_string( UNIVERSAL_GEO_MAXMIND_DB ) && '' !== UNIVERSAL_GEO_MAXMIND_DB ) {
-			return UNIVERSAL_GEO_MAXMIND_DB;
+			return array(
+				'path'   => UNIVERSAL_GEO_MAXMIND_DB,
+				'source' => 'constant',
+			);
 		}
 
-		$path = '' !== $settings['maxmind_db_path'] ? $settings['maxmind_db_path'] : $this->wc_auto_detected_maxmind_path();
+		$path   = '';
+		$source = 'none';
 
-		if ( '' !== $path && ! $this->is_contained_under_wp_content( $path ) ) {
-			$path = '';
+		if ( '' !== $settings['maxmind_db_path'] ) {
+			if ( $this->is_contained_under_wp_content( $settings['maxmind_db_path'] ) ) {
+				$path   = $settings['maxmind_db_path'];
+				$source = 'settings';
+			}
+			// An admin-typed path present but failing containment stays
+			// absent — the M3 behavior this milestone preserves exactly,
+			// never silently falling through to a lower tier.
+		} elseif ( $settings['maxmind_managed_enabled'] && '' !== $database_manager->installed_path() ) {
+			$path   = $database_manager->installed_path();
+			$source = 'managed';
+		} else {
+			$wc_path = $this->wc_auto_detected_maxmind_path();
+
+			if ( '' !== $wc_path && $this->is_contained_under_wp_content( $wc_path ) ) {
+				$path   = $wc_path;
+				$source = 'woocommerce';
+			}
 		}
 
-		return $this->filtered_maxmind_db_path( $path );
+		$filtered = $this->filtered_maxmind_db_path( $path );
+
+		if ( '' === $filtered ) {
+			$source = 'none';
+		} elseif ( $filtered !== $path ) {
+			$source = 'filter';
+		}
+
+		return array(
+			'path'   => $filtered,
+			'source' => $source,
+		);
 	}
 
 	/**
@@ -567,24 +668,52 @@ final class Plugin {
 	}
 
 	/**
-	 * Resolves the effective remote-provider credential pair and its source
-	 * (M4 frozen decision), the one place in the codebase this precedence is
-	 * decided: constants win only when *both* `UNIVERSAL_GEO_REMOTE_ACCOUNT_ID`
-	 * and `UNIVERSAL_GEO_REMOTE_LICENSE_KEY` are defined as non-empty
-	 * strings — never one constant paired with one setting. Otherwise, the
-	 * settings pair is used only when *both* `remote_account_id` and
-	 * `remote_license_key` sanitize to non-empty strings; a single configured
-	 * credential without its pair is treated identically to having neither
-	 * (the provider "requires both credentials"). `DiagnosticsService`
-	 * receives only the resulting source scalar — never re-deriving this
-	 * precedence itself, per the M4 report's frozen decision that credential
-	 * source is resolved exactly once, here.
+	 * Resolves the effective, shared MaxMind credential pair and its source
+	 * (M4 frozen decision, generalized in M6 decision #2/#4): one canonical
+	 * account id/license key, consumed by both `ReferenceRemoteProvider` and
+	 * (from M6E onward) `MaxMind\DatabaseManager` — a MaxMind account has one
+	 * credential pair regardless of which MaxMind product it authenticates
+	 * against. The one place in the codebase this precedence is decided,
+	 * checked in order:
+	 *
+	 * 1. `UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID` / `UNIVERSAL_GEO_MAXMIND_LICENSE_KEY`
+	 *    — the canonical wp-config.php constant pair. Wins outright when
+	 *    *both* are defined as non-empty strings.
+	 * 2. `UNIVERSAL_GEO_REMOTE_ACCOUNT_ID` / `UNIVERSAL_GEO_REMOTE_LICENSE_KEY`
+	 *    — the legacy M4 constant pair, still honored as a deprecated
+	 *    fallback (`docs/COMPATIBILITY.md`), when *both* are defined as
+	 *    non-empty strings.
+	 * 3. The sanitized `maxmind_account_id`/`maxmind_license_key` settings
+	 *    pair — already migrated from any legacy `remote_account_id`/
+	 *    `remote_license_key` settings values by `Settings::sanitize()`
+	 *    itself, so no separate settings-level legacy fallback is needed
+	 *    here.
+	 * 4. None.
+	 *
+	 * At every level, a single configured credential without its pair is
+	 * treated identically to having neither — never one constant/setting
+	 * paired with a value from a different level (the frozen M4 "requires
+	 * both credentials" rule, unchanged). `DiagnosticsService` receives only
+	 * the resulting source scalar — never re-deriving this precedence
+	 * itself, per the M4 report's frozen decision that credential source is
+	 * resolved exactly once, here.
 	 *
 	 * @param array<string, mixed> $settings The sanitized settings array.
 	 *
-	 * @return array{account_id: string, license_key: string, source: string} `source` is one of 'constants', 'settings', or 'none'.
+	 * @return array{account_id: string, license_key: string, source: string} `source` is one of 'constants', 'legacy_constants', 'settings', or 'none'.
 	 */
-	private function resolved_remote_credentials( array $settings ): array {
+	private function resolved_maxmind_credentials( array $settings ): array {
+		if (
+			defined( 'UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID' ) && is_string( UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID ) && '' !== UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID
+			&& defined( 'UNIVERSAL_GEO_MAXMIND_LICENSE_KEY' ) && is_string( UNIVERSAL_GEO_MAXMIND_LICENSE_KEY ) && '' !== UNIVERSAL_GEO_MAXMIND_LICENSE_KEY
+		) {
+			return array(
+				'account_id'  => UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID,
+				'license_key' => UNIVERSAL_GEO_MAXMIND_LICENSE_KEY,
+				'source'      => 'constants',
+			);
+		}
+
 		if (
 			defined( 'UNIVERSAL_GEO_REMOTE_ACCOUNT_ID' ) && is_string( UNIVERSAL_GEO_REMOTE_ACCOUNT_ID ) && '' !== UNIVERSAL_GEO_REMOTE_ACCOUNT_ID
 			&& defined( 'UNIVERSAL_GEO_REMOTE_LICENSE_KEY' ) && is_string( UNIVERSAL_GEO_REMOTE_LICENSE_KEY ) && '' !== UNIVERSAL_GEO_REMOTE_LICENSE_KEY
@@ -592,14 +721,14 @@ final class Plugin {
 			return array(
 				'account_id'  => UNIVERSAL_GEO_REMOTE_ACCOUNT_ID,
 				'license_key' => UNIVERSAL_GEO_REMOTE_LICENSE_KEY,
-				'source'      => 'constants',
+				'source'      => 'legacy_constants',
 			);
 		}
 
-		if ( '' !== $settings['remote_account_id'] && '' !== $settings['remote_license_key'] ) {
+		if ( '' !== $settings['maxmind_account_id'] && '' !== $settings['maxmind_license_key'] ) {
 			return array(
-				'account_id'  => $settings['remote_account_id'],
-				'license_key' => $settings['remote_license_key'],
+				'account_id'  => $settings['maxmind_account_id'],
+				'license_key' => $settings['maxmind_license_key'],
 				'source'      => 'settings',
 			);
 		}

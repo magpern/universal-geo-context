@@ -94,4 +94,95 @@ final class WordPressHttpTransport implements HttpTransport {
 	private function sanitized_timeout( int $timeout_seconds ): int {
 		return max( self::MIN_TIMEOUT_SECONDS, min( self::MAX_TIMEOUT_SECONDS, $timeout_seconds ) );
 	}
+
+	/**
+	 * The first hop of the M6 redirect-safe download flow: sends the request
+	 * with redirect-following disabled and reports the raw status code and
+	 * Location header (if any) — never follows it. $timeout_seconds is used
+	 * exactly as given, not clamped through sanitized_timeout(): that clamp
+	 * exists solely for get()'s page-view-latency bound (G10), which does not
+	 * apply here (this call never runs mid-page-view; the caller,
+	 * MaxMind\DatabaseManager, uses its own fixed, non-user-configurable
+	 * timeout constants).
+	 *
+	 * @param string                $url             The complete request URL.
+	 * @param array<string, string> $headers         Request headers, keyed by header name.
+	 * @param int                   $timeout_seconds The request timeout, in seconds.
+	 *
+	 * @return RedirectResult
+	 *
+	 * @throws TransportException When wp_safe_remote_get() returns a WP_Error.
+	 */
+	public function get_redirect_location( string $url, array $headers, int $timeout_seconds ): RedirectResult {
+		$response = wp_safe_remote_get(
+			$url,
+			array(
+				'redirection' => self::REDIRECTION,
+				'timeout'     => $timeout_seconds,
+				'headers'     => $headers,
+				'user-agent'  => 'Universal Geo Context/' . UNIVERSAL_GEO_VERSION,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- TransportException::scrubbed() is this codebase's own scrubbing/truncation boundary for exception text.
+			throw TransportException::scrubbed( $response->get_error_message(), $url );
+		}
+
+		$status_code = (int) wp_remote_retrieve_response_code( $response );
+		$location    = wp_remote_retrieve_header( $response, 'location' );
+		$location    = is_string( $location ) && '' !== $location ? $location : null;
+
+		return new RedirectResult(
+			$status_code >= 300 && $status_code < 400 && null !== $location,
+			$status_code >= 300 && $status_code < 400 ? $location : null,
+			$status_code
+		);
+	}
+
+	/**
+	 * The second hop of the M6 redirect-safe download flow: streams the
+	 * response body directly to $destination via WordPress's own
+	 * 'stream'/'filename' HTTP args (never held as a PHP string), with
+	 * redirect-following disabled — if the validated target itself answers
+	 * with a further 3xx, that is a terminal status the caller must treat as
+	 * failure, never a second hop.
+	 *
+	 * @param string                $url             The complete, already-validated request URL.
+	 * @param string                $destination     The absolute filesystem path to stream the response body to.
+	 * @param array<string, string> $headers         Request headers, keyed by header name.
+	 * @param int                   $timeout_seconds The request timeout, in seconds.
+	 * @param int                   $max_bytes       Caps the response body size.
+	 *
+	 * @return DownloadResult
+	 *
+	 * @throws TransportException When wp_safe_remote_get() returns a WP_Error.
+	 */
+	public function download( string $url, string $destination, array $headers, int $timeout_seconds, int $max_bytes ): DownloadResult {
+		$response = wp_safe_remote_get(
+			$url,
+			array(
+				'redirection'         => self::REDIRECTION,
+				'timeout'             => $timeout_seconds,
+				'headers'             => $headers,
+				'user-agent'          => 'Universal Geo Context/' . UNIVERSAL_GEO_VERSION,
+				'stream'              => true,
+				'filename'            => $destination,
+				'limit_response_size' => $max_bytes,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- TransportException::scrubbed() is this codebase's own scrubbing/truncation boundary for exception text.
+			throw TransportException::scrubbed( $response->get_error_message(), $url );
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_filesize -- reading the size of a file this same call just streamed to disk, not an arbitrary filesystem read.
+		$bytes_written = is_file( $destination ) ? (int) filesize( $destination ) : 0;
+
+		return new DownloadResult(
+			(int) wp_remote_retrieve_response_code( $response ),
+			$bytes_written
+		);
+	}
 }
