@@ -914,3 +914,43 @@ threat-model entry.
 Composer dependency — the local MaxMind provider's own feature is now
 usable on any site, not only ones where WooCommerce happens to provide the
 reader class.
+
+## M7 — Admin navigation restructuring (v1.2.0)
+
+Summarized in the same spirit as M2–M6 above. **No geo-resolution,
+provider, cache, public API, or hook change** — an admin-only restructuring
+of how existing services are presented and how POST handlers are organized.
+See ADR-0007 and `docs/ARCHITECTURE_FREEZE.md`.
+
+The monolithic `AdminScreen` is removed. `Plugin::init()` constructs and
+registers these admin classes explicitly on the existing admin-only path
+(`should_register_admin()`):
+
+| Class | Responsibility |
+|---|---|
+| `Menu` | Top-level menu + six submenus; legacy URL redirect (one release) |
+| `OverviewPage` | Six-card dashboard; explicit Refresh now POST only |
+| `DetectionPage` | Live Detection / Simulation tab placeholders (M8/M9) |
+| `ProvidersPage` | Informational placeholder (M9) |
+| `TrustedProxiesPage` | Trusted-proxy settings and trust actions |
+| `DiagnosticsPage` | Full diagnostics report via `ReportRenderer` |
+| `SettingsPage` | All other settings + managed MaxMind admin actions |
+| `ReportRenderer` | Shared definition-list rendering for report sections |
+| `AdminNotices` | PRG notice query-arg rendering |
+| `FirstRunNotice` | First-run admin notice + dismiss handler |
+| `RowLinks` | Plugin list action/meta links |
+
+**Menu structure:** `add_menu_page()` with `dashicons-location-alt`,
+capability `manage_options`, no hardcoded position. Submenu slugs are
+centralized in `AdminPageSlugs`. A future **Logs** page slug is reserved in
+the roadmap only — not registered in M7.
+
+**Overview:** `DiagnosticsService::overview_sections()` supplies card data
+without calling `ContextResolver::probe()`. Current resolution uses
+`Plugin::context()` for the active request only. Overall health badge uses
+`DiagnosticsService::worst_site_health_status()` — the worst of the four
+existing Site Health verdict methods, including managed MaxMind.
+
+**Legacy compatibility:** `Menu::maybe_redirect_legacy_page_url()` on
+`admin_init` redirects `options-general.php?page=universal-geo-context` to
+Overview and `tab=diagnostics` to Diagnostics. **Removed in M8 (v1.3.0).**

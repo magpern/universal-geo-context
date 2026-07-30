@@ -2,7 +2,7 @@
 
 **Visitor geolocation detection and country resolution — evidence-based, privacy-respecting, and easily extensible.**
 
-**Status: v1.1.0 (M6) shipped.** A working WordPress plugin that resolves a
+**Status: v1.2.0 (M7) shipped.** A working WordPress plugin that resolves a
 visitor's country from a fixed chain of providers (Cloudflare headers, a
 local MaxMind database, WooCommerce's own geolocation, an optional remote
 MaxMind web service, and a configured default), attributes the answer to a
@@ -43,20 +43,31 @@ if ( function_exists( 'universal_geo_get_context' ) ) {
 
 Full documentation: [docs/API.md](docs/API.md).
 
-## Settings
+## Admin
 
-Settings → Universal Geo Context, two tabs:
+**Universal Geo Context** in the WordPress admin sidebar, with six pages:
 
-- **Trusted proxies** — CIDRs allowed to send client-address headers. Empty (default) trusts nothing.
+- **Overview** — at-a-glance dashboard (current resolution, provider health, remote provider, trusted proxies, cache, environment).
+- **Detection & Testing** — placeholders for simulation (v1.3.0) and live detection (v1.4.0).
+- **Providers** — placeholder for detailed provider inspection (v1.4.0).
+- **Trusted Proxies** — trusted-proxy CIDRs, Cloudflare preset, trust-current-peer actions.
+- **Diagnostics** — full diagnostics report (live resolution, masked IPs, provider probes on demand, MaxMind managed-database status, Site Health results).
+- **Settings** — default country, cache, MaxMind account, remote provider, managed database downloads.
+
+Plugin list links: **Settings** (Overview), **Documentation**, **GitHub**.
+
+## Settings (detail)
+
+- **Trusted proxies** — on the Trusted Proxies page: CIDRs allowed to send client-address headers. Empty (default) trusts nothing.
 - **Trust Cloudflare** — Enables the bundled Cloudflare IP ranges and the `CF-Connecting-IP` / `CF-IPCountry` headers.
 - **Default country** — Fallback when every provider misses (optional; empty → unknown).
 - **MaxMind database path** — Absolute path to a `.mmdb` file under the WordPress content directory. Empty = auto-detect via a managed download (if enabled) or WooCommerce's own MaxMind integration.
 - **Derived cache TTL** — How long to cache a result (only with a persistent object cache).
 - **MaxMind account** — One shared account id / license key pair (or the `UNIVERSAL_GEO_MAXMIND_ACCOUNT_ID` / `UNIVERSAL_GEO_MAXMIND_LICENSE_KEY` wp-config.php constants, which take precedence as a pair), used by both the remote provider and managed database downloads below.
 - **Remote provider** — Disabled by default. Enabling it requires, in the same submission, an explicit acknowledgement that visitor IP addresses will be transferred to MaxMind, Inc. at `geolite.info`. Request timeout is configurable from 1–5 seconds (default 2).
-- **Managed database** — Disabled by default. Once enabled, downloads, validates, and installs the official GeoLite2 Country database using the shared MaxMind account above, with an optional weekly or twice-weekly auto-update via WP-Cron. No visitor data is ever sent as part of this feature — only the site's own credentials, to fetch a published database file.
+- **Managed database** — on Settings: disabled by default. Once enabled, downloads, validates, and installs the official GeoLite2 Country database using the shared MaxMind account above, with an optional weekly or twice-weekly auto-update via WP-Cron. No visitor data is ever sent as part of this feature — only the site's own credentials, to fetch a published database file.
 
-The Diagnostics tab shows live resolution, masked IPs, per-provider probe
+The Diagnostics page shows live resolution, masked IPs, per-provider probe
 results, MaxMind database metadata (including the managed database's
 install/update status), remote-provider status (credential source,
 circuit-breaker state, scrubbed recent failure), provider-health history,
@@ -75,6 +86,7 @@ deployment topologies and recipes.
 - **v0.4.0 (M4)** — Remote provider (MaxMind GeoLite2 Country Web Service), disabled by default; circuit breaker; remote diagnostics and Site Health test. Shipped.
 - **v1.0.0 (M5)** — WP-CLI (`context`, `diagnostics`, `cache flush`); a Site Health `debug_information` section; translation readiness; Privacy Policy Guide integration; humanized diagnostics labels; real ISO 3166-1 validation for the default-country setting; release maturity (`readme.txt`, `LICENSE`, automated version-parity test, release-audit script). Shipped.
 - **v1.1.0 (M6)** — Managed GeoLite2 Country database downloads: opt-in automatic download/validate/install via a redirect-safe fetch, atomic install with rollback, WP-Cron scheduling; one shared MaxMind credential pair for both the remote provider and managed downloads; a new Site Health test; `wp universal-geo database status|download|validate|remove|restore`; new admin UI actions. Shipped.
+- **v1.2.0 (M7)** — Admin navigation restructuring: top-level menu, six focused pages, Overview dashboard, shared report renderer, plugin row links, one-release legacy URL redirect. Shipped.
 
 Full timeline: [docs/ROADMAP.md](docs/ROADMAP.md).
 

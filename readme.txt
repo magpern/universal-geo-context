@@ -4,7 +4,7 @@ Tags: geolocation, country, geoip, woocommerce, privacy
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,7 +53,7 @@ model.
 A WP-CLI process has no HTTP request, so `context --ip=` probes the
 provider chain directly for that address; it does not exercise
 forwarding-header trust. Verifying trusted-proxy configuration requires a
-real browser request against the admin Diagnostics tab.
+real browser request against the admin Diagnostics page.
 
 = Public API =
 
@@ -69,7 +69,7 @@ source for the full reference and worked examples:
 1. Upload the plugin files, or install the built zip, so the plugin lives
    under `wp-content/plugins/universal-geo-context`.
 2. Activate the plugin through the "Plugins" screen in WordPress.
-3. Configure it under Settings → Universal Geo Context. All settings are
+3. Configure it under **Universal Geo Context** in the WordPress admin sidebar. All settings are
    optional; the plugin is safe to activate with no configuration.
 
 == Frequently Asked Questions ==
@@ -109,6 +109,15 @@ its public functions — decide what those facts mean.
 
 == Changelog ==
 
+= 1.2.0 =
+* Admin navigation: a top-level **Universal Geo Context** menu replaces the former Settings submenu, with six pages — Overview, Detection & Testing, Providers, Trusted Proxies, Diagnostics, and Settings.
+* Overview dashboard: six status cards (Current Resolution, Providers, Remote Provider, Trusted Proxies, Cache, Environment) using existing diagnostics data; optional explicit provider refresh; overall health derived from Site Health verdicts.
+* Trusted-proxy configuration moved to its own page; all other settings and managed MaxMind actions remain on Settings.
+* Shared diagnostics report renderer extracted for reuse across Overview, Trusted Proxies, and Diagnostics pages.
+* Plugin list links: Settings action link to Overview; Documentation and GitHub row meta from the plugin URI.
+* One-release bookmark compatibility: the former Settings URL redirects to Overview (diagnostics tab redirects to Diagnostics); removed in v1.3.0.
+* Detection & Testing and Providers pages ship informational placeholders for upcoming simulation and inspection features.
+
 = 1.1.0 =
 * Managed GeoLite2 Country database downloads: opt-in, admin-triggered or scheduled (weekly/twice-weekly via WP-Cron), download/validate/install of the official database with atomic install and automatic rollback on failure.
 * Redirect-safe download flow: MaxMind account credentials are sent only to MaxMind's own download endpoint and never reach the storage host it redirects to.
@@ -146,6 +155,9 @@ its public functions — decide what those facts mean.
 * Core domain and public API.
 
 == Upgrade Notice ==
+
+= 1.2.0 =
+No settings schema change. Trusted-proxy fields remain in the same option; only the admin screen location changes. Old Settings bookmarks redirect automatically for one release.
 
 = 1.1.0 =
 No settings or stored data are changed or removed on upgrade. Managed database downloads are disabled by default; existing remote-provider credentials are migrated automatically, non-destructively, to the new shared MaxMind account fields the first time settings are saved.

@@ -9,7 +9,8 @@ it. Nothing in M3, M4, or M5 amends 0001 or 0004; M5 (operational tooling)
 introduced no architectural decision requiring a new or amended ADR, and
 the six-ADR cap stands — 0001/0004 remain the recorded 1.1 backfill.
 
-Six ADRs will be written across M1–M3, amended further in M4:
+Six ADRs will be written across M1–M3, amended further in M4; ADR-0007
+added in M7 for admin navigation:
 
 | ADR | Title | Milestone | File |
 |---|---|---|---|
@@ -19,6 +20,7 @@ Six ADRs will be written across M1–M3, amended further in M4:
 | 0004 | Public API | M1 | not yet written |
 | 0005 | Privacy model | M3, amended M4 | [0005-privacy-model.md](0005-privacy-model.md) |
 | 0006 | Optional WooCommerce integration | M2 | [0006-optional-woocommerce-integration.md](0006-optional-woocommerce-integration.md) |
+| 0007 | Admin navigation restructuring | M7 | [0007-admin-navigation-restructuring.md](0007-admin-navigation-restructuring.md) |
 
 ## Format
 
