@@ -107,13 +107,20 @@ final class PrivacyGuardTest extends TestCase {
 	 * dedicated positive test requiring the file once it lands. M4 adds
 	 * `Providers/Remote/CircuitBreaker.php`, the fifth and — per ADR-0005's
 	 * own closing consequence ("cannot add a fifth option writer... without
-	 * this guard going red first") — deliberately reviewed exception.
+	 * this guard going red first") — deliberately reviewed exception. M6
+	 * adds `MaxMind/UpdateLock.php` (the sixth, already a real writer of its
+	 * own `universal_geo_maxmind_update_lock` option) and
+	 * `MaxMind/DatabaseManager.php` (the seventh, listed ahead of its own
+	 * existence — the same tolerated-absent pattern ProviderHealthStore's
+	 * entry established; 6D adds its own non-vacuity test once it lands).
 	 */
 	private const OPTION_WRITE_ALLOWED_FILES = array(
 		'Settings.php',
 		'Cache/GeoCache.php',
 		'Diagnostics/ProviderHealthStore.php',
 		'Providers/Remote/CircuitBreaker.php',
+		'MaxMind/UpdateLock.php',
+		'MaxMind/DatabaseManager.php',
 	);
 
 	private const REMOTE_HTTP_FUNCTIONS = array(
@@ -132,6 +139,29 @@ final class PrivacyGuardTest extends TestCase {
 		'ip_address',
 		'client_ip',
 	);
+
+	/**
+	 * Rule 9 (M6): filesystem-write primitives confined to the MaxMind/
+	 * directory as a whole — a directory-level allowlist, unlike every
+	 * other rule's single-file allowlist, since M6's managed-database
+	 * feature spreads filesystem writes across several small, single-
+	 * responsibility classes (ArchiveExtractor streams archive entries to
+	 * disk, DatabaseManager performs the atomic install/rollback renames)
+	 * rather than funnelling them through one file the way option writes
+	 * funnel through Settings.php.
+	 */
+	private const FILE_WRITE_FUNCTIONS = array(
+		'file_put_contents',
+		'fopen',
+		'fwrite',
+		'rename',
+		'unlink',
+		'mkdir',
+		'rmdir',
+		'copy',
+	);
+
+	private const FILE_WRITE_ALLOWED_DIRECTORY = 'MaxMind/';
 
 	// ---- Rule 1: hash_hmac confined to GeoCache -------------------------------
 
@@ -304,6 +334,40 @@ final class PrivacyGuardTest extends TestCase {
 		);
 	}
 
+	/**
+	 * M6: UpdateLock.php must actually be a real option writer.
+	 */
+	public function test_update_lock_is_a_real_option_writer(): void {
+		$path = dirname( __DIR__, 3 ) . '/src/MaxMind/UpdateLock.php';
+
+		$code = $this->strip_comments( (string) file_get_contents( $path ) );
+
+		$this->assertTrue(
+			1 === preg_match( '/\b(?:update_option|add_option)\s*\(/', $code ),
+			'UpdateLock.php does not call update_option()/add_option() — the allowlist entry would be vacuous.'
+		);
+	}
+
+	/**
+	 * M6: DatabaseManager.php must actually be a real option writer once it
+	 * exists (tolerated absent until 6D) — the same non-vacuity pattern
+	 * ProviderHealthStore's own entry established.
+	 */
+	public function test_database_manager_is_a_real_option_writer_once_it_exists(): void {
+		$path = dirname( __DIR__, 3 ) . '/src/MaxMind/DatabaseManager.php';
+
+		if ( ! is_file( $path ) ) {
+			$this->markTestSkipped( 'DatabaseManager.php does not exist yet (pre-6D).' );
+		}
+
+		$code = $this->strip_comments( (string) file_get_contents( $path ) );
+
+		$this->assertTrue(
+			1 === preg_match( '/\b(?:update_option|add_option)\s*\(/', $code ),
+			'DatabaseManager.php exists but does not call update_option()/add_option() — the allowlist entry would be vacuous.'
+		);
+	}
+
 	// ---- Rule 6: no remote HTTP primitives anywhere in src/ ---------------------
 
 	/**
@@ -374,6 +438,55 @@ final class PrivacyGuardTest extends TestCase {
 			1 === preg_match( '/\b' . preg_quote( self::SAFE_REMOTE_GET_FUNCTION, '/' ) . '\s*\(/', $code ),
 			self::SAFE_REMOTE_GET_ALLOWED_FILE . ' exists but does not call wp_safe_remote_get() — the allowlist entry would be vacuous.'
 		);
+	}
+
+	// ---- Rule 9: filesystem-write primitives confined to MaxMind/ (M6) ---------
+
+	/**
+	 * @dataProvider source_file_provider
+	 */
+	public function test_file_write_functions_appear_only_under_the_maxmind_directory( string $file ): void {
+		$relative = $this->relative_source_path( $file );
+
+		if ( str_starts_with( $relative, self::FILE_WRITE_ALLOWED_DIRECTORY ) ) {
+			$this->markTestSkipped( $relative . ' is under the allowed MaxMind/ directory.' );
+		}
+
+		$code = $this->strip_comments( (string) file_get_contents( $file ) );
+
+		foreach ( self::FILE_WRITE_FUNCTIONS as $function ) {
+			$this->assertDoesNotMatchRegularExpression(
+				'/\b' . preg_quote( $function, '/' ) . '\s*\(/',
+				$code,
+				sprintf( '%s must not call %s() — filesystem writes are confined to the MaxMind/ directory.', $relative, $function )
+			);
+		}
+	}
+
+	/**
+	 * Non-vacuity: at least one file under MaxMind/ must actually call at
+	 * least one of the file-write functions, or this rule's allowlist would
+	 * be vacuous.
+	 */
+	public function test_at_least_one_maxmind_file_actually_writes_the_filesystem(): void {
+		$found = false;
+
+		foreach ( $this->source_files() as $file ) {
+			if ( ! str_starts_with( $this->relative_source_path( $file ), self::FILE_WRITE_ALLOWED_DIRECTORY ) ) {
+				continue;
+			}
+
+			$code = $this->strip_comments( (string) file_get_contents( $file ) );
+
+			foreach ( self::FILE_WRITE_FUNCTIONS as $function ) {
+				if ( 1 === preg_match( '/\b' . preg_quote( $function, '/' ) . '\s*\(/', $code ) ) {
+					$found = true;
+					break 2;
+				}
+			}
+		}
+
+		$this->assertTrue( $found, 'No file under MaxMind/ calls any file-write function — the allowlist entry would be vacuous.' );
 	}
 
 	// ---- Rule 7: VisitorContext carries no IP field ----------------------------
