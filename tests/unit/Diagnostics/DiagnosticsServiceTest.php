@@ -16,12 +16,16 @@ use UniversalGeo\Diagnostics\DiagnosticsService;
 use UniversalGeo\Diagnostics\ProviderHealthStore;
 use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\TrustedProxies;
+use UniversalGeo\MaxMind\ArchiveExtractor;
+use UniversalGeo\MaxMind\DatabaseManager;
+use UniversalGeo\MaxMind\UpdateLock;
 use UniversalGeo\Model\GeoCandidate;
 use UniversalGeo\Plugin;
 use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Settings;
+use UniversalGeo\Tests\Support\FakeHttpTransport;
 use UniversalGeo\Tests\Support\ServerRequestFactory;
 use UniversalGeo\Tests\Unit\Doubles\TrackingGeoProvider;
 
@@ -70,7 +74,9 @@ final class DiagnosticsServiceTest extends TestCase {
 		?ProviderHealthStore $provider_health_store = null,
 		?MaxMindProvider $maxmind_provider = null,
 		?CircuitBreaker $circuit_breaker = null,
-		string $remote_credential_source = 'none'
+		string $remote_credential_source = 'none',
+		?DatabaseManager $database_manager = null,
+		string $maxmind_path_source = 'none'
 	): DiagnosticsService {
 		$request         = ServerRequestFactory::make( '203.0.113.1' );
 		$trusted_proxies = $trusted_proxies ?? new TrustedProxies( array(), false );
@@ -86,7 +92,26 @@ final class DiagnosticsServiceTest extends TestCase {
 			$provider_health_store ?? new ProviderHealthStore(),
 			$maxmind_provider ?? new MaxMindProvider( '' ),
 			$circuit_breaker ?? new CircuitBreaker(),
-			$remote_credential_source
+			$remote_credential_source,
+			$database_manager ?? $this->unused_database_manager(),
+			$maxmind_path_source
+		);
+	}
+
+	/**
+	 * An unused-in-most-tests DatabaseManager, the same "empty/inert double"
+	 * role `new MaxMindProvider('')` already plays for tests that don't
+	 * care about the managed-database feature specifically.
+	 */
+	private function unused_database_manager(): DatabaseManager {
+		return new DatabaseManager(
+			sys_get_temp_dir() . '/ugeo-diagnostics-test-unused',
+			'',
+			'',
+			true,
+			new FakeHttpTransport(),
+			new ArchiveExtractor(),
+			new UpdateLock()
 		);
 	}
 
@@ -224,7 +249,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), true );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none' );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none', new DatabaseManager( sys_get_temp_dir() . '/ugeo-diagnostics-test-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ), 'none' );
 
 		$report = $service->report();
 
@@ -681,7 +706,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none' );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none', new DatabaseManager( sys_get_temp_dir() . '/ugeo-diagnostics-test-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ), 'none' );
 
 		$result = $service->trusted_proxy_site_status_test();
 
@@ -694,7 +719,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array( '172.18.0.0/16' ), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none' );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none', new DatabaseManager( sys_get_temp_dir() . '/ugeo-diagnostics-test-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ), 'none' );
 
 		$this->assertSame( 'good', $service->trusted_proxy_site_status_test()['status'] );
 	}
@@ -705,7 +730,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none' );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none', new DatabaseManager( sys_get_temp_dir() . '/ugeo-diagnostics-test-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ), 'none' );
 
 		$this->assertSame( 'good', $service->trusted_proxy_site_status_test()['status'] );
 	}
@@ -715,7 +740,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none' );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none', new DatabaseManager( sys_get_temp_dir() . '/ugeo-diagnostics-test-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ), 'none' );
 
 		$this->assertSame( 'good', $service->trusted_proxy_site_status_test()['status'] );
 	}
@@ -727,7 +752,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		$trusted     = new TrustedProxies( array(), false );
 		$ip_resolver = new ClientIpResolver( $request, $trusted );
 		$resolver    = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none' );
+		$service     = new DiagnosticsService( $resolver, $ip_resolver, $request, $trusted, array(), new ProviderHealthStore(), new MaxMindProvider( '' ), new CircuitBreaker(), 'none', new DatabaseManager( sys_get_temp_dir() . '/ugeo-diagnostics-test-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ), 'none' );
 
 		// Even though this scenario would otherwise be critical, an
 		// unauthorized user must never see that verdict.

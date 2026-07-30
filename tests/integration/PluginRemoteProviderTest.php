@@ -69,7 +69,9 @@ final class PluginRemoteProviderTest extends WP_UnitTestCase {
 			$graph['provider_health_store'],
 			$graph['maxmind_provider'],
 			$graph['circuit_breaker'],
-			$graph['remote_credential_source']
+			$graph['remote_credential_source'],
+			$graph['database_manager'],
+			$graph['maxmind_path_source']
 		);
 	}
 

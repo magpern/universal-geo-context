@@ -16,10 +16,15 @@ use UniversalGeo\Diagnostics\ProviderHealthStore;
 use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Http\TrustedProxies;
+use UniversalGeo\MaxMind\ArchiveExtractor;
+use UniversalGeo\MaxMind\DatabaseManager;
+use UniversalGeo\MaxMind\UpdateLock;
+use UniversalGeo\MaxMind\UpdateScheduler;
 use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Settings;
+use UniversalGeo\Tests\Support\FakeHttpTransport;
 use WP_UnitTestCase;
 
 /**
@@ -54,11 +59,21 @@ final class AdminScreenTest extends WP_UnitTestCase {
 	}
 
 	private function screen(): AdminScreen {
-		$request         = ServerRequest::capture( $_SERVER ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$trusted_proxies = new TrustedProxies( array(), false );
-		$ip_resolver     = new ClientIpResolver( $request, $trusted_proxies );
-		$resolver        = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
-		$diagnostics     = new DiagnosticsService(
+		$request          = ServerRequest::capture( $_SERVER ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$trusted_proxies  = new TrustedProxies( array(), false );
+		$ip_resolver      = new ClientIpResolver( $request, $trusted_proxies );
+		$resolver         = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
+		$database_manager = new DatabaseManager(
+			sys_get_temp_dir() . '/ugeo-admin-screen-test-unused',
+			'',
+			'',
+			true,
+			new FakeHttpTransport(),
+			new ArchiveExtractor(),
+			new UpdateLock()
+		);
+
+		$diagnostics = new DiagnosticsService(
 			$resolver,
 			$ip_resolver,
 			$request,
@@ -67,10 +82,12 @@ final class AdminScreenTest extends WP_UnitTestCase {
 			new ProviderHealthStore(),
 			new MaxMindProvider( '' ),
 			new CircuitBreaker(),
+			'none',
+			$database_manager,
 			'none'
 		);
 
-		return new AdminScreen( $diagnostics, $request );
+		return new AdminScreen( $diagnostics, $request, new UpdateScheduler( $database_manager ) );
 	}
 
 	/**

@@ -53,7 +53,11 @@ final class CompositionRootTest extends TestCase {
 	 * and `PrivacyPolicyContent` (the `wp_add_privacy_policy_content()`
 	 * text builder) — both follow the exact same "constructed once in
 	 * Plugin.php, dependencies injected" shape every prior service already
-	 * established, so no new pattern is introduced.
+	 * established, so no new pattern is introduced. M6 adds four:
+	 * `DatabaseManager`, `ArchiveExtractor`, `UpdateLock`, and
+	 * `UpdateScheduler` — the same shape again. `RedirectValidator` is
+	 * deliberately NOT in this list: a stateless static utility (like
+	 * `IpUtils`/`GeoValidator`), never instantiated anywhere.
 	 */
 	private const CONSTRUCTOR_CONFINED_CLASSES = array(
 		'TrustedProxies',
@@ -72,6 +76,10 @@ final class CompositionRootTest extends TestCase {
 		'WordPressHttpTransport',
 		'CliCommand',
 		'PrivacyPolicyContent',
+		'DatabaseManager',
+		'ArchiveExtractor',
+		'UpdateLock',
+		'UpdateScheduler',
 	);
 
 	/**

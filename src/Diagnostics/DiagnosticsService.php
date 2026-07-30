@@ -13,6 +13,7 @@ use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\IpUtils;
 use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Http\TrustedProxies;
+use UniversalGeo\MaxMind\DatabaseManager;
 use UniversalGeo\Plugin;
 use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Providers\Remote\CircuitBreaker;
@@ -85,7 +86,9 @@ final class DiagnosticsService {
 	 * @param ProviderHealthStore $provider_health_store    Supplies the already-scrubbed, bounded provider-health record (M3) — also the source of the remote section's scrubbed recent-failure field (M4).
 	 * @param MaxMindProvider     $maxmind_provider         The same instance the resolver uses (M3 F8) — diagnostics never opens a second reader.
 	 * @param CircuitBreaker      $circuit_breaker          The same instance ReferenceRemoteProvider uses (M4) — read via state() only, never may_attempt()/report_*(), so viewing diagnostics never itself flips circuit state.
-	 * @param string              $remote_credential_source One of 'constants', 'settings', 'none' — resolved exactly once by Plugin::build_graph(); this class must not call defined() or re-derive the precedence itself (M4 frozen decision).
+	 * @param string              $remote_credential_source One of 'constants', 'legacy_constants', 'settings', 'none' — resolved exactly once by Plugin::build_graph(); this class must not call defined() or re-derive the precedence itself (M4 frozen decision, extended M6).
+	 * @param DatabaseManager     $database_manager         The same instance Plugin::build_graph() constructed (M6) — diagnostics never constructs its own, never triggers a download; status() only.
+	 * @param string              $maxmind_path_source      One of 'constant', 'settings', 'managed', 'woocommerce', 'filter', 'none' — resolved exactly once by Plugin::resolved_maxmind_db_path() (M6); this class must not re-derive the precedence itself, the same frozen-decision shape $remote_credential_source already established.
 	 */
 	public function __construct(
 		private readonly ContextResolver $resolver,
@@ -96,7 +99,9 @@ final class DiagnosticsService {
 		private readonly ProviderHealthStore $provider_health_store,
 		private readonly MaxMindProvider $maxmind_provider,
 		private readonly CircuitBreaker $circuit_breaker,
-		private readonly string $remote_credential_source
+		private readonly string $remote_credential_source,
+		private readonly DatabaseManager $database_manager,
+		private readonly string $maxmind_path_source
 	) {
 	}
 

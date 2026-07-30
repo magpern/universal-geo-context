@@ -13,6 +13,7 @@ use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Diagnostics\DiagnosticsService;
 use UniversalGeo\Http\IpUtils;
 use UniversalGeo\Http\ServerRequest;
+use UniversalGeo\MaxMind\UpdateScheduler;
 use UniversalGeo\Settings;
 
 /**
@@ -52,12 +53,14 @@ final class AdminScreen {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param DiagnosticsService $diagnostics Supplies the (masked) diagnostics report and the Site Health verdict.
-	 * @param ServerRequest      $request     The boot-time $_SERVER snapshot; source of the raw peer for "Trust this peer".
+	 * @param DiagnosticsService $diagnostics      Supplies the (masked) diagnostics report and the Site Health verdict.
+	 * @param ServerRequest      $request          The boot-time $_SERVER snapshot; source of the raw peer for "Trust this peer".
+	 * @param UpdateScheduler    $update_scheduler Reconciled explicitly after a settings save (M6) — the same instance Plugin::build_graph() constructed; this class never constructs its own (the composition-root invariant), and never calls register() itself (that stays Plugin::init()'s job).
 	 */
 	public function __construct(
 		private readonly DiagnosticsService $diagnostics,
-		private readonly ServerRequest $request
+		private readonly ServerRequest $request,
+		private readonly UpdateScheduler $update_scheduler
 	) {
 	}
 
@@ -204,6 +207,14 @@ final class AdminScreen {
 
 		Settings::save( $sanitized );
 		GeoCache::bump_epoch();
+
+		// M6: reconciles the cron schedule against the just-saved values
+		// immediately, rather than waiting for the next admin page load's
+		// own Plugin::init() -> register() call to notice the change.
+		$this->update_scheduler->ensure_scheduled(
+			$sanitized['maxmind_managed_auto_update_enabled'],
+			$sanitized['maxmind_managed_auto_update_frequency']
+		);
 
 		if ( $default_country_rejected ) {
 			$this->redirect_with_notice( 'default_country_rejected', 'warning' );

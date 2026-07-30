@@ -18,11 +18,15 @@ use UniversalGeo\Diagnostics\DiagnosticsService;
 use UniversalGeo\Diagnostics\ProviderHealthStore;
 use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\TrustedProxies;
+use UniversalGeo\MaxMind\ArchiveExtractor;
+use UniversalGeo\MaxMind\DatabaseManager;
+use UniversalGeo\MaxMind\UpdateLock;
 use UniversalGeo\Model\GeoCandidate;
 use UniversalGeo\Plugin;
 use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
+use UniversalGeo\Tests\Support\FakeHttpTransport;
 use UniversalGeo\Tests\Support\ServerRequestFactory;
 use UniversalGeo\Tests\Unit\Doubles\FakeGeoProvider;
 
@@ -78,6 +82,16 @@ final class CommandTest extends TestCase {
 			new ProviderHealthStore(),
 			new MaxMindProvider( '' ),
 			new CircuitBreaker(),
+			'none',
+			new DatabaseManager(
+				sys_get_temp_dir() . '/ugeo-cli-command-test-unused',
+				'',
+				'',
+				true,
+				new FakeHttpTransport(),
+				new ArchiveExtractor(),
+				new UpdateLock()
+			),
 			'none'
 		);
 

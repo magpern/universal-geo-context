@@ -18,9 +18,14 @@ use UniversalGeo\Diagnostics\DiagnosticsService;
 use UniversalGeo\Diagnostics\ProviderHealthStore;
 use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\TrustedProxies;
+use UniversalGeo\MaxMind\ArchiveExtractor;
+use UniversalGeo\MaxMind\DatabaseManager;
+use UniversalGeo\MaxMind\UpdateLock;
+use UniversalGeo\MaxMind\UpdateScheduler;
 use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
+use UniversalGeo\Tests\Support\FakeHttpTransport;
 use UniversalGeo\Tests\Support\ServerRequestFactory;
 
 /**
@@ -68,12 +73,30 @@ final class AdminScreenTest extends TestCase {
 			new ProviderHealthStore(),
 			new MaxMindProvider( '' ),
 			new CircuitBreaker(),
+			'none',
+			$this->unused_database_manager(),
 			'none'
 		);
 	}
 
+	private function unused_database_manager(): DatabaseManager {
+		return new DatabaseManager(
+			sys_get_temp_dir() . '/ugeo-admin-screen-unit-test-unused',
+			'',
+			'',
+			true,
+			new FakeHttpTransport(),
+			new ArchiveExtractor(),
+			new UpdateLock()
+		);
+	}
+
 	private function screen( ?DiagnosticsService $diagnostics = null ): AdminScreen {
-		return new AdminScreen( $diagnostics ?? $this->diagnostics(), ServerRequestFactory::make() );
+		return new AdminScreen(
+			$diagnostics ?? $this->diagnostics(),
+			ServerRequestFactory::make(),
+			new UpdateScheduler( $this->unused_database_manager() )
+		);
 	}
 
 	private function invoke_private( object $target, string $method, array $args = array() ) {
