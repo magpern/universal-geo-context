@@ -145,6 +145,61 @@ final class DiagnosticsService {
 	}
 
 	/**
+	 * Diagnostics slices used by the Overview dashboard — no live provider
+	 * probe. Presentation-only aggregation of existing section builders.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function overview_sections(): array {
+		return array(
+			'trusted_proxies' => $this->trusted_proxies_section(),
+			'remote'          => $this->remote_section(),
+			'cache'           => $this->cache_section(),
+			'environment'     => $this->environment_section(),
+			'provider_health' => $this->provider_health_store->read(),
+		);
+	}
+
+	/**
+	 * Trusted Proxies page slices — no live provider probe.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function trusted_proxies_page_sections(): array {
+		return array(
+			'trusted_proxies' => $this->trusted_proxies_section(),
+			'cloudflare'        => $this->cloudflare_section(),
+		);
+	}
+
+	/**
+	 * Worst Site Health status among the four plugin tests (M7 Overview badge).
+	 *
+	 * Uses the existing verdict methods as the single source of truth —
+	 * critical beats recommended beats good.
+	 *
+	 * @return string One of 'critical', 'recommended', 'good'.
+	 */
+	public function worst_site_health_status(): string {
+		$statuses = array(
+			$this->trusted_proxy_site_status_test()['status'] ?? 'good',
+			$this->maxmind_site_status_test()['status'] ?? 'good',
+			$this->remote_site_status_test()['status'] ?? 'good',
+			$this->maxmind_managed_site_status_test()['status'] ?? 'good',
+		);
+
+		if ( in_array( 'critical', $statuses, true ) ) {
+			return 'critical';
+		}
+
+		if ( in_array( 'recommended', $statuses, true ) ) {
+			return 'recommended';
+		}
+
+		return 'good';
+	}
+
+	/**
 	 * Registers the trusted-proxy, MaxMind, and remote-provider Site Health
 	 * tests, plus (M5) the Site Health Info screen's `debug_information` section.
 	 *
@@ -398,7 +453,7 @@ final class DiagnosticsService {
 			return $this->site_status_result(
 				'critical',
 				__(
-					'Forwarding headers are present but no trusted proxies are configured. Universal Geo Context is reporting the reverse proxy\'s own location to every visitor instead of the real one. Configure Trusted Proxies under Settings → Universal Geo Context.',
+					'Forwarding headers are present but no trusted proxies are configured. Universal Geo Context is reporting the reverse proxy\'s own location to every visitor instead of the real one. Configure Trusted Proxies under Universal Geo Context → Trusted Proxies.',
 					'universal-geo-context'
 				)
 			);
