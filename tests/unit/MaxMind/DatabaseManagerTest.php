@@ -706,4 +706,80 @@ final class DatabaseManagerTest extends TestCase {
 		// consulted.
 		$this->assertSame( 'validation_failed', $result->code );
 	}
+
+	// ---- managed_directory() / uninstall_files() (M6 uninstall) ----------------------
+
+	public function test_managed_directory_returns_empty_when_wp_upload_dir_is_unavailable(): void {
+		// wp_upload_dir() does not exist in this unit bootstrap.
+		$this->assertFalse( function_exists( 'wp_upload_dir' ) );
+
+		$this->assertSame( '', DatabaseManager::managed_directory() );
+	}
+
+	public function test_uninstall_files_deletes_the_active_and_previous_files(): void {
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir
+		mkdir( $this->managed_dir, 0755, true );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		file_put_contents( $this->managed_dir . '/GeoLite2-Country.mmdb', 'active' );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		file_put_contents( $this->managed_dir . '/GeoLite2-Country.mmdb.previous', 'previous' );
+
+		DatabaseManager::uninstall_files( $this->managed_dir );
+
+		$this->assertFileDoesNotExist( $this->managed_dir . '/GeoLite2-Country.mmdb' );
+		$this->assertFileDoesNotExist( $this->managed_dir . '/GeoLite2-Country.mmdb.previous' );
+	}
+
+	public function test_uninstall_files_removes_the_tmp_subdirectory_and_its_contents(): void {
+		$tmp_dir = $this->managed_dir . '/tmp';
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir
+		mkdir( $tmp_dir, 0755, true );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		file_put_contents( $tmp_dir . '/leftover-download.tar.gz', 'leftover' );
+
+		DatabaseManager::uninstall_files( $this->managed_dir );
+
+		$this->assertDirectoryDoesNotExist( $tmp_dir );
+	}
+
+	public function test_uninstall_files_removes_the_now_empty_managed_directory(): void {
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir
+		mkdir( $this->managed_dir, 0755, true );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		file_put_contents( $this->managed_dir . '/GeoLite2-Country.mmdb', 'active' );
+
+		DatabaseManager::uninstall_files( $this->managed_dir );
+
+		$this->assertDirectoryDoesNotExist( $this->managed_dir );
+	}
+
+	public function test_uninstall_files_on_a_nonexistent_directory_is_a_safe_no_op(): void {
+		DatabaseManager::uninstall_files( $this->managed_dir );
+
+		$this->addToAssertionCount( 1 );
+	}
+
+	public function test_uninstall_files_with_an_empty_path_is_a_safe_no_op(): void {
+		DatabaseManager::uninstall_files( '' );
+
+		$this->addToAssertionCount( 1 );
+	}
+
+	public function test_uninstall_files_never_touches_files_outside_the_managed_directory(): void {
+		$outside = sys_get_temp_dir() . '/ugeo-dbmgr-uninstall-outside-' . uniqid( '', true ) . '.mmdb';
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		file_put_contents( $outside, 'unrelated' );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir
+		mkdir( $this->managed_dir, 0755, true );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		file_put_contents( $this->managed_dir . '/GeoLite2-Country.mmdb', 'active' );
+
+		DatabaseManager::uninstall_files( $this->managed_dir );
+
+		$this->assertFileExists( $outside );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		unlink( $outside );
+	}
 }

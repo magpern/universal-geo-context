@@ -448,19 +448,14 @@ final class Plugin {
 	 * computed location — never admin-configurable, so unlike
 	 * maxmind_db_path/the WooCommerce-derived candidate, this is not a
 	 * containment-checked user input; it is a formula over wp_upload_dir()
-	 * alone.
+	 * alone. Delegates to `DatabaseManager::managed_directory()` — the
+	 * single formula both this class and `uninstall.php` use, so the two
+	 * can never compute two different paths for the same thing.
 	 *
 	 * @return string
 	 */
 	private function managed_maxmind_dir(): string {
-		$upload_dir = function_exists( 'wp_upload_dir' ) ? wp_upload_dir() : null;
-		$base       = is_array( $upload_dir ) ? ( $upload_dir['basedir'] ?? null ) : null;
-
-		if ( ! is_string( $base ) || '' === $base ) {
-			return '';
-		}
-
-		return rtrim( $base, '/' ) . '/universal-geo-context/maxmind';
+		return DatabaseManager::managed_directory();
 	}
 
 	/**

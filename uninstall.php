@@ -6,13 +6,17 @@
  * loaded first, so the Composer autoloader must be required here or
  * Settings is unreachable and class_exists() always fails silently.
  *
- * Three classes each own a slice of persisted state and are called here in
+ * Five classes each own a slice of persisted state and are called here in
  * turn (M4, closing the M2/M3 all-or-nothing retention gap
- * `docs/PRIVACY.md` previously recorded): `Settings::uninstall()` (its own
- * option, `ProviderHealthStore`'s option, and the circuit breaker's option),
- * `GeoCache::uninstall()` (the cache salt and epoch options), and
- * `AdminScreen::uninstall()` (the per-user first-run-notice meta). This
- * script performs no cleanup of its own and runs no raw SQL.
+ * `docs/PRIVACY.md` previously recorded; M6 closes the same gap for the
+ * managed-database feature): `Settings::uninstall()` (its own option,
+ * `ProviderHealthStore`'s option, the circuit breaker's option, and — M6 —
+ * `UpdateLock`'s and `DatabaseManager`'s state options), `GeoCache::uninstall()`
+ * (the cache salt and epoch options), `AdminScreen::uninstall()` (the
+ * per-user first-run-notice meta), `UpdateScheduler::uninstall()` (clears
+ * the managed-database cron hook), and `DatabaseManager::uninstall_files()`
+ * (deletes the managed directory's files, by exact filename, never a glob).
+ * This script performs no cleanup of its own and runs no raw SQL.
  *
  * @package UniversalGeoContext
  */
@@ -32,3 +36,5 @@ if ( ! class_exists( \UniversalGeo\Settings::class ) ) {
 \UniversalGeo\Settings::uninstall();
 \UniversalGeo\Cache\GeoCache::uninstall();
 \UniversalGeo\Admin\AdminScreen::uninstall();
+\UniversalGeo\MaxMind\UpdateScheduler::uninstall();
+\UniversalGeo\MaxMind\DatabaseManager::uninstall_files( \UniversalGeo\MaxMind\DatabaseManager::managed_directory() );

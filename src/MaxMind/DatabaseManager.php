@@ -157,6 +157,81 @@ final class DatabaseManager {
 	}
 
 	/**
+	 * The managed GeoLite2 database directory
+	 * ({uploads}/universal-geo-context/maxmind/) — the single formula both
+	 * `Plugin::build_graph()` (via this method) and `uninstall.php` (via
+	 * `uninstall_files()`, passed this method's own return value) use, so
+	 * the two can never compute two different paths for the same thing.
+	 * Never admin-configurable; a formula over `wp_upload_dir()` alone.
+	 *
+	 * @return string '' when wp_upload_dir() is unavailable or malformed.
+	 */
+	public static function managed_directory(): string {
+		$upload_dir = function_exists( 'wp_upload_dir' ) ? wp_upload_dir() : null;
+		$base       = is_array( $upload_dir ) ? ( $upload_dir['basedir'] ?? null ) : null;
+
+		if ( ! is_string( $base ) || '' === $base ) {
+			return '';
+		}
+
+		return rtrim( $base, '/' ) . '/universal-geo-context/maxmind';
+	}
+
+	/**
+	 * Deletes only the fixed filenames inside $managed_dir, by exact name,
+	 * never a glob, then removes the managed dir, its tmp/ subdirectory, and
+	 * (if left empty) the shared "universal-geo-context" uploads parent —
+	 * called from uninstall.php, all-or-nothing with every other option and
+	 * file this plugin owns. A static method, not an instance one: uninstall
+	 * runs in its own bootstrap, with no `Plugin::build_graph()` object graph
+	 * available to construct a full `DatabaseManager` instance from.
+	 *
+	 * @param string $managed_dir Absolute path, typically managed_directory()'s own return value.
+	 *
+	 * @return void
+	 */
+	public static function uninstall_files( string $managed_dir ): void {
+		if ( '' === $managed_dir ) {
+			return;
+		}
+
+		$active   = rtrim( $managed_dir, '/' ) . '/' . self::ACTIVE_FILENAME;
+		$previous = $active . self::PREVIOUS_SUFFIX;
+		$tmp_dir  = rtrim( $managed_dir, '/' ) . '/' . self::TMP_SUBDIR;
+
+		foreach ( array( $active, $previous ) as $file ) {
+			if ( is_file( $file ) ) {
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+				unlink( $file );
+			}
+		}
+
+		if ( is_dir( $tmp_dir ) ) {
+			foreach ( (array) glob( $tmp_dir . '/*' ) as $tmp_file ) {
+				if ( is_file( $tmp_file ) ) {
+					// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+					unlink( $tmp_file );
+				}
+			}
+
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir, WordPress.PHP.NoSilencedErrors.Discouraged -- deliberately best-effort: rmdir() fails (and warns) if the directory is somehow non-empty, which must never turn into a fatal during uninstall.
+			@rmdir( $tmp_dir );
+		}
+
+		if ( is_dir( $managed_dir ) ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir, WordPress.PHP.NoSilencedErrors.Discouraged
+			@rmdir( $managed_dir );
+		}
+
+		$parent = dirname( rtrim( $managed_dir, '/' ) );
+
+		if ( is_dir( $parent ) ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir, WordPress.PHP.NoSilencedErrors.Discouraged -- a no-op when other plugins/files still occupy the shared uploads parent; never forced.
+			@rmdir( $parent );
+		}
+	}
+
+	/**
 	 * The installed active database's path, or '' when none is installed —
 	 * a cheap existence/readability check only, deliberately never opening a
 	 * `Reader` here (this feeds `Plugin`'s path-resolution precedence at

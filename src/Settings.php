@@ -554,15 +554,18 @@ final class Settings {
 	 *
 	 * All-or-nothing retention (CLAUDE.md core invariant 4): the settings
 	 * option (this class's own), `universal_geo_provider_health`
-	 * (`ProviderHealthStore`'s option, M3), and — as of M4 — the circuit
-	 * breaker's `universal_geo_remote_circuit` option: `CircuitBreaker` is
-	 * the sole runtime writer of that option, but its deletion is assigned to
-	 * this class (the frozen M4 ownership split), the same "owns writing,
-	 * doesn't own deleting" shape `ProviderHealthStore` already established.
-	 * `GeoCache::uninstall()` and `AdminScreen::uninstall()` own the
-	 * remaining M2/M3 gap this same invariant left open (cache salt/epoch,
-	 * the first-run notice meta) — `uninstall.php` calls all three, closing
-	 * the gap in full as of M4.
+	 * (`ProviderHealthStore`'s option, M3), the circuit breaker's
+	 * `universal_geo_remote_circuit` option (M4), and — as of M6 —
+	 * `UpdateLock`'s `universal_geo_maxmind_update_lock` option and
+	 * `DatabaseManager`'s `universal_geo_maxmind_update_state` option: each
+	 * of those classes is the sole runtime writer of its own option, but
+	 * deletion is assigned to this class (the same "owns writing, doesn't
+	 * own deleting" ownership split `ProviderHealthStore`/`CircuitBreaker`
+	 * already established). `GeoCache::uninstall()`, `AdminScreen::uninstall()`,
+	 * and — as of M6 — `UpdateScheduler::uninstall()` (clears the cron hook)
+	 * and `DatabaseManager::uninstall_files()` (deletes the managed
+	 * directory's files) own the remaining gaps this same invariant left
+	 * open; `uninstall.php` calls all of them, closing the gap in full.
 	 *
 	 * @return void
 	 */
@@ -570,5 +573,7 @@ final class Settings {
 		delete_option( self::OPTION_NAME );
 		delete_option( 'universal_geo_provider_health' );
 		delete_option( 'universal_geo_remote_circuit' );
+		delete_option( 'universal_geo_maxmind_update_lock' );
+		delete_option( 'universal_geo_maxmind_update_state' );
 	}
 }

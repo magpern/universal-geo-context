@@ -922,6 +922,31 @@ final class SettingsTest extends TestCase {
 	}
 
 	/**
+	 * M6: UpdateLock's option joins Settings::uninstall()'s deletions —
+	 * UpdateLock owns writing it, this class owns deleting it (the same
+	 * split CircuitBreaker's own option already established).
+	 */
+	public function test_uninstall_deletes_universal_geo_maxmind_update_lock(): void {
+		update_option( 'universal_geo_maxmind_update_lock', array( 'locked' => true ) );
+
+		Settings::uninstall();
+
+		$this->assertFalse( get_option( 'universal_geo_maxmind_update_lock', false ) );
+	}
+
+	/**
+	 * M6: DatabaseManager's state option joins Settings::uninstall()'s
+	 * deletions, the same ownership split.
+	 */
+	public function test_uninstall_deletes_universal_geo_maxmind_update_state(): void {
+		update_option( 'universal_geo_maxmind_update_state', array( 'last_result_code' => 'ok' ) );
+
+		Settings::uninstall();
+
+		$this->assertFalse( get_option( 'universal_geo_maxmind_update_state', false ) );
+	}
+
+	/**
 	 * Negative ownership test: uninstall() must not touch any option it
 	 * does not own — including options future milestones will introduce.
 	 */
