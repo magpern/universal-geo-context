@@ -30,7 +30,12 @@ use UniversalGeo\Model\GeoCandidate;
  * an unexpected HTTP status, or a malformed response all either return
  * `null` directly or throw — and `ContextResolver`'s existing
  * `catch(Throwable)` boundary already treats a thrown provider exactly like
- * a miss, continuing the chain.
+ * a miss, continuing the chain. A healthy 200 response that simply carries
+ * no `country` data (only `registered_country` — confirmed against the live
+ * service during the D1 acceptance test, for e.g. some anycast addresses)
+ * is its own third outcome, distinct from a malformed body: a clean miss
+ * that reports success to the circuit breaker, exactly like a 404, never a
+ * failure — see `classified_body()`.
  *
  * Responsibility split with `HttpTransport` (frozen, M4): this class builds
  * the request URL, adds HTTP Basic authentication, classifies the response
@@ -174,35 +179,72 @@ final class ReferenceRemoteProvider implements GeoProviderInterface {
 			throw new RuntimeException( sprintf( 'Remote provider returned an unexpected HTTP status: %d.', $response->status_code ) );
 		}
 
-		$country = $this->parsed_country_code( $response->body );
+		$classified = $this->classified_body( $response->body );
 
-		if ( null === $country ) {
+		if ( $classified['malformed'] ) {
 			$this->circuit_breaker->report_failure();
 			throw new RuntimeException( 'Remote provider returned a malformed response.' );
 		}
 
 		$this->circuit_breaker->report_success();
 
-		return new GeoCandidate( $country, null );
-	}
-
-	/**
-	 * Parses a successful response body's country.iso_code, tolerantly:
-	 * malformed JSON, a non-array shape, or a missing/non-string field all
-	 * return null (a malformed-response failure, handled by the caller) —
-	 * never a raw JSON-decode warning, never a raw body echoed anywhere.
-	 *
-	 * @param string $body The raw response body.
-	 *
-	 * @return string|null
-	 */
-	private function parsed_country_code( string $body ): ?string {
-		$decoded = json_decode( $body, true );
-
-		if ( ! is_array( $decoded ) || ! isset( $decoded['country']['iso_code'] ) || ! is_string( $decoded['country']['iso_code'] ) ) {
+		if ( null === $classified['country'] ) {
+			// A healthy "no confident country" answer — MaxMind returns a
+			// well-formed 200 body carrying only `registered_country` (never
+			// `country`) for some addresses (anycast, some hosting/cloud
+			// ranges) — confirmed against the live service during the D1
+			// acceptance test. Exactly the same treatment as a 404: the
+			// service is reachable and answered correctly, it simply has no
+			// country-level data for this address.
 			return null;
 		}
 
-		return $decoded['country']['iso_code'];
+		return new GeoCandidate( $classified['country'], null );
+	}
+
+	/**
+	 * Classifies a successful (200) response body, tolerantly distinguishing
+	 * two different "no country" shapes that must NOT be treated alike:
+	 *
+	 * - Genuinely malformed (invalid JSON, a non-array shape, or a
+	 *   `country.iso_code` present but not a string) — a real failure, the
+	 *   caller throws and penalizes the circuit breaker.
+	 * - A well-formed JSON object that simply has no `country.iso_code` at
+	 *   all — a healthy response with no country-level data, not a failure.
+	 *
+	 * Never a raw JSON-decode warning, never a raw body echoed anywhere.
+	 *
+	 * @param string $body The raw response body.
+	 *
+	 * @return array{malformed: bool, country: string|null}
+	 */
+	private function classified_body( string $body ): array {
+		$decoded = json_decode( $body, true );
+
+		if ( ! is_array( $decoded ) ) {
+			return array(
+				'malformed' => true,
+				'country'   => null,
+			);
+		}
+
+		if ( ! isset( $decoded['country']['iso_code'] ) ) {
+			return array(
+				'malformed' => false,
+				'country'   => null,
+			);
+		}
+
+		if ( ! is_string( $decoded['country']['iso_code'] ) ) {
+			return array(
+				'malformed' => true,
+				'country'   => null,
+			);
+		}
+
+		return array(
+			'malformed' => false,
+			'country'   => $decoded['country']['iso_code'],
+		);
 	}
 }

@@ -24,12 +24,22 @@ use UniversalGeo\Tests\Unit\Doubles\FakeClientIpResolver;
 /**
  * Covers the frozen M4 failure matrix: disabled/misconfigured availability,
  * the non-public-IP self-guard, the circuit-breaker gate, every response
- * classification (404 miss, 200 success, unexpected status, malformed
- * JSON, missing country field), transport-exception propagation, and the
- * "at most one outbound attempt per resolve() call, degrade cleanly"
- * contract — all against FakeHttpTransport, never real network I/O (the
- * disabled-state outbound-HTTP trap this suite and the composition-root
- * guard both defend).
+ * classification (404 miss, 200 success, 200-with-no-country-data healthy
+ * miss, unexpected status, malformed JSON, non-string iso_code),
+ * transport-exception propagation, and the "at most one outbound attempt
+ * per resolve() call, degrade cleanly" contract — all against
+ * FakeHttpTransport, never real network I/O (the disabled-state
+ * outbound-HTTP trap this suite and the composition-root guard both
+ * defend).
+ *
+ * The 200-with-no-country-data case (D1 acceptance finding, fixed
+ * post-M4-ship): MaxMind's live service returns a well-formed 200 body
+ * carrying only `registered_country` — never `country` — for some real
+ * addresses (e.g. anycast). This must be classified as a healthy miss,
+ * identical to a 404, and must report success to the circuit breaker —
+ * never as a malformed-response failure. Only a body that is not valid
+ * JSON, not an object/array shape, or has a `country.iso_code` of the
+ * wrong type is a genuine malformed-response failure.
  */
 final class ReferenceRemoteProviderTest extends TestCase {
 
@@ -253,12 +263,40 @@ final class ReferenceRemoteProviderTest extends TestCase {
 		$this->provider( $transport )->resolve( '8.8.8.8' );
 	}
 
-	public function test_missing_country_field_throws(): void {
+	public function test_missing_country_field_returns_null_as_a_healthy_miss(): void {
 		$transport = new FakeHttpTransport();
 		$transport->will_return( new TransportResponse( 200, '{"something_else":true}' ) );
 
-		$this->expectException( RuntimeException::class );
-		$this->provider( $transport )->resolve( '8.8.8.8' );
+		$this->assertNull( $this->provider( $transport )->resolve( '8.8.8.8' ) );
+	}
+
+	/**
+	 * The exact live-service shape found during the D1 acceptance test:
+	 * MaxMind answers 200 with `registered_country` present but no
+	 * `country` key at all — a healthy "no confident country" response,
+	 * not a malformed one.
+	 */
+	public function test_registered_country_only_response_returns_null_as_a_healthy_miss(): void {
+		$transport = new FakeHttpTransport();
+		$transport->will_return(
+			new TransportResponse(
+				200,
+				'{"registered_country":{"iso_code":"AU","geoname_id":2077456},"traits":{"ip_address":"1.1.1.1","network":"1.1.1.0/24"}}'
+			)
+		);
+
+		$this->assertNull( $this->provider( $transport )->resolve( '1.1.1.1' ) );
+	}
+
+	public function test_missing_country_field_reports_success_to_the_circuit_breaker(): void {
+		$transport = new FakeHttpTransport();
+		$transport->will_return( new TransportResponse( 200, '{"registered_country":{"iso_code":"AU"}}' ) );
+		$circuit_breaker = new CircuitBreaker();
+
+		$this->provider( $transport, true, 'acct', 'key', $circuit_breaker )->resolve( '1.1.1.1' );
+
+		$this->assertSame( 'closed', $circuit_breaker->state()['state'] );
+		$this->assertSame( 0, $circuit_breaker->state()['failure_count'] );
 	}
 
 	public function test_non_string_iso_code_throws(): void {
