@@ -93,6 +93,7 @@ final class PluginRemoteProviderTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( DiagnosticsService::TEST_TRUSTED_PROXY, $tests['direct'] );
 		$this->assertArrayHasKey( DiagnosticsService::TEST_MAXMIND, $tests['direct'] );
 		$this->assertArrayHasKey( DiagnosticsService::TEST_REMOTE, $tests['direct'] );
+		$this->assertArrayHasKey( DiagnosticsService::TEST_MAXMIND_MANAGED, $tests['direct'] );
 	}
 
 	public function test_remote_site_status_test_makes_zero_outbound_http_when_enabled(): void {

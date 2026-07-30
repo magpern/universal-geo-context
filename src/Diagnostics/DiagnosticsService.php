@@ -55,9 +55,14 @@ final class DiagnosticsService {
 	public const TEST_MAXMIND = 'universal_geo_maxmind';
 
 	/**
-	 * The remote-provider Site Health test id (M4) — the third and final v1 test.
+	 * The remote-provider Site Health test id (M4).
 	 */
 	public const TEST_REMOTE = 'universal_geo_remote_provider';
+
+	/**
+	 * The managed-database Site Health test id (M6) — the fourth v1.x test.
+	 */
+	public const TEST_MAXMIND_MANAGED = 'universal_geo_maxmind_managed';
 
 	/**
 	 * Build-age thresholds (days) for the MaxMind Site Health test (M3
@@ -65,6 +70,16 @@ final class DiagnosticsService {
 	 */
 	private const MAXMIND_CRITICAL_AGE_DAYS    = 90;
 	private const MAXMIND_RECOMMENDED_AGE_DAYS = 30;
+
+	/**
+	 * Build-age thresholds (days) for the managed-database Site Health test
+	 * (M6) — deliberately tighter than the custom-path MaxMind test's own
+	 * 30/90-day thresholds above: a managed database updates itself
+	 * automatically at most twice a week, so staying current is a much
+	 * lower bar than for a manually-maintained custom path.
+	 */
+	private const MAXMIND_MANAGED_CRITICAL_AGE_DAYS    = 30;
+	private const MAXMIND_MANAGED_RECOMMENDED_AGE_DAYS = 14;
 
 	/**
 	 * Bundled Cloudflare-range staleness thresholds, mirrored from the
@@ -121,6 +136,7 @@ final class DiagnosticsService {
 			'woocommerce'        => $this->woocommerce_section(),
 			'maxmind'            => $this->maxmind_section(),
 			'remote'             => $this->remote_section(),
+			'maxmind_managed'    => $this->maxmind_managed_section(),
 			'providers'          => $this->resolver->probe(),
 			'provider_health'    => $this->provider_health_store->read(),
 			'cache'              => $this->cache_section(),
@@ -287,6 +303,7 @@ final class DiagnosticsService {
 			'license_key_present'        => __( 'WooCommerce MaxMind license key present', 'universal-geo-context' ),
 			'mmdb_present'               => __( 'MaxMind database file present', 'universal-geo-context' ),
 			'effective_path'             => __( 'Effective database path', 'universal-geo-context' ),
+			'path_source'                => __( 'Database path source', 'universal-geo-context' ),
 			'available'                  => __( 'Available', 'universal-geo-context' ),
 			'reader_class_file'          => __( 'Reader class file', 'universal-geo-context' ),
 			'database_type'              => __( 'Database type', 'universal-geo-context' ),
@@ -300,6 +317,14 @@ final class DiagnosticsService {
 			'timeout_seconds'            => __( 'Timeout (seconds)', 'universal-geo-context' ),
 			'circuit_state'              => __( 'Circuit breaker state', 'universal-geo-context' ),
 			'recent_failure'             => __( 'Recent failure', 'universal-geo-context' ),
+			'installed'                  => __( 'Installed', 'universal-geo-context' ),
+			'auto_update_enabled'        => __( 'Automatic updates enabled', 'universal-geo-context' ),
+			'auto_update_frequency'      => __( 'Update frequency', 'universal-geo-context' ),
+			'retain_previous'            => __( 'Retain previous version', 'universal-geo-context' ),
+			'last_attempt_at'            => __( 'Last attempt at (timestamp)', 'universal-geo-context' ),
+			'last_success_at'            => __( 'Last success at (timestamp)', 'universal-geo-context' ),
+			'last_result_code'           => __( 'Last result code', 'universal-geo-context' ),
+			'installed_build_epoch'      => __( 'Installed build epoch', 'universal-geo-context' ),
 			'provider'                   => __( 'Provider', 'universal-geo-context' ),
 			'country_code'               => __( 'Country code', 'universal-geo-context' ),
 			'region_code'                => __( 'Region code', 'universal-geo-context' ),
@@ -340,6 +365,11 @@ final class DiagnosticsService {
 		$tests['direct'][ self::TEST_REMOTE ] = array(
 			'label' => __( 'Universal Geo Context: remote provider', 'universal-geo-context' ),
 			'test'  => array( $this, 'remote_site_status_test' ),
+		);
+
+		$tests['direct'][ self::TEST_MAXMIND_MANAGED ] = array(
+			'label' => __( 'Universal Geo Context: managed database', 'universal-geo-context' ),
+			'test'  => array( $this, 'maxmind_managed_site_status_test' ),
 		);
 
 		return $tests;
@@ -600,6 +630,141 @@ final class DiagnosticsService {
 	}
 
 	/**
+	 * The managed-database Site Health test (M6), with its own,
+	 * GeoLite-specific 14/30-day thresholds — deliberately distinct from
+	 * the custom-path MaxMind test's 30/90-day constants, since a managed
+	 * database updates itself automatically and staying current is a much
+	 * lower bar. Age is measured from the installed file's own MaxMind
+	 * build epoch (when the data was published), not from when this site
+	 * downloaded it — the same basis maxmind_site_status_test() already
+	 * uses for the custom-path test, for a consistent "how stale is the
+	 * data" meaning across both tests.
+	 *
+	 * Critical only when enabled with no valid managed database installed,
+	 * or 30+ days stale, AND the overall resolved MaxMind source
+	 * (`$this->maxmind_provider->is_available()`, the actual result of
+	 * `Plugin::resolved_maxmind_db_path()`'s full precedence chain) is
+	 * genuinely unavailable — a working higher-precedence custom path
+	 * covering the gap keeps this test at 'recommended', never 'critical':
+	 * "don't fail the whole site over an unused optional feature" applies
+	 * even when the managed database specifically is the one that's stale,
+	 * as long as something else is actually serving lookups. Gated on
+	 * manage_options, per every other test's own precedent.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function maxmind_managed_site_status_test(): array {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return $this->maxmind_managed_site_status_result( 'good', __( 'Not applicable for this user.', 'universal-geo-context' ) );
+		}
+
+		if ( ! ( $this->settings['maxmind_managed_enabled'] ?? false ) ) {
+			return $this->maxmind_managed_site_status_result(
+				'good',
+				__( 'Managed database downloads are disabled — this is an optional feature.', 'universal-geo-context' )
+			);
+		}
+
+		$status            = $this->database_manager->status();
+		$installed         = '' !== $this->database_manager->installed_path();
+		$overall_available = $this->maxmind_provider->is_available();
+
+		if ( ! $installed ) {
+			if ( $overall_available ) {
+				return $this->maxmind_managed_site_status_result(
+					'recommended',
+					__( 'Managed downloads are enabled but no managed database is installed yet. A higher-precedence MaxMind source is currently covering the gap.', 'universal-geo-context' )
+				);
+			}
+
+			return $this->maxmind_managed_site_status_result(
+				'critical',
+				__( 'Managed downloads are enabled but no managed database is installed, and no other MaxMind source is currently available.', 'universal-geo-context' )
+			);
+		}
+
+		$build_epoch = $status['installed_build_epoch'];
+		$age_days    = null !== $build_epoch ? (int) floor( ( time() - $build_epoch ) / self::SECONDS_PER_DAY ) : null;
+
+		if ( null === $age_days ) {
+			return $this->maxmind_managed_site_status_result(
+				'good',
+				__( 'The managed database is installed.', 'universal-geo-context' )
+			);
+		}
+
+		if ( $age_days >= self::MAXMIND_MANAGED_CRITICAL_AGE_DAYS ) {
+			if ( $overall_available ) {
+				return $this->maxmind_managed_site_status_result(
+					'recommended',
+					sprintf(
+						/* translators: %d: database age in days. */
+						__( 'The managed database is %d days old (30 or more) and should update automatically soon. A higher-precedence MaxMind source is currently covering the gap.', 'universal-geo-context' ),
+						$age_days
+					)
+				);
+			}
+
+			return $this->maxmind_managed_site_status_result(
+				'critical',
+				sprintf(
+					/* translators: %d: database age in days. */
+					__( 'The managed database is %d days old (30 or more) and no other MaxMind source is currently available.', 'universal-geo-context' ),
+					$age_days
+				)
+			);
+		}
+
+		if ( $age_days >= self::MAXMIND_MANAGED_RECOMMENDED_AGE_DAYS ) {
+			return $this->maxmind_managed_site_status_result(
+				'recommended',
+				sprintf(
+					/* translators: %d: database age in days. */
+					__( 'The managed database is %d days old (14 or more). It should update automatically soon.', 'universal-geo-context' ),
+					$age_days
+				)
+			);
+		}
+
+		return $this->maxmind_managed_site_status_result(
+			'good',
+			__( 'The managed database is present and current.', 'universal-geo-context' )
+		);
+	}
+
+	/**
+	 * Builds one managed-database Site Health result array — mirrors
+	 * maxmind_site_status_result()'s shape exactly (three tiers, the same
+	 * color mapping).
+	 *
+	 * @param string $status      'good', 'recommended', or 'critical'.
+	 * @param string $description Plain text, wrapped in a paragraph here.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function maxmind_managed_site_status_result( string $status, string $description ): array {
+		if ( 'critical' === $status ) {
+			$color = 'red';
+		} elseif ( 'recommended' === $status ) {
+			$color = 'orange';
+		} else {
+			$color = 'blue';
+		}
+
+		return array(
+			'label'       => __( 'Universal Geo Context: managed database', 'universal-geo-context' ),
+			'status'      => $status,
+			'badge'       => array(
+				'label' => __( 'Security', 'universal-geo-context' ),
+				'color' => $color,
+			),
+			'description' => sprintf( '<p>%s</p>', esc_html( $description ) ),
+			'actions'     => '',
+			'test'        => self::TEST_MAXMIND_MANAGED,
+		);
+	}
+
+	/**
 	 * Builds the "result" section.
 	 *
 	 * @return array<string, mixed>
@@ -730,6 +895,7 @@ final class DiagnosticsService {
 
 		return array(
 			'effective_path'     => $this->maxmind_provider->db_path(),
+			'path_source'        => $this->maxmind_path_source,
 			'available'          => $this->maxmind_provider->is_available(),
 			'reader_class_file'  => null !== $metadata ? $metadata->reader_class_file : null,
 			'database_type'      => null !== $metadata ? $metadata->database_type : null,
@@ -766,6 +932,33 @@ final class DiagnosticsService {
 			'timeout_seconds'       => $this->settings['remote_timeout'] ?? 2,
 			'circuit_state'         => $this->circuit_breaker->state()['state'],
 			'recent_failure'        => '' !== $recent_failure ? $recent_failure : null,
+		);
+	}
+
+	/**
+	 * Builds the "maxmind_managed" section (M6): booleans, enums, and
+	 * timestamps only, from `DatabaseManager::status()`/`installed_path()`
+	 * alone — never triggers a download, never opens a second `Reader`.
+	 * Timestamps are Unix epoch integers, matching `provider_health`'s own
+	 * `last_seen_at` convention elsewhere in this report — never a raw
+	 * filesystem path beyond `installed`'s boolean, never the redirect
+	 * target a download used.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function maxmind_managed_section(): array {
+		$status = $this->database_manager->status();
+
+		return array(
+			'enabled'               => $this->settings['maxmind_managed_enabled'] ?? false,
+			'installed'             => '' !== $this->database_manager->installed_path(),
+			'auto_update_enabled'   => $this->settings['maxmind_managed_auto_update_enabled'] ?? false,
+			'auto_update_frequency' => $this->settings['maxmind_managed_auto_update_frequency'] ?? 'weekly',
+			'retain_previous'       => $this->settings['maxmind_managed_retain_previous'] ?? true,
+			'last_attempt_at'       => $status['last_attempt_at'],
+			'last_success_at'       => $status['last_success_at'],
+			'last_result_code'      => '' !== $status['last_result_code'] ? $status['last_result_code'] : null,
+			'installed_build_epoch' => $status['installed_build_epoch'],
 		);
 	}
 

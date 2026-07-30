@@ -130,6 +130,7 @@ final class DiagnosticsServiceTest extends TestCase {
 				'woocommerce',
 				'maxmind',
 				'remote',
+				'maxmind_managed',
 				'providers',
 				'provider_health',
 				'cache',
@@ -800,6 +801,175 @@ final class DiagnosticsServiceTest extends TestCase {
 		// Even though this scenario would otherwise be critical, an
 		// unauthorized user must never see that verdict.
 		$this->assertSame( 'good', $service->maxmind_site_status_test()['status'] );
+	}
+
+	// ---- maxmind_managed section (M6) --------------------------------------------------
+
+	public function test_maxmind_managed_section_reflects_settings_and_status(): void {
+		$service = $this->service(
+			null,
+			null,
+			array(
+				'maxmind_managed_enabled'               => true,
+				'maxmind_managed_auto_update_frequency' => 'twice_weekly',
+			)
+		);
+
+		$section = $service->report()['maxmind_managed'];
+
+		$this->assertTrue( $section['enabled'] );
+		$this->assertFalse( $section['installed'] );
+		$this->assertSame( 'twice_weekly', $section['auto_update_frequency'] );
+		$this->assertNull( $section['last_result_code'] );
+	}
+
+	// ---- Site Health: maxmind_managed_site_status_test() (M6) --------------------------
+
+	/**
+	 * Builds a DatabaseManager reporting an installed database at a
+	 * specific build epoch, relative to now — via a real file on disk (so
+	 * installed_path() is genuinely true) plus a directly persisted state
+	 * option (so status()'s installed_build_epoch is exact and
+	 * deterministic, unlike the real fixture's own build_epoch which
+	 * drifts with wall-clock time).
+	 */
+	private function installed_database_manager( int $age_days ): DatabaseManager {
+		$managed_dir = sys_get_temp_dir() . '/ugeo-diagnostics-managed-test-' . uniqid( '', true );
+		mkdir( $managed_dir, 0755, true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir
+		$fixture = dirname( __DIR__, 2 ) . '/fixtures/GeoIP2-Country-Test.mmdb';
+		copy( $fixture, $managed_dir . '/GeoLite2-Country.mmdb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_copy
+
+		update_option(
+			DatabaseManager::STATE_OPTION_NAME,
+			array(
+				'last_attempt_at'       => time(),
+				'last_success_at'       => time(),
+				'last_result_code'      => 'ok',
+				'installed_build_epoch' => time() - ( $age_days * 86400 ),
+			)
+		);
+
+		return new DatabaseManager( $managed_dir, '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() );
+	}
+
+	public function test_maxmind_managed_site_status_test_is_good_when_disabled(): void {
+		$service = $this->service();
+
+		$result = $service->maxmind_managed_site_status_test();
+
+		$this->assertSame( 'good', $result['status'] );
+		$this->assertSame( DiagnosticsService::TEST_MAXMIND_MANAGED, $result['test'] );
+	}
+
+	public function test_maxmind_managed_site_status_test_is_critical_when_enabled_not_installed_and_unavailable(): void {
+		$service = $this->service(
+			null,
+			null,
+			array( 'maxmind_managed_enabled' => true ),
+			array(),
+			null,
+			new MaxMindProvider( '' )
+		);
+
+		$this->assertSame( 'critical', $service->maxmind_managed_site_status_test()['status'] );
+	}
+
+	public function test_maxmind_managed_site_status_test_is_recommended_when_enabled_not_installed_but_a_higher_precedence_path_covers_the_gap(): void {
+		$fixture = dirname( __DIR__, 2 ) . '/fixtures/GeoIP2-Country-Test.mmdb';
+
+		$service = $this->service(
+			null,
+			null,
+			array( 'maxmind_managed_enabled' => true ),
+			array(),
+			null,
+			new MaxMindProvider( $fixture )
+		);
+
+		$this->assertSame( 'recommended', $service->maxmind_managed_site_status_test()['status'] );
+	}
+
+	public function test_maxmind_managed_site_status_test_is_good_for_a_fresh_installed_database(): void {
+		$service = $this->service(
+			null,
+			null,
+			array( 'maxmind_managed_enabled' => true ),
+			array(),
+			null,
+			new MaxMindProvider( '' ),
+			null,
+			'none',
+			$this->installed_database_manager( 1 )
+		);
+
+		$this->assertSame( 'good', $service->maxmind_managed_site_status_test()['status'] );
+	}
+
+	public function test_maxmind_managed_site_status_test_is_recommended_at_fourteen_days(): void {
+		$service = $this->service(
+			null,
+			null,
+			array( 'maxmind_managed_enabled' => true ),
+			array(),
+			null,
+			new MaxMindProvider( '' ),
+			null,
+			'none',
+			$this->installed_database_manager( 14 )
+		);
+
+		$this->assertSame( 'recommended', $service->maxmind_managed_site_status_test()['status'] );
+	}
+
+	public function test_maxmind_managed_site_status_test_is_critical_at_thirty_days_when_unavailable(): void {
+		$service = $this->service(
+			null,
+			null,
+			array( 'maxmind_managed_enabled' => true ),
+			array(),
+			null,
+			new MaxMindProvider( '' ),
+			null,
+			'none',
+			$this->installed_database_manager( 30 )
+		);
+
+		$this->assertSame( 'critical', $service->maxmind_managed_site_status_test()['status'] );
+	}
+
+	public function test_maxmind_managed_site_status_test_is_recommended_at_thirty_days_when_a_higher_precedence_path_covers_the_gap(): void {
+		$fixture = dirname( __DIR__, 2 ) . '/fixtures/GeoIP2-Country-Test.mmdb';
+
+		$service = $this->service(
+			null,
+			null,
+			array( 'maxmind_managed_enabled' => true ),
+			array(),
+			null,
+			new MaxMindProvider( $fixture ),
+			null,
+			'none',
+			$this->installed_database_manager( 30 )
+		);
+
+		$this->assertSame( 'recommended', $service->maxmind_managed_site_status_test()['status'] );
+	}
+
+	public function test_maxmind_managed_site_status_test_gated_on_manage_options(): void {
+		$GLOBALS['universal_geo_test_current_user_can'] = false;
+
+		$service = $this->service(
+			null,
+			null,
+			array( 'maxmind_managed_enabled' => true ),
+			array(),
+			null,
+			new MaxMindProvider( '' )
+		);
+
+		// Even though this scenario would otherwise be critical, an
+		// unauthorized user must never see that verdict.
+		$this->assertSame( 'good', $service->maxmind_managed_site_status_test()['status'] );
 	}
 
 	// ---- Class shape --------------------------------------------------------------------
