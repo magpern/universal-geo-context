@@ -12,6 +12,7 @@ namespace UniversalGeo;
 use UniversalGeo\Admin\AdminScreen;
 use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Cli\Command as CliCommand;
+use UniversalGeo\Cli\DatabaseCommand;
 use UniversalGeo\Contracts\GeoProviderInterface;
 use UniversalGeo\Diagnostics\DiagnosticsService;
 use UniversalGeo\Diagnostics\ProviderHealthStore;
@@ -213,6 +214,7 @@ final class Plugin {
 
 		if ( $register_cli ) {
 			( new CliCommand( $graph['resolver'], $diagnostics ) )->register();
+			( new DatabaseCommand( $graph['database_manager'] ) )->register();
 		}
 	}
 

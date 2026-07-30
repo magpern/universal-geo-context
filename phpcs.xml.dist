@@ -124,4 +124,11 @@
 	<rule ref="WordPress.Security.EscapeOutput.ExceptionNotEscaped">
 		<exclude-pattern>*src/Cli/Command.php</exclude-pattern>
 	</rule>
+
+	<!-- M6: Cli\DatabaseCommand's resolve_format() is the identical pattern,
+	     copied deliberately (see its own docblock) rather than shared —
+	     same exclusion, same reason. -->
+	<rule ref="WordPress.Security.EscapeOutput.ExceptionNotEscaped">
+		<exclude-pattern>*src/Cli/DatabaseCommand.php</exclude-pattern>
+	</rule>
 </ruleset>
