@@ -12,6 +12,7 @@ namespace UniversalGeo\Tests\Unit\Guards;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use UniversalGeo\Http\ServerRequest;
+use UniversalGeo\MaxMind\DatabaseUpdateResult;
 use UniversalGeo\Model\GeoCandidate;
 use UniversalGeo\Model\ResolvedClientIp;
 use UniversalGeo\Model\VisitorContext;
@@ -62,6 +63,7 @@ final class ImmutabilityGuardTest extends TestCase {
 		TransportResponse::class,
 		RedirectResult::class,
 		DownloadResult::class,
+		DatabaseUpdateResult::class,
 	);
 
 	/**
