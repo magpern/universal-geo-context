@@ -28,6 +28,8 @@ Approved Revision 3 architecture plan (§27 audit findings applied, verdict: APP
 - Public API: six functions + `VisitorContext` value object (`@internal` boundary around everything else).
 - Guard tests: four total. M1 ships `NoPolicyGuardTest` + `ImmutabilityGuardTest`.
 
+**v1.0.0 architectural freeze**: See `docs/ARCHITECTURE_FREEZE.md` for the permanent, stable contracts that must remain frozen across all v1.x releases. This document defines what may evolve and what is frozen, and serves as governance for future contributors.
+
 ## Workflow
 
 - Checks: `composer phpcs`, `composer test:unit`, `composer test:integration` (integration needs MySQL and `tests/bin/install-wp.sh`; see `.github/workflows/ci.yml` for the reference setup).

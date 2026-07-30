@@ -15,6 +15,8 @@ below is retained as historical record and is not updated for M2 — nor for
 M3, M4, or M5, each of which is instead summarized in its own short section
 at the end of this document, in the same spirit.
 
+**For v1.x contributors**: See `docs/ARCHITECTURE_FREEZE.md` for the permanent architectural contracts that must remain stable across v1.x releases, the boundaries that separate evolution from breaking change, and governance guidance for future milestones.
+
 ## M1 bootstrap scope (Step 0)
 
 This milestone establishes:
