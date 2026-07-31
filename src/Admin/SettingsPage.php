@@ -27,18 +27,22 @@ final class SettingsPage implements Page {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param UpdateScheduler     $update_scheduler Reconciled after settings save.
-	 * @param DatabaseManager     $database_manager Managed database actions.
-	 * @param AdminNotices        $notices          PRG redirects.
-	 * @param AdminHeaderRenderer $header       Shared page header.
-	 * @param AdminActionRenderer $actions      Shared action controls.
+	 * @param UpdateScheduler          $update_scheduler Reconciled after settings save.
+	 * @param DatabaseManager          $database_manager Managed database actions.
+	 * @param AdminNotices             $notices          PRG redirects.
+	 * @param AdminHeaderRenderer      $header           Shared page header.
+	 * @param AdminActionRenderer      $actions          Shared action controls.
+	 * @param AdminComponentRenderer   $components       Design-system components.
+	 * @param ReportRenderer           $report           Definition list renderer.
 	 */
 	public function __construct(
 		private readonly UpdateScheduler $update_scheduler,
 		private readonly DatabaseManager $database_manager,
 		private readonly AdminNotices $notices,
 		private readonly AdminHeaderRenderer $header,
-		private readonly AdminActionRenderer $actions
+		private readonly AdminActionRenderer $actions,
+		private readonly AdminComponentRenderer $components,
+		private readonly ReportRenderer $report
 	) {
 	}
 
@@ -102,8 +106,10 @@ final class SettingsPage implements Page {
 		}
 
 		$settings = Settings::sanitize( get_option( Settings::OPTION_NAME, false ) );
+		$shell    = $this->header->shell();
 
-		echo '<div class="wrap">';
+		$shell->open_wrap();
+		$shell->open();
 		$this->header->render(
 			$this->slug(),
 			$this->title(),
@@ -115,51 +121,24 @@ final class SettingsPage implements Page {
 			}
 		);
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		$shell->open_content( true );
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-ugc-sticky-root="settings">';
 		wp_nonce_field( 'universal_geo_save_settings' );
 		echo '<input type="hidden" name="action" value="universal_geo_save_settings" />';
-		echo '<table class="form-table"><tbody>';
 
-		printf(
-			'<tr><th scope="row"><label for="universal_geo_default_country">%1$s</label></th>' .
-			'<td><input type="text" maxlength="2" id="universal_geo_default_country" name="default_country" value="%2$s" />' .
-			'<p class="description">%3$s</p></td></tr>',
-			esc_html__( 'Default country', 'universal-geo-context' ),
-			esc_attr( $settings['default_country'] ),
-			esc_html__( 'A real two-letter ISO 3166-1 country code (e.g. SE). Empty = no fallback. An unrecognized code is rejected and the previous value is kept.', 'universal-geo-context' )
-		);
+		$this->render_general_card( $settings );
+		$this->render_maxmind_account_card( $settings );
+		$this->render_remote_settings_card( $settings );
+		$this->render_managed_database_card( $settings );
 
-		printf(
-			'<tr><th scope="row">%1$s</th><td><label><input type="checkbox" name="derived_cache_enabled" value="1" %2$s /> %3$s</label></td></tr>',
-			esc_html__( 'Enable derived-context cache', 'universal-geo-context' ),
-			checked( $settings['derived_cache_enabled'], true, false ),
-			esc_html__( 'Requires a persistent object cache; otherwise a safe no-op.', 'universal-geo-context' )
-		);
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->sticky_save_bar( 'settings' );
+		echo '</form>';
 
-		printf(
-			'<tr><th scope="row"><label for="universal_geo_derived_cache_ttl">%1$s</label></th>' .
-			'<td><input type="number" min="60" max="86400" id="universal_geo_derived_cache_ttl" name="derived_cache_ttl" value="%2$d" /></td></tr>',
-			esc_html__( 'Cache TTL (seconds)', 'universal-geo-context' ),
-			(int) $settings['derived_cache_ttl']
-		);
-
-		printf(
-			'<tr><th scope="row"><label for="universal_geo_maxmind_db_path">%1$s</label></th>' .
-			'<td><input type="text" class="regular-text" id="universal_geo_maxmind_db_path" name="maxmind_db_path" value="%2$s" />' .
-			'<p class="description">%3$s</p></td></tr>',
-			esc_html__( 'MaxMind database path', 'universal-geo-context' ),
-			esc_attr( $settings['maxmind_db_path'] ),
-			esc_html__( 'Absolute path to a .mmdb file under the WordPress content directory. Empty = auto-detect via WooCommerce.', 'universal-geo-context' )
-		);
-
-		echo '</tbody></table>';
-
-		$this->render_maxmind_account_section( $settings );
-		$this->render_remote_settings_section( $settings );
-		$this->render_managed_database_section( $settings );
-
-		submit_button();
-		echo '</form></div>';
+		$shell->close_content();
+		$shell->close();
+		$shell->close_wrap();
 	}
 
 	/**
@@ -395,209 +374,253 @@ final class SettingsPage implements Page {
 	}
 
 	/**
-	 * Renders the MaxMind account credentials section.
+	 * Renders the General settings card.
 	 *
 	 * @param array<string, mixed> $settings Sanitized settings.
 	 *
 	 * @return void
 	 */
-	private function render_maxmind_account_section( array $settings ): void {
+	private function render_general_card( array $settings ): void {
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open(
+			__( 'General', 'universal-geo-context' ),
+			__( 'Default country fallback and derived-context caching.', 'universal-geo-context' )
+		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->input_row(
+			'default_country',
+			__( 'Default country', 'universal-geo-context' ),
+			$settings['default_country'],
+			__( 'A real two-letter ISO 3166-1 country code (e.g. SE). Empty = no fallback. An unrecognized code is rejected and the previous value is kept.', 'universal-geo-context' ),
+			array(
+				'id'        => 'universal_geo_default_country',
+				'maxlength' => '2',
+			)
+		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->toggle_row(
+			'derived_cache_enabled',
+			$settings['derived_cache_enabled'],
+			__( 'Enable derived-context cache', 'universal-geo-context' ),
+			__( 'Requires a persistent object cache; otherwise a safe no-op.', 'universal-geo-context' )
+		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->number_row(
+			'derived_cache_ttl',
+			__( 'Cache TTL (seconds)', 'universal-geo-context' ),
+			(string) (int) $settings['derived_cache_ttl'],
+			'',
+			array(
+				'id'  => 'universal_geo_derived_cache_ttl',
+				'min' => '60',
+				'max' => '86400',
+			)
+		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->input_row(
+			'maxmind_db_path',
+			__( 'MaxMind database path', 'universal-geo-context' ),
+			$settings['maxmind_db_path'],
+			__( 'Absolute path to a .mmdb file under the WordPress content directory. Empty = auto-detect via WooCommerce.', 'universal-geo-context' ),
+			array(
+				'id'    => 'universal_geo_maxmind_db_path',
+				'class' => 'regular-text',
+			)
+		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->settings_card_close();
+	}
+
+	/**
+	 * Renders the MaxMind account credentials card.
+	 *
+	 * @param array<string, mixed> $settings Sanitized settings.
+	 *
+	 * @return void
+	 */
+	private function render_maxmind_account_card( array $settings ): void {
 		$locked = $this->maxmind_credentials_locked_by_constants();
-
-		echo '<h2>' . esc_html__( 'MaxMind account', 'universal-geo-context' ) . '</h2>';
-
-		printf(
-			'<p>%s</p>',
-			esc_html__(
-				'One shared credential pair, used by both the remote provider below and managed database downloads. A MaxMind account has one account ID/license key regardless of which MaxMind product it authenticates against.',
-				'universal-geo-context'
-			)
+		$badge  = $this->components->status_badge(
+			$locked ? __( 'Locked by constant', 'universal-geo-context' ) : ( '' !== $settings['maxmind_account_id'] ? __( 'Configured', 'universal-geo-context' ) : __( 'Not configured', 'universal-geo-context' ) ),
+			$locked ? 'warning' : ( '' !== $settings['maxmind_account_id'] ? 'active' : 'disabled' )
 		);
 
-		echo '<table class="form-table"><tbody>';
-
-		$disabled_attr = $locked ? ' disabled="disabled"' : '';
-
-		printf(
-			'<tr><th scope="row"><label for="universal_geo_maxmind_account_id">%1$s</label></th>' .
-			'<td><input type="password" autocomplete="off" class="regular-text" id="universal_geo_maxmind_account_id" name="maxmind_account_id" value="" placeholder="%2$s"%3$s />' .
-			'<p class="description">%4$s</p></td></tr>',
-			esc_html__( 'Account ID', 'universal-geo-context' ),
-			esc_attr( '' !== $settings['maxmind_account_id'] ? __( 'Currently configured (hidden)', 'universal-geo-context' ) : __( 'Not configured', 'universal-geo-context' ) ),
-			$disabled_attr, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-			esc_html(
-				$locked
-				? __( 'Supplied via a wp-config.php constant and cannot be edited here.', 'universal-geo-context' )
-				: __( 'Leave blank to keep the stored value unchanged.', 'universal-geo-context' )
-			)
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open(
+			__( 'MaxMind Account', 'universal-geo-context' ),
+			__( 'One shared credential pair, used by both the remote provider below and managed database downloads.', 'universal-geo-context' ),
+			$badge
 		);
 
-		printf(
-			'<tr><th scope="row"><label for="universal_geo_maxmind_license_key">%1$s</label></th>' .
-			'<td><input type="password" autocomplete="off" class="regular-text" id="universal_geo_maxmind_license_key" name="maxmind_license_key" value="" placeholder="%2$s"%3$s />' .
-			'<p class="description">%4$s</p></td></tr>',
-			esc_html__( 'License key', 'universal-geo-context' ),
-			esc_attr( '' !== $settings['maxmind_license_key'] ? __( 'Currently configured (hidden)', 'universal-geo-context' ) : __( 'Not configured', 'universal-geo-context' ) ),
-			$disabled_attr, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-			esc_html(
-				$locked
+		$disabled = $locked ? array( 'disabled' => 'disabled' ) : array();
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->password_row(
+			'maxmind_account_id',
+			__( 'Account ID', 'universal-geo-context' ),
+			'' !== $settings['maxmind_account_id'] ? __( 'Currently configured (hidden)', 'universal-geo-context' ) : __( 'Not configured', 'universal-geo-context' ),
+			$locked
 				? __( 'Supplied via a wp-config.php constant and cannot be edited here.', 'universal-geo-context' )
-				: __( 'Leave blank to keep the stored value unchanged.', 'universal-geo-context' )
-			)
+				: __( 'Leave blank to keep the stored value unchanged.', 'universal-geo-context' ),
+			array_merge( array( 'id' => 'universal_geo_maxmind_account_id' ), $disabled )
+		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->password_row(
+			'maxmind_license_key',
+			__( 'License key', 'universal-geo-context' ),
+			'' !== $settings['maxmind_license_key'] ? __( 'Currently configured (hidden)', 'universal-geo-context' ) : __( 'Not configured', 'universal-geo-context' ),
+			$locked
+				? __( 'Supplied via a wp-config.php constant and cannot be edited here.', 'universal-geo-context' )
+				: __( 'Leave blank to keep the stored value unchanged.', 'universal-geo-context' ),
+			array_merge( array( 'id' => 'universal_geo_maxmind_license_key' ), $disabled )
 		);
 
 		if ( ! $locked ) {
-			printf(
-				'<tr><th scope="row">%1$s</th><td><label><input type="checkbox" name="maxmind_clear_credentials" value="1" /> %2$s</label></td></tr>',
-				esc_html__( 'Clear stored credentials', 'universal-geo-context' ),
-				esc_html__( 'Blanks both fields above on save, regardless of what (if anything) is also typed.', 'universal-geo-context' )
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+			echo $this->components->toggle_row(
+				'maxmind_clear_credentials',
+				false,
+				__( 'Clear stored credentials', 'universal-geo-context' ),
+				__( 'Blanks both fields above on save, regardless of what (if anything) is also typed.', 'universal-geo-context' )
 			);
 		}
 
-		echo '</tbody></table>';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->settings_card_close();
 	}
 
 	/**
-	 * Renders the remote MaxMind provider settings section.
+	 * Renders the remote MaxMind provider settings card.
 	 *
 	 * @param array<string, mixed> $settings Sanitized settings.
 	 *
 	 * @return void
 	 */
-	private function render_remote_settings_section( array $settings ): void {
-		echo '<h2 id="universal-geo-remote-provider">' . esc_html__( 'Remote provider (MaxMind GeoLite2 Country Web Service)', 'universal-geo-context' ) . '</h2>';
+	private function render_remote_settings_card( array $settings ): void {
+		$badge = $this->components->status_badge(
+			$settings['remote_enabled'] ? __( 'Enabled', 'universal-geo-context' ) : __( 'Disabled', 'universal-geo-context' ),
+			$settings['remote_enabled'] ? 'active' : 'disabled'
+		);
 
-		printf(
-			'<p>%s</p>',
-			esc_html__(
-				'Disabled by default. When enabled, this plugin sends visitor IP addresses to MaxMind, Inc. at geolite.info to derive a country — the one exception to this plugin never letting an IP address leave the server. Enabling requires both the MaxMind account credentials above and the acknowledgement below, in the same submission.',
-				'universal-geo-context'
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open(
+			__( 'Remote Provider', 'universal-geo-context' ),
+			__( 'MaxMind GeoLite2 Country Web Service — disabled by default. Enabling transfers visitor IP addresses to MaxMind.', 'universal-geo-context' ),
+			$badge
+		);
+		echo '<div id="universal-geo-remote-provider"></div>';
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->warning_panel(
+			'',
+			__( 'When enabled, this plugin sends visitor IP addresses to MaxMind, Inc. at geolite.info to derive a country — the one exception to this plugin never letting an IP address leave the server.', 'universal-geo-context' )
+		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->toggle_row(
+			'remote_transfer_acknowledged',
+			$settings['remote_transfer_acknowledged'],
+			__( 'Transfer acknowledgement', 'universal-geo-context' ),
+			__( 'I acknowledge that enabling the remote provider transfers visitor IP addresses to MaxMind, Inc.', 'universal-geo-context' )
+		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->toggle_row(
+			'remote_enabled',
+			$settings['remote_enabled'],
+			__( 'Enable remote provider', 'universal-geo-context' ),
+			__( 'Requires the acknowledgement above in the same save, and the MaxMind account credentials above.', 'universal-geo-context' )
+		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->number_row(
+			'remote_timeout',
+			__( 'Request timeout (seconds)', 'universal-geo-context' ),
+			(string) (int) $settings['remote_timeout'],
+			__( 'Bounds how long a single remote lookup may hold a page view open. 1–5 seconds; default 2.', 'universal-geo-context' ),
+			array(
+				'id'  => 'universal_geo_remote_timeout',
+				'min' => '1',
+				'max' => '5',
 			)
 		);
 
-		echo '<table class="form-table"><tbody>';
-
-		printf(
-			'<tr><th scope="row">%1$s</th><td><label><input type="checkbox" name="remote_transfer_acknowledged" value="1" %2$s /> %3$s</label></td></tr>',
-			esc_html__( 'Transfer acknowledgement', 'universal-geo-context' ),
-			checked( $settings['remote_transfer_acknowledged'], true, false ),
-			esc_html__( 'I acknowledge that enabling the remote provider transfers visitor IP addresses to MaxMind, Inc.', 'universal-geo-context' )
-		);
-
-		printf(
-			'<tr><th scope="row">%1$s</th><td><label><input type="checkbox" name="remote_enabled" value="1" %2$s /> %3$s</label></td>' .
-			'<td><p class="description">%4$s</p></td></tr>',
-			esc_html__( 'Enable remote provider', 'universal-geo-context' ),
-			checked( $settings['remote_enabled'], true, false ),
-			esc_html__( 'Use MaxMind GeoLite2 Country Web Service as a fallback provider.', 'universal-geo-context' ),
-			esc_html__( 'Requires the acknowledgement above in the same save, and the MaxMind account credentials above.', 'universal-geo-context' )
-		);
-
-		printf(
-			'<tr><th scope="row"><label for="universal_geo_remote_timeout">%1$s</label></th>' .
-			'<td><input type="number" min="1" max="5" id="universal_geo_remote_timeout" name="remote_timeout" value="%2$d" />' .
-			'<p class="description">%3$s</p></td></tr>',
-			esc_html__( 'Request timeout (seconds)', 'universal-geo-context' ),
-			(int) $settings['remote_timeout'],
-			esc_html__( 'Bounds how long a single remote lookup may hold a page view open. 1–5 seconds; default 2.', 'universal-geo-context' )
-		);
-
-		echo '</tbody></table>';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->settings_card_close();
 	}
 
 	/**
-	 * Renders the managed MaxMind database settings section.
+	 * Renders the managed MaxMind database settings card.
 	 *
 	 * @param array<string, mixed> $settings Sanitized settings.
 	 *
 	 * @return void
 	 */
-	private function render_managed_database_section( array $settings ): void {
-		echo '<h2 id="universal-geo-managed-database">' . esc_html__( 'Managed database (automatic GeoLite2 Country downloads)', 'universal-geo-context' ) . '</h2>';
-
-		printf(
-			'<p>%s</p>',
-			esc_html__(
-				'Disabled by default. When enabled, this plugin downloads and keeps the GeoLite2 Country database up to date automatically, using the MaxMind account credentials above.',
-				'universal-geo-context'
-			)
+	private function render_managed_database_card( array $settings ): void {
+		$badge = $this->components->status_badge(
+			$settings['maxmind_managed_enabled'] ? __( 'Managed', 'universal-geo-context' ) : __( 'Manual', 'universal-geo-context' ),
+			$settings['maxmind_managed_enabled'] ? 'active' : 'disabled'
 		);
 
-		echo '<table class="form-table"><tbody>';
-
-		printf(
-			'<tr><th scope="row">%1$s</th><td><label><input type="checkbox" name="maxmind_managed_enabled" value="1" %2$s /> %3$s</label></td></tr>',
-			esc_html__( 'Enable managed database', 'universal-geo-context' ),
-			checked( $settings['maxmind_managed_enabled'], true, false ),
-			esc_html__( 'Let this plugin download and install the GeoLite2 Country database itself.', 'universal-geo-context' )
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open(
+			__( 'MaxMind Database', 'universal-geo-context' ),
+			__( 'Automatic GeoLite2 Country downloads using the MaxMind account credentials above.', 'universal-geo-context' ),
+			$badge
 		);
 
-		printf(
-			'<tr><th scope="row">%1$s</th><td><label><input type="checkbox" name="maxmind_managed_auto_update_enabled" value="1" %2$s /> %3$s</label></td>' .
-			'<td><p class="description">%4$s</p></td></tr>',
-			esc_html__( 'Enable automatic updates', 'universal-geo-context' ),
-			checked( $settings['maxmind_managed_auto_update_enabled'], true, false ),
-			esc_html__( 'Keep the managed database current on a schedule (WP-Cron).', 'universal-geo-context' ),
-			esc_html__( 'Requires "Enable managed database" above, in the same save.', 'universal-geo-context' )
+		echo '<div id="universal-geo-managed-database"></div>';
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->toggle_row(
+			'maxmind_managed_enabled',
+			$settings['maxmind_managed_enabled'],
+			__( 'Enable managed database', 'universal-geo-context' ),
+			__( 'Let this plugin download and install the GeoLite2 Country database itself.', 'universal-geo-context' )
 		);
 
-		printf(
-			'<tr><th scope="row"><label for="universal_geo_maxmind_managed_auto_update_frequency">%1$s</label></th>' .
-			'<td><select id="universal_geo_maxmind_managed_auto_update_frequency" name="maxmind_managed_auto_update_frequency">' .
-			'<option value="weekly"%2$s>%3$s</option><option value="twice_weekly"%4$s>%5$s</option></select>' .
-			'<p class="description">%6$s</p></td></tr>',
-			esc_html__( 'Update frequency', 'universal-geo-context' ),
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->toggle_row(
+			'maxmind_managed_auto_update_enabled',
+			$settings['maxmind_managed_auto_update_enabled'],
+			__( 'Enable automatic updates', 'universal-geo-context' ),
+			__( 'Requires "Enable managed database" above, in the same save.', 'universal-geo-context' )
+		);
+
+		$select = sprintf(
+			'<select id="universal_geo_maxmind_managed_auto_update_frequency" name="maxmind_managed_auto_update_frequency"><option value="weekly"%1$s>%2$s</option><option value="twice_weekly"%3$s>%4$s</option></select>',
 			selected( $settings['maxmind_managed_auto_update_frequency'], 'weekly', false ),
 			esc_html__( 'Weekly', 'universal-geo-context' ),
 			selected( $settings['maxmind_managed_auto_update_frequency'], 'twice_weekly', false ),
-			esc_html__( 'Twice weekly', 'universal-geo-context' ),
-			esc_html__( 'GeoLite2 Country is published at most twice a week.', 'universal-geo-context' )
+			esc_html__( 'Twice weekly', 'universal-geo-context' )
 		);
 
-		printf(
-			'<tr><th scope="row">%1$s</th><td><label><input type="checkbox" name="maxmind_managed_retain_previous" value="1" %2$s /> %3$s</label></td></tr>',
-			esc_html__( 'Retain previous version', 'universal-geo-context' ),
-			checked( $settings['maxmind_managed_retain_previous'], true, false ),
-			esc_html__( 'Keep one prior generation on disk after a successful update, restorable below.', 'universal-geo-context' )
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->select_row(
+			'maxmind_managed_auto_update_frequency',
+			__( 'Update frequency', 'universal-geo-context' ),
+			__( 'GeoLite2 Country is published at most twice a week.', 'universal-geo-context' ),
+			$select,
+			array( 'id' => 'universal_geo_maxmind_managed_auto_update_frequency' )
 		);
 
-		echo '</tbody></table>';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->toggle_row(
+			'maxmind_managed_retain_previous',
+			$settings['maxmind_managed_retain_previous'],
+			__( 'Retain previous version', 'universal-geo-context' ),
+			__( 'Keep one prior generation on disk after a successful update, restorable below.', 'universal-geo-context' )
+		);
 
 		$this->render_managed_database_status();
-	}
 
-	/**
-	 * Private function render managed database status(.
-	 *
-	 * @return void
-	 */
-	private function render_managed_database_status(): void {
-		$installed_path = $this->database_manager->installed_path();
-		$status         = $this->database_manager->status();
-
-		echo '<table class="form-table"><tbody>';
-
-		printf(
-			'<tr><th scope="row">%1$s</th><td>%2$s</td></tr>',
-			esc_html__( 'Installed', 'universal-geo-context' ),
-			esc_html( '' !== $installed_path ? __( 'Yes', 'universal-geo-context' ) : __( 'No', 'universal-geo-context' ) )
-		);
-
-		printf(
-			'<tr><th scope="row">%1$s</th><td>%2$s</td></tr>',
-			esc_html__( 'Last attempt', 'universal-geo-context' ),
-			esc_html( null !== $status['last_attempt_at'] ? gmdate( 'Y-m-d H:i:s', $status['last_attempt_at'] ) . ' UTC' : __( 'Never', 'universal-geo-context' ) )
-		);
-
-		printf(
-			'<tr><th scope="row">%1$s</th><td>%2$s</td></tr>',
-			esc_html__( 'Last result', 'universal-geo-context' ),
-			esc_html( '' !== $status['last_result_code'] ? $status['last_result_code'] : __( 'None', 'universal-geo-context' ) )
-		);
-
-		echo '</tbody></table>';
-
-		echo '<p>';
+		ob_start();
 		$this->render_managed_database_action_button( 'universal_geo_maxmind_database_download', __( 'Download now', 'universal-geo-context' ), false );
 		echo ' ';
 		$this->render_managed_database_action_button( 'universal_geo_maxmind_database_validate', __( 'Check database', 'universal-geo-context' ), false );
@@ -605,7 +628,28 @@ final class SettingsPage implements Page {
 		$this->render_managed_database_action_button( 'universal_geo_maxmind_database_remove', __( 'Remove managed database', 'universal-geo-context' ), true );
 		echo ' ';
 		$this->render_managed_database_action_button( 'universal_geo_maxmind_database_restore', __( 'Restore previous version', 'universal-geo-context' ), true );
-		echo '</p>';
+		$footer = ob_get_clean();
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_footer( $footer );
+	}
+
+	/**
+	 * Renders managed database status inside the card body.
+	 *
+	 * @return void
+	 */
+	private function render_managed_database_status(): void {
+		$installed_path = $this->database_manager->installed_path();
+		$status         = $this->database_manager->status();
+
+		$this->report->render_definition_list(
+			array(
+				'installed'    => '' !== $installed_path ? __( 'Yes', 'universal-geo-context' ) : __( 'No', 'universal-geo-context' ),
+				'last_attempt' => null !== $status['last_attempt_at'] ? gmdate( 'Y-m-d H:i:s', $status['last_attempt_at'] ) . ' UTC' : __( 'Never', 'universal-geo-context' ),
+				'last_result'  => '' !== $status['last_result_code'] ? $status['last_result_code'] : __( 'None', 'universal-geo-context' ),
+			)
+		);
 	}
 
 	/**
@@ -619,7 +663,7 @@ final class SettingsPage implements Page {
 	 */
 	private function render_managed_database_action_button( string $action, string $label, bool $confirm ): void {
 		printf(
-			'<form method="post" action="%1$s" style="display:inline">',
+			'<form method="post" action="%1$s" class="ugc-ui-inline-form">',
 			esc_url( admin_url( 'admin-post.php' ) )
 		);
 		wp_nonce_field( $action );

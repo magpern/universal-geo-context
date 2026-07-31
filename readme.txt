@@ -4,7 +4,7 @@ Tags: geolocation, country, geoip, woocommerce, privacy
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.5.0
+Stable tag: 1.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -108,6 +108,10 @@ No. It detects geographic facts only. Consumers — other plugins reading
 its public functions — decide what those facts mean.
 
 == Changelog ==
+
+= 1.6.0 =
+* Admin design system: Universal Multicurrency–aligned shell, icon navigation, statistics grid, settings cards, provider cards, timeline, sticky save bars, and scoped `ugc-ui-*` CSS.
+* Presentation-only — no runtime, API, settings schema, or resolver behaviour changes.
 
 = 1.5.0 =
 * Admin UX: shared in-plugin navigation on every page, page descriptions, Quick Actions on Overview, and actionable dashboard cards with footer links.

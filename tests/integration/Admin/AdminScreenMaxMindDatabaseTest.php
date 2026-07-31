@@ -61,13 +61,7 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 	}
 
 	private function settings_page( DatabaseManager $database_manager ): SettingsPage {
-		return new SettingsPage(
-			new UpdateScheduler( $database_manager ),
-			$database_manager,
-			new AdminNotices(),
-			AdminUxFactory::header(),
-			AdminUxFactory::actions()
-		);
+		return AdminUxFactory::settings_page( $database_manager );
 	}
 
 	/**

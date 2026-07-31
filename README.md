@@ -2,7 +2,7 @@
 
 **Visitor geolocation detection and country resolution — evidence-based, privacy-respecting, and easily extensible.**
 
-**Status: v1.5.0 (M10) — Admin navigation and UX polish.** A working WordPress plugin that resolves a
+**Status: v1.6.0 (M11) — Universal Admin Design System adoption.** A working WordPress plugin that resolves a
 visitor's country from a fixed chain of providers (Cloudflare headers, a
 local MaxMind database, WooCommerce's own geolocation, an optional remote
 MaxMind web service, and a configured default), attributes the answer to a

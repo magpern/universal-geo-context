@@ -53,7 +53,7 @@ final class AdminActionRenderer {
 			$button_label = __( 'Refresh provider diagnostics', 'universal-geo-context' );
 		}
 
-		echo '<form method="post" action="' . \esc_url( admin_url( 'admin-post.php' ) ) . '" class="universal-geo-inline-form">';
+		echo '<form method="post" action="' . \esc_url( admin_url( 'admin-post.php' ) ) . '" class="universal-geo-inline-form ugc-ui-inline-form">';
 		wp_nonce_field( 'universal_geo_refresh_providers' );
 		echo '<input type="hidden" name="action" value="universal_geo_refresh_providers" />';
 		echo '<input type="hidden" name="universal_geo_redirect_page" value="' . \esc_attr( $redirect_slug ) . '" />';

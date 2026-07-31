@@ -18,12 +18,14 @@ namespace UniversalGeo\Admin;
 final class AdminHeaderRenderer {
 
 	/**
-	 * Stores the navigation renderer.
+	 * Stores the shell dependencies.
 	 *
-	 * @param AdminNavigationRenderer $navigation In-plugin tab navigation.
+	 * @param AdminPageShell                $shell    Branded page shell.
+	 * @param AdminPageShellViewModelFactory $factory Shell view-model factory.
 	 */
 	public function __construct(
-		private readonly AdminNavigationRenderer $navigation
+		private readonly AdminPageShell $shell,
+		private readonly AdminPageShellViewModelFactory $factory
 	) {
 	}
 
@@ -33,27 +35,19 @@ final class AdminHeaderRenderer {
 	 * @param string        $active_slug Active page slug.
 	 * @param string        $title       Page title (h1).
 	 * @param callable|null $actions     Optional callback that echoes contextual actions.
+	 * @param bool          $has_save    Whether to show header save button.
 	 *
 	 * @return void
 	 */
-	public function render( string $active_slug, string $title, ?callable $actions = null ): void {
-		$description = AdminPageRegistry::description( $active_slug );
+	public function render( string $active_slug, string $title, ?callable $actions = null, bool $has_save = false ): void {
+		$view_model = $this->factory->build( $active_slug, $title, $has_save );
+		$this->shell->render_header( $view_model, $actions );
+	}
 
-		echo '<header class="universal-geo-admin-header">';
-		echo '<h1>' . \esc_html( $title ) . '</h1>';
-
-		if ( '' !== $description ) {
-			printf( '<p class="description">%s</p>', \esc_html( $description ) );
-		}
-
-		$this->navigation->render( $active_slug );
-
-		if ( null !== $actions ) {
-			echo '<div class="universal-geo-admin-actions">';
-			$actions();
-			echo '</div>';
-		}
-
-		echo '</header>';
+	/**
+	 * Returns the page shell renderer.
+	 */
+	public function shell(): AdminPageShell {
+		return $this->shell;
 	}
 }
