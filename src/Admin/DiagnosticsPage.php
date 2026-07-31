@@ -24,9 +24,9 @@ final class DiagnosticsPage implements Page {
 	 *
 	 * @param DiagnosticsService     $diagnostics Full report supplier.
 	 * @param ReportRenderer         $renderer    Definition-list renderer.
-	 * @param AdminHeaderRenderer      $header      Shared page header.
-	 * @param AdminActionRenderer      $actions     Shared action controls.
-	 * @param AdminComponentRenderer   $components  Design-system components.
+	 * @param AdminHeaderRenderer    $header      Shared page header.
+	 * @param AdminActionRenderer    $actions     Shared action controls.
+	 * @param AdminComponentRenderer $components  Design-system components.
 	 */
 	public function __construct(
 		private readonly DiagnosticsService $diagnostics,
@@ -110,10 +110,7 @@ final class DiagnosticsPage implements Page {
 		echo $this->components->copy_report_panel( 'ugc-diagnostics-copy-report', $report_text );
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
-		echo $this->components->feature_section_open(
-			__( 'Network & client', 'universal-geo-context' ),
-			__( 'Client address, trusted proxies, and forwarding headers.', 'universal-geo-context' )
-		);
+		echo $this->components->feature_section_open( __( 'Network & client', 'universal-geo-context' ), __( 'Client address, trusted proxies, and forwarding headers.', 'universal-geo-context' ) );
 
 		$this->render_section_card( __( 'Client address', 'universal-geo-context' ), $report['client_address'] );
 		$this->render_section_card( __( 'Trusted proxies', 'universal-geo-context' ), $report['trusted_proxies'] );
@@ -132,10 +129,7 @@ final class DiagnosticsPage implements Page {
 		echo $this->components->feature_section_close();
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
-		echo $this->components->feature_section_open(
-			__( 'Providers & data sources', 'universal-geo-context' ),
-			__( 'MaxMind, remote provider, WooCommerce, and provider health.', 'universal-geo-context' )
-		);
+		echo $this->components->feature_section_open( __( 'Providers & data sources', 'universal-geo-context' ), __( 'MaxMind, remote provider, WooCommerce, and provider health.', 'universal-geo-context' ) );
 
 		$this->render_section_card( __( 'WooCommerce', 'universal-geo-context' ), $report['woocommerce'] );
 		$this->render_section_card( __( 'MaxMind', 'universal-geo-context' ), $report['maxmind'] );
@@ -144,11 +138,13 @@ final class DiagnosticsPage implements Page {
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
 		echo $this->components->settings_card_open( __( 'Remote provider', 'universal-geo-context' ), '' );
 		if ( $report['remote']['enabled'] ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
-			echo $this->components->warning_panel(
+			$remote_warning = $this->components->warning_panel(
 				'',
 				__( 'The remote provider is enabled — viewing this page performs one live request to the configured remote service, as part of the provider probe table below.', 'universal-geo-context' )
 			);
+
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+			echo $remote_warning;
 		}
 		$this->renderer->render_definition_list( $report['remote'] );
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
@@ -168,10 +164,7 @@ final class DiagnosticsPage implements Page {
 		echo $this->components->feature_section_close();
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
-		echo $this->components->feature_section_open(
-			__( 'Runtime', 'universal-geo-context' ),
-			__( 'Cache and environment details.', 'universal-geo-context' )
-		);
+		echo $this->components->feature_section_open( __( 'Runtime', 'universal-geo-context' ), __( 'Cache and environment details.', 'universal-geo-context' ) );
 
 		$this->render_section_card( __( 'Cache', 'universal-geo-context' ), $report['cache'] );
 		$this->render_section_card( __( 'Environment', 'universal-geo-context' ), $report['environment'] );
@@ -208,15 +201,19 @@ final class DiagnosticsPage implements Page {
 	 * @return void
 	 */
 	private function render_provider_health_section( array $provider_health ): void {
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
-		echo $this->components->settings_card_open(
+		$badge = $this->components->status_badge(
+			array() === $provider_health ? __( 'No failures', 'universal-geo-context' ) : __( 'Issues recorded', 'universal-geo-context' ),
+			array() === $provider_health ? 'active' : 'warning'
+		);
+
+		$card_open = $this->components->settings_card_open(
 			__( 'Provider health', 'universal-geo-context' ),
 			__( 'Recorded provider failures from recent resolution attempts.', 'universal-geo-context' ),
-			$this->components->status_badge(
-				array() === $provider_health ? __( 'No failures', 'universal-geo-context' ) : __( 'Issues recorded', 'universal-geo-context' ),
-				array() === $provider_health ? 'active' : 'warning'
-			)
+			$badge
 		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $card_open;
 
 		if ( array() === $provider_health ) {
 			ob_start();
@@ -231,13 +228,15 @@ final class DiagnosticsPage implements Page {
 			);
 			$actions = ob_get_clean();
 
-			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
-			echo $this->components->empty_state(
+			$empty_state = $this->components->empty_state(
 				'dashicons-yes-alt',
 				__( 'No provider failures recorded', 'universal-geo-context' ),
 				__( 'Provider health summaries appear after you refresh diagnostics.', 'universal-geo-context' ),
 				$actions
 			);
+
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+			echo $empty_state;
 		} else {
 			foreach ( $provider_health as $provider_id => $row ) {
 				printf( '<h5 class="ugc-ui-provider-card__title">%s</h5>', esc_html( (string) $provider_id ) );
