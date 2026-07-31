@@ -2,7 +2,7 @@
 
 **Visitor geolocation detection and country resolution — evidence-based, privacy-respecting, and easily extensible.**
 
-**Status: v1.3.0 (M8) shipped.** A working WordPress plugin that resolves a
+**Status: v1.4.0 (M9) — Detection Inspector shipped.** A working WordPress plugin that resolves a
 visitor's country from a fixed chain of providers (Cloudflare headers, a
 local MaxMind database, WooCommerce's own geolocation, an optional remote
 MaxMind web service, and a configured default), attributes the answer to a
@@ -48,7 +48,7 @@ Full documentation: [docs/API.md](docs/API.md).
 **Universal Geo Context** in the WordPress admin sidebar, with six pages:
 
 - **Overview** — at-a-glance dashboard (current resolution, provider health, remote provider, trusted proxies, cache, environment).
-- **Detection & Testing** — country simulation for administrators (v1.3.0); live detection inspector (v1.4.0).
+- **Detection & Testing** — Detection Inspector (v1.4.0); country simulation for administrators (v1.3.0).
 - **Providers** — placeholder for detailed provider inspection (v1.4.0).
 - **Trusted Proxies** — trusted-proxy CIDRs, Cloudflare preset, trust-current-peer actions.
 - **Diagnostics** — full diagnostics report (live resolution, masked IPs, provider probes on demand, MaxMind managed-database status, Site Health results).

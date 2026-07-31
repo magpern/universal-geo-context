@@ -1,11 +1,11 @@
 # Compatibility Matrix
 
-**Status: M6 complete.** Version-header parity (header, `UNIVERSAL_GEO_VERSION`,
+**Status: M9 complete.** Version-header parity (header, `UNIVERSAL_GEO_VERSION`,
 this document, and `readme.txt`'s `Stable tag`) is enforced automatically by
 `tests/unit/VersionParityTest.php`, which runs on every PR/CI build — no
 longer a manual check.
 
-**Current plugin version: `1.3.0`**
+**Current plugin version: `1.4.0`**
 
 ## Version support
 
@@ -63,3 +63,30 @@ proposes it.
 
 See `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, and `docs/PRIVACY.md` for
 environment findings and known limitations.
+
+## Country simulation (M8)
+
+Country simulation is **transparent to downstream plugins** that consume the
+public API normally:
+
+| Question | Answer |
+|---|---|
+| API shape changed? | **No** — same six functions and `VisitorContext` properties |
+| Provider changes required? | **No** — simulation is not a provider |
+| WooCommerce required? | **No** — simulation is core admin functionality |
+| Downstream plugin modifications? | **No** — call `universal_geo_get_context()` as today |
+| New `source` value? | **Yes** — `universal_geo_get_source()` may return `'simulation'` when an authorized administrator has an active session; treat as override, not real visitor geo |
+| Cache behaviour for consumers? | Unchanged — consumers see `is_cached = false` on simulated context |
+| Multisite | Per-site cookie; no network-wide simulation settings |
+
+The only requirement for downstream plugins is to consume Universal Geo Context
+through the documented public API. Plugins that branch on `source` may add an
+optional `'simulation'` case; plugins that ignore `source` receive the
+simulated country code transparently.
+
+See `docs/ARCHITECTURE_FREEZE.md` §21 and ADR-0008 for frozen contracts.
+
+## Detection Inspector (M9)
+
+Admin-only diagnostics on the Detection and Providers pages. No public API,
+provider, cache, or simulation contract changes. See ADR-0009.

@@ -978,6 +978,35 @@ When active, the filter returns a new `VisitorContext` with
 `is_cached = false`. Real resolution and cache entries are unchanged.
 Multisite: per-site via WordPress `COOKIEPATH` / `COOKIE_DOMAIN`.
 
+### M9 — Detection Inspector (v1.4.0)
+
+Read-only administrator diagnostics. **No public API shape change, no provider
+or cache write path change, no simulation contract change** — an explanation
+layer plus admin UI. See ADR-0009.
+
+| Class | Responsibility |
+|---|---|
+| `DetectionInspectorService` | Builds `ResolutionExplanation` from resolver + diagnostics |
+| `ResolutionTimelineBuilder` | Ordered pipeline stages |
+| `ProviderExplanationBuilder` | Probe or inferred provider rows |
+| `ResolutionExplanation` / `ResolutionStage` / `ProviderExplanation` | Immutable explanation models |
+| `ExplanationFormatter` | Status badge labels |
+| `DetectionInspectorRenderer` | Detection tab HTML |
+| `DetectionPage` | Detection + Simulation tabs |
+| `ProvidersPage` | Per-provider detail cards |
+
+Live `ContextResolver::probe()` runs only in the explicit Refresh now POST
+handler (`admin_post_universal_geo_refresh_providers`). The redirect lands
+with a one-shot `universal_geo_probe_fresh` presentation flag plus ok/total
+counts — GET requests never probe. Normal page loads use inference and
+`DiagnosticsService::inspector_sections()` — no remote calls.
+
+`GeoCache::describe()` adds read-only cache observability for the inspector.
+
+Simulation (M8) unchanged: inspector shows **Real context** vs **Effective
+context** when simulation is active; simulation appears as the final timeline
+stage before the filtered `VisitorContext`.
+
 ### Simulation lifecycle (architectural overview)
 
 The simulation framework sits **after** real geo resolution and **before** any consumer reads context. It is frozen for v1.x — see `docs/ARCHITECTURE_FREEZE.md` §21 and ADR-0008.
@@ -1011,3 +1040,5 @@ Downstream Plugins     universal_geo_get_context(), hooks, WooCommerce extension
 | SimulationContextFilter | Post-resolution override | Replaces returned context when authorized + active cookie |
 | VisitorContext | Public contract to consumers | Same shape; simulated values use frozen semantics |
 | Downstream plugins | Policy and UX | Consume API normally; may inspect `source === 'simulation'` |
+
+**M9 (v1.4.0 — shipped):** The Detection Inspector and Providers page implement read-only admin diagnostics at the **diagnostics/admin layer**. Normal page loads use inference and `inspector_sections()`; live probe runs only in the Refresh now POST handler. Simulation and the inspector coexist on Detection & Testing as separate tabs without modifying M8 contracts.

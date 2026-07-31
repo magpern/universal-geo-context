@@ -4,7 +4,7 @@ Tags: geolocation, country, geoip, woocommerce, privacy
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.3.0
+Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -108,6 +108,13 @@ No. It detects geographic facts only. Consumers — other plugins reading
 its public functions — decide what those facts mean.
 
 == Changelog ==
+
+= 1.4.0 =
+* Detection Inspector: the Detection & Testing → Detection tab explains the current request — effective vs real context, resolution timeline, provider results, cache state, trusted proxies, and environment — without changing detection.
+* Providers page: per-provider diagnostic detail with configuration shortcuts; credentials never shown.
+* Explanation layer (`UniversalGeo\Explanation\`) separates observational models from admin renderers.
+* Provider refresh reuses the M7 POST handler; live probe runs only after explicit Refresh now (one-shot via redirect flag).
+* Read-only introspection: `GeoCache::describe()`, `ContextResolver::provider_chain()` and related helpers.
 
 = 1.3.0 =
 * Country simulation: administrators can override the visitor country for their browser session only, via a signed HttpOnly cookie and the existing `universal_geo_context` filter (source `simulation`).
