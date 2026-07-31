@@ -206,16 +206,30 @@ final class OverviewPage implements Page {
 			}
 		}
 
+		$redirect_page = AdminPageSlugs::OVERVIEW;
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified above; optional redirect target.
+		if ( isset( $_POST['universal_geo_redirect_page'] ) ) {
+			$candidate = sanitize_key( wp_unslash( $_POST['universal_geo_redirect_page'] ) );
+			if ( in_array( $candidate, array( AdminPageSlugs::OVERVIEW, AdminPageSlugs::DETECTION, AdminPageSlugs::PROVIDERS ), true ) ) {
+				$redirect_page = $candidate;
+			}
+		}
+
 		$url = add_query_arg(
 			array(
-				'page'                      => $this->slug(),
+				'page'                      => $redirect_page,
 				'universal_geo_msg'         => 'providers_refreshed',
 				'universal_geo_typ'         => 'success',
 				'universal_geo_probe_ok'    => $ok_count,
 				'universal_geo_probe_total' => count( $rows ),
+				'universal_geo_probe_fresh' => 1,
 			),
 			admin_url( 'admin.php' )
 		);
+
+		if ( AdminPageSlugs::DETECTION === $redirect_page ) {
+			$url = add_query_arg( 'tab', 'live', $url );
+		}
 
 		wp_safe_redirect( $url );
 		exit;
@@ -227,15 +241,7 @@ final class OverviewPage implements Page {
 	 * @return array{ok_count: int, total: int}|null
 	 */
 	private function last_refresh_summary_from_request(): ?array {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only PRG args from this handler.
-		if ( ! isset( $_GET['universal_geo_probe_ok'], $_GET['universal_geo_probe_total'] ) ) {
-			return null;
-		}
-
-		return array(
-			'ok_count' => max( 0, (int) wp_unslash( $_GET['universal_geo_probe_ok'] ) ), // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-			'total'    => max( 0, (int) wp_unslash( $_GET['universal_geo_probe_total'] ) ), // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		);
+		return AdminProbeFreshFlag::summary();
 	}
 
 	/**

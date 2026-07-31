@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace UniversalGeo\Admin;
 
+use UniversalGeo\Explanation\DetectionInspectorService;
 use UniversalGeo\Model\VisitorContext;
 use UniversalGeo\Plugin;
 use UniversalGeo\Resolver\ContextResolver;
@@ -18,7 +19,7 @@ use UniversalGeo\Simulation\SimulationController;
 use UniversalGeo\Simulation\SimulationState;
 
 /**
- * Live Detection placeholder (M9) and country simulation controls (M8).
+ * Detection Inspector (M9) and country simulation controls (M8).
  *
  * @internal
  * @final
@@ -28,16 +29,20 @@ final class DetectionPage implements Page {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param ContextResolver      $resolver   Supplies the real resolved context.
-	 * @param SimulationState      $state      Active simulation state.
-	 * @param CountryCatalog       $catalog    Country selector options.
-	 * @param SimulationController $controller POST handlers for simulation.
+	 * @param ContextResolver            $resolver   Supplies the real resolved context.
+	 * @param SimulationState            $state      Active simulation state.
+	 * @param CountryCatalog             $catalog    Country selector options.
+	 * @param SimulationController       $controller POST handlers for simulation.
+	 * @param DetectionInspectorService  $inspector  Explanation builder.
+	 * @param DetectionInspectorRenderer $renderer   Inspector UI renderer.
 	 */
 	public function __construct(
 		private readonly ContextResolver $resolver,
 		private readonly SimulationState $state,
 		private readonly CountryCatalog $catalog,
-		private readonly SimulationController $controller
+		private readonly SimulationController $controller,
+		private readonly DetectionInspectorService $inspector,
+		private readonly DetectionInspectorRenderer $renderer
 	) {
 	}
 
@@ -105,7 +110,7 @@ final class DetectionPage implements Page {
 		if ( 'simulation' === $tab ) {
 			$this->render_simulation_tab();
 		} else {
-			$this->render_live_detection_placeholder();
+			$this->render_detection_tab();
 		}
 
 		echo '</div>';
@@ -124,7 +129,7 @@ final class DetectionPage implements Page {
 	}
 
 	/**
-	 * Renders the Live Detection and Simulation tab navigation.
+	 * Renders the Detection and Simulation tab navigation.
 	 *
 	 * @param string $active 'live' or 'simulation'.
 	 *
@@ -138,7 +143,7 @@ final class DetectionPage implements Page {
 			'<a href="%1$s" class="nav-tab %2$s">%3$s</a>',
 			esc_url( $base ),
 			esc_attr( 'live' === $active ? 'nav-tab-active' : '' ),
-			esc_html__( 'Live Detection', 'universal-geo-context' )
+			esc_html__( 'Detection', 'universal-geo-context' )
 		);
 		printf(
 			'<a href="%1$s" class="nav-tab %2$s">%3$s</a>',
@@ -150,18 +155,13 @@ final class DetectionPage implements Page {
 	}
 
 	/**
-	 * Renders the Live Detection placeholder for M9.
+	 * Renders the Detection Inspector (M9).
 	 *
 	 * @return void
 	 */
-	private function render_live_detection_placeholder(): void {
-		printf(
-			'<div class="card"><p>%s</p></div>',
-			esc_html__(
-				'The Live Detection inspector is planned for v1.4.0. It will let you probe an arbitrary IP address through the provider chain without affecting real visitor resolution.',
-				'universal-geo-context'
-			)
-		);
+	private function render_detection_tab(): void {
+		$explanation = $this->inspector->explain( AdminProbeFreshFlag::summary() );
+		$this->renderer->render( $explanation );
 	}
 
 	/**
@@ -174,7 +174,6 @@ final class DetectionPage implements Page {
 		$effective_context = Plugin::instance()->context();
 		$is_active         = $this->state->is_active();
 		$active_country    = $this->state->active_country();
-		$options           = $this->catalog->options();
 
 		echo '<div class="card" style="max-width: 720px;">';
 
@@ -254,9 +253,9 @@ final class DetectionPage implements Page {
 	/**
 	 * Renders a country selector POST form.
 	 *
-	 * @param string $action      admin_post action name.
-	 * @param string $button      Submit button label.
-	 * @param string $selected    Pre-selected country code.
+	 * @param string $action       admin_post action name.
+	 * @param string $button       Submit button label.
+	 * @param string $selected     Pre-selected country code.
 	 * @param string $nonce_action Nonce action name.
 	 *
 	 * @return void

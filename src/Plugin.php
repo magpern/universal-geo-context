@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace UniversalGeo;
 
 use UniversalGeo\Admin\AdminNotices;
+use UniversalGeo\Admin\DetectionInspectorRenderer;
 use UniversalGeo\Admin\DetectionPage;
 use UniversalGeo\Admin\DiagnosticsPage;
 use UniversalGeo\Admin\FirstRunNotice;
@@ -27,6 +28,10 @@ use UniversalGeo\Cli\DatabaseCommand;
 use UniversalGeo\Contracts\GeoProviderInterface;
 use UniversalGeo\Diagnostics\DiagnosticsService;
 use UniversalGeo\Diagnostics\ProviderHealthStore;
+use UniversalGeo\Explanation\DetectionInspectorService;
+use UniversalGeo\Explanation\ExplanationFormatter;
+use UniversalGeo\Explanation\ProviderExplanationBuilder;
+use UniversalGeo\Explanation\ResolutionTimelineBuilder;
 use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Http\TrustedProxies;
@@ -223,6 +228,23 @@ final class Plugin {
 			$notices         = new AdminNotices();
 			$report_renderer = new ReportRenderer( $diagnostics );
 
+			$provider_builder   = new ProviderExplanationBuilder( $graph['resolver'] );
+			$timeline_builder   = new ResolutionTimelineBuilder();
+			$inspector_service  = new DetectionInspectorService(
+				$graph['resolver'],
+				$graph['client_ip_resolver'],
+				$graph['cache'],
+				$diagnostics,
+				$simulation_state,
+				$provider_builder,
+				$timeline_builder
+			);
+			$inspector_renderer = new DetectionInspectorRenderer(
+				$report_renderer,
+				new ExplanationFormatter(),
+				$diagnostics
+			);
+
 			$overview_page = new OverviewPage(
 				$diagnostics,
 				$graph['resolver'],
@@ -234,9 +256,14 @@ final class Plugin {
 				$graph['resolver'],
 				$simulation_state,
 				$country_catalog,
-				new SimulationController( $simulation_cookie, $simulation_state, $notices )
+				new SimulationController( $simulation_cookie, $simulation_state, $notices ),
+				$inspector_service,
+				$inspector_renderer
 			);
-			$providers_page = new ProvidersPage();
+			$providers_page = new ProvidersPage(
+				$inspector_service,
+				$report_renderer
+			);
 
 			$trusted_proxies_page = new TrustedProxiesPage(
 				$diagnostics,
@@ -399,7 +426,7 @@ final class Plugin {
 	 * it exactly, as of M4's ReferenceRemoteProvider filling the 'remote'
 	 * slot.
 	 *
-	 * @return array{resolver: ContextResolver, client_ip_resolver: ClientIpResolver, server_request: ServerRequest, provider_health_store: ProviderHealthStore, maxmind_provider: MaxMindProvider, trusted_proxies: TrustedProxies, settings: array<string, mixed>, remote_credential_source: string, remote_provider: ReferenceRemoteProvider, circuit_breaker: CircuitBreaker, database_manager: DatabaseManager, update_scheduler: UpdateScheduler, maxmind_path_source: string}
+	 * @return array{resolver: ContextResolver, client_ip_resolver: ClientIpResolver, server_request: ServerRequest, provider_health_store: ProviderHealthStore, maxmind_provider: MaxMindProvider, trusted_proxies: TrustedProxies, settings: array<string, mixed>, remote_credential_source: string, remote_provider: ReferenceRemoteProvider, circuit_breaker: CircuitBreaker, database_manager: DatabaseManager, update_scheduler: UpdateScheduler, maxmind_path_source: string, cache: GeoCache}
 	 */
 	private function build_graph(): array {
 		$settings = Settings::sanitize( get_option( Settings::OPTION_NAME, false ) );
@@ -509,6 +536,7 @@ final class Plugin {
 			'database_manager'         => $database_manager,
 			'update_scheduler'         => $update_scheduler,
 			'maxmind_path_source'      => $maxmind_path_source,
+			'cache'                    => $cache,
 		);
 	}
 
