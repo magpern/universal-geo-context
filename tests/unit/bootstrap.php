@@ -428,7 +428,7 @@ if ( ! function_exists( 'wp_die' ) ) {
 	function wp_die( $message = '', $title = '', $args = array() ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 		unset( $title, $args );
 
-		throw new RuntimeException( 'wp_die: ' . (string) $message );
+		throw new RuntimeException( 'wp_die: ' . (string) $message ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- test stub, never rendered.
 	}
 }
 

@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-31T07:32:41+00:00\n"
+"POT-Creation-Date: 2026-07-31T07:51:04+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: universal-geo-context\n"
@@ -124,16 +124,17 @@ msgid "Simulation could not be updated because the selected country is not valid
 msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:69
-msgid "This page is observational — it explains the current request without changing detection. Run Refresh now to run one live provider probe for this page view."
+msgid "This page is observational — it explains the current request without changing detection. Run Refresh now to run one live provider probe."
 msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:76
-#: src/Admin/ProvidersPage.php:90
+#: src/Admin/ProvidersPage.php:105
 msgid "Refresh provider diagnostics"
 msgstr ""
 
 #. translators: 1: ok count, 2: total providers
 #: src/Admin/DetectionInspectorRenderer.php:97
+#: src/Admin/ProvidersPage.php:93
 #, php-format
 msgid "Last explicit refresh: %1$d of %2$d providers returned a country."
 msgstr ""
@@ -159,49 +160,53 @@ msgid "Provider results"
 msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:191
+msgid "Inferred from the current real resolution path immediately after explicit refresh (one live probe ran when you clicked Refresh)."
+msgstr ""
+
+#: src/Admin/DetectionInspectorRenderer.php:193
 msgid "Inferred from the current real resolution path. Run Refresh now for a full live probe of every provider."
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:206
+#: src/Admin/DetectionInspectorRenderer.php:208
 #: src/Explanation/ResolutionTimelineBuilder.php:233
 #: src/Explanation/ResolutionTimelineBuilder.php:241
 msgid "Winner"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:238
+#: src/Admin/DetectionInspectorRenderer.php:240
 #: src/Admin/DiagnosticsPage.php:131
 #: src/Admin/OverviewPage.php:172
 msgid "Cache"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:240
+#: src/Admin/DetectionInspectorRenderer.php:242
 msgid "Simulation never writes to the geo cache. Values below describe real resolution caching only."
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:255
+#: src/Admin/DetectionInspectorRenderer.php:257
 #: src/Admin/DiagnosticsPage.php:88
 #: src/Admin/TrustedProxiesPage.php:139
 msgid "Trusted proxies"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:258
+#: src/Admin/DetectionInspectorRenderer.php:260
 #: src/Admin/DiagnosticsPage.php:91
 msgid "Forwarding headers"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:266
+#: src/Admin/DetectionInspectorRenderer.php:268
 #: src/Admin/DiagnosticsPage.php:96
 #: src/Admin/TrustedProxiesPage.php:117
 msgid "Cloudflare"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:281
+#: src/Admin/DetectionInspectorRenderer.php:283
 #: src/Admin/DiagnosticsPage.php:134
 #: src/Admin/OverviewPage.php:179
 msgid "Environment"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:286
+#: src/Admin/DetectionInspectorRenderer.php:288
 msgid "Site Health:"
 msgstr ""
 
@@ -220,70 +225,70 @@ msgstr ""
 msgid "Simulation"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:190
+#: src/Admin/DetectionPage.php:180
 msgid "Country simulation overrides the visitor context for your browser session only. It does not change real geolocation, provider configuration, or shared geo caches. Use it to test how downstream plugins respond to a different visitor country."
 msgstr ""
 
-#: src/Admin/DetectionPage.php:191
+#: src/Admin/DetectionPage.php:181
 msgid "This is a developer and QA tool — not a production mechanism for controlling customer experience."
 msgstr ""
 
-#: src/Admin/DetectionPage.php:193
+#: src/Admin/DetectionPage.php:183
 msgid "Current context"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:195
+#: src/Admin/DetectionPage.php:185
 msgid "Real resolved country"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:196
+#: src/Admin/DetectionPage.php:186
 msgid "Effective country (what consumers see)"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:199
+#: src/Admin/DetectionPage.php:189
 #: src/Diagnostics/DiagnosticsService.php:421
 msgid "Simulation active"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:200
+#: src/Admin/DetectionPage.php:190
 #: src/Admin/SettingsPage.php:570
 msgid "Yes"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:200
+#: src/Admin/DetectionPage.php:190
 #: src/Admin/SettingsPage.php:570
 msgid "No"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:205
+#: src/Admin/DetectionPage.php:195
 msgid "Simulated country"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:212
+#: src/Admin/DetectionPage.php:202
 msgid "Controls"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:217
+#: src/Admin/DetectionPage.php:207
 msgid "Change simulated country"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:225
+#: src/Admin/DetectionPage.php:215
 msgid "Stop simulation"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:230
+#: src/Admin/DetectionPage.php:220
 msgid "Start simulation"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:248
+#: src/Admin/DetectionPage.php:238
 msgid "Unknown"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:279
+#: src/Admin/DetectionPage.php:269
 msgid "Country"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:281
+#: src/Admin/DetectionPage.php:271
 msgid "Select a country…"
 msgstr ""
 
@@ -394,23 +399,23 @@ msgstr ""
 msgid "Trusted Proxies"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:286
+#: src/Admin/OverviewPage.php:278
 msgid "Overall health: critical issues detected"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:287
+#: src/Admin/OverviewPage.php:279
 msgid "Overall health: recommended improvements available"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:288
+#: src/Admin/OverviewPage.php:280
 msgid "Overall health: good"
 msgstr ""
 
-#: src/Admin/ProvidersPage.php:84
-msgid "Observational provider diagnostics. Credentials are never shown. Run Refresh now to update live probe results."
+#: src/Admin/ProvidersPage.php:85
+msgid "Observational provider diagnostics. Credentials are never shown. Run Refresh now to run one live probe."
 msgstr ""
 
-#: src/Admin/ProvidersPage.php:105
+#: src/Admin/ProvidersPage.php:120
 msgid "Open related settings"
 msgstr ""
 
@@ -1122,7 +1127,11 @@ msgstr ""
 msgid "City database detected; region support is deferred to a future release."
 msgstr ""
 
-#: src/Explanation/DetectionInspectorService.php:171
+#: src/Explanation/DetectionInspectorService.php:139
+msgid "Explicit refresh completed — rows reflect current configuration and health."
+msgstr ""
+
+#: src/Explanation/DetectionInspectorService.php:140
 msgid "Run Refresh now for a live probe."
 msgstr ""
 
