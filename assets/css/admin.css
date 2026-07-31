@@ -863,7 +863,6 @@
 
 .ugc-ui-provider-card__description {
 	margin: 0;
-	flex: 1;
 	font-size: 0.8125rem;
 	line-height: 1.55;
 	color: var(--ugc-muted);
@@ -1318,7 +1317,6 @@
 }
 
 .ugc-ui-provider-card__footer {
-	margin-top: auto;
 	padding-top: 8px;
 	font-size: 0.8125rem;
 }
@@ -1327,6 +1325,7 @@
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 	gap: 14px;
+	align-items: start;
 }
 
 .ugc-ui-dl {
@@ -1533,6 +1532,13 @@
 
 .ugc-settings-page .wrap > h1 {
 	display: none;
+}
+
+.ugc-settings-page .wrap > .notice,
+.ugc-settings-page .wrap > #message,
+.ugc-settings-page .wrap > div.updated,
+.ugc-settings-page .wrap > div.error {
+	margin: 0 0 var(--ugc-space-2);
 }
 
 @media (max-width: 782px) {
