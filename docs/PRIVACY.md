@@ -1,7 +1,7 @@
 # Privacy Model
 
 **Status: Finalized (M4), Privacy Policy Guide integration added (M5),
-managed database downloads added (M6).**
+managed database downloads added (M6), simulation cookie documented (M8).**
 Every invariant below (P1–P6) is implemented and guard-tested
 (`tests/unit/Guards/PrivacyGuardTest.php`, `docs/adr/0005-privacy-model.md`)
 for the full M1–M6 surface, including MaxMind resolution, provider-health

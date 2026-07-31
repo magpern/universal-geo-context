@@ -1,6 +1,6 @@
-# Architecture Freeze — v1.0.0
+# Architecture Freeze — v1.x
 
-**Status: Universal Geo Context v1.0.0 (M5) released.**
+**Status: Universal Geo Context v1.3.0 (M8) released. Architecture frozen through M8.**
 
 This document constitutes the permanent architectural baseline for the v1.x series. It defines the frozen contracts that must remain stable across all v1.y releases, the boundaries that separate evolution from breaking change, and the governance principles that guide future development.
 
@@ -8,17 +8,20 @@ This document constitutes the permanent architectural baseline for the v1.x seri
 
 ## 1. Release baseline
 
-**Version**: v1.0.0  
-**Release purpose**: First production-ready release, completing operational maturity (M5)  
+**Version**: v1.3.0 (architecture baseline through M8)  
+**Release purpose**: First production-ready release at v1.0.0 (M5); M6–M8 add managed downloads, admin navigation, and country simulation without breaking the v1.0 public API.  
 **Architectural intent**: A stable, backwards-compatible foundation for geographic resolution, enabling v1.x to evolve features without requiring major-version bumps.
 
-The plugin establishes and ships five completed milestones (M1–M5):
+The plugin establishes and ships eight completed milestones (M1–M8):
 
 - **M1 (v0.1.0)**: Core domain models, public API, immutable context, ContextResolver, dependency injection, four guard tests.
 - **M2 (v0.2.0)**: Client IP trust boundaries (Cloudflare, proxy headers), CloudflareHeaderProvider, WooCommerceProvider, admin UI, Settings, DiagnosticsService, Site Health.
 - **M3 (v0.3.0)**: Privacy floor (PrivacyGuardTest), MaxMindProvider (local `.mmdb` lookups), maxmind_db_path setting, ProviderHealthStore.
 - **M4 (v0.4.0)**: ReferenceRemoteProvider (MaxMind GeoLite2 remote Web Service, disabled by default), CircuitBreaker, HttpTransport seam, remote diagnostics.
 - **M5 (v1.0.0)**: Operational readiness (WP-CLI, debug_information, translation readiness, Privacy Policy integration, version parity enforcement, release tooling).
+- **M6 (v1.1.0)**: Managed GeoLite2 Country database downloads; shared MaxMind credentials; `maxmind-db/reader` promoted to production dependency.
+- **M7 (v1.2.0)**: Admin navigation restructuring — top-level menu, six focused pages, shared report renderer, legacy URL redirect (removed M8).
+- **M8 (v1.3.0)**: Country simulation framework — post-resolution `universal_geo_context` filter, signed session cookie, administrator-only authorization; no provider, cache, or public API shape change.
 
 Each milestone shipped in isolation; no unreviewed change rides along.
 
@@ -106,7 +109,7 @@ function universal_geo_get_region_code(): ?string
 /**
  * Convenience shorthand: the source (provider ID or 'unknown') that produced the context.
  *
- * @return string  'cloudflare', 'maxmind', 'woocommerce', 'remote', 'default', or 'unknown'.
+ * @return string  'cloudflare', 'maxmind', 'woocommerce', 'remote', 'default', 'simulation', or 'unknown'.
  */
 function universal_geo_get_source(): string
 
@@ -321,6 +324,11 @@ Services such as managed GeoLite2 database downloads (v1.1+) are **not** provide
 9. **On all requests** (unconditionally):
    - `UpdateScheduler` (M6+) — Registers cron hooks for managed database updates.
    - `PrivacyPolicyContent` — Registers privacy policy text (admin-only, via `is_admin()` guard).
+   - **Simulation (M8+)** — `SimulationCookie`, `SimulationState`, `SimulationAuthorization`, `SimulationContextFilter`, and `SimulationAdminBar` are constructed and registered on every request. Activation is conditional; registration is not.
+10. **On admin requests only** (M8+, via `should_register_admin()`):
+   - `DetectionPage` (Simulation tab), `SimulationController` (nonce-protected POST handlers).
+
+**Invariant (M8+):** `SimulationContextFilter` must never be registered only from `wp-admin`. Front-end requests from authorized administrators must receive simulated context.
 
 ### 7.3 Composition-root invariant
 
@@ -490,12 +498,18 @@ When the remote provider is enabled:
 - Privacy Policy text (via `wp_add_privacy_policy_content()`, M5) discloses the transfer of IP to MaxMind.
 - Credentials are never round-tripped via form fields; `type="password"` is used, never retained in the response.
 
-### 13.3 Credential safety
+### 13.4 Simulation cookie (M8+)
 
-- **Stored as-is**: Account ID and license key are stored in plaintext in wp_options (no plugin-level encryption).
-- **WordPress core protects**: WordPress database access controls are the sole protection; plugin has no per-credential encryption.
-- **Never in code**: Plugin has zero hardcoded credentials; all are runtime-configured by admin.
-- **Redacted in diagnostics**: Credentials appear only as a boolean (`'present'` / `'not present'`).
+The simulation cookie is **not** visitor geo data and is **not** subject to the "no visitor data stored" rule in §13.1 — it is an administrator testing affordance:
+
+- **Name**: `universal_geo_sim`
+- **Scope**: Session cookie; cleared when the browser session ends or the administrator stops simulation.
+- **Payload**: `{version}.{country}.{hmac}` — country code only; no IP, provider name, credentials, or real resolved country.
+- **Attributes**: `HttpOnly`, `Secure` on HTTPS, `SameSite=Lax`; path/domain match WordPress `COOKIEPATH` / `COOKIE_DOMAIN`.
+- **Authorization**: Cookie alone never authorizes simulation; `manage_options` and a logged-in session are re-checked on every request.
+- **No database persistence**: Simulation state lives in the cookie only; no wp_options, transients, or user meta.
+
+See `docs/PRIVACY.md` §Simulation cookie and ADR-0008.
 
 ---
 
@@ -515,7 +529,8 @@ A v1.y release (y ≥ 0) will never:
 
 - Remove a public function or change its signature.
 - Remove or rename a property of VisitorContext.
-- Change the meaning of a confidence value.
+- Change the meaning of a confidence value (including the simulated `1.0` override semantics).
+- Change simulated `VisitorContext` field semantics (`source = simulation`, `region_code = null`, `is_cached = false`) without an ADR.
 - Remove a provider from the default chain (may deprecate with fallback).
 - Break ContextResolver's determinism or ordering guarantee.
 - Remove a hook or change its semantics.
@@ -566,6 +581,12 @@ These items will never break across v1.x releases:
 - ✓ **Privacy boundaries** — No IP persisted; no credentials leaked to diagnostics.
 - ✓ **Cache philosophy** — Configuration-keyed, request-scoped, deterministic.
 - ✓ **Diagnostics redaction** — Credentials masked, IPs masked, URLs redacted.
+- ✓ **Simulation architecture (M8+)** — Post-resolution filter only; never a provider; never touches GeoCache or provider-health stores.
+- ✓ **Simulation VisitorContext semantics** — `source = simulation`, `confidence = 1.0`, `region_code = null`, `is_cached = false` when active.
+- ✓ **Simulation authorization** — Administrator-only; capability re-checked every request; cookie alone insufficient; fail-closed.
+- ✓ **Simulation cookie model** — Signed, session-scoped, HttpOnly, Secure on HTTPS, SameSite=Lax; no IP or credentials.
+- ✓ **Simulation composition root** — `SimulationContextFilter` registered unconditionally on every request; activation conditional.
+- ✓ **Public API unchanged by simulation** — Same six functions and VisitorContext shape; simulation affects only the returned value.
 
 ---
 
@@ -619,7 +640,7 @@ The following documents are authoritative and must remain in sync:
 | `docs/ARCHITECTURE_FREEZE.md` | **This document.** Frozen contracts for v1.x. |
 | `docs/ROADMAP.md` | Milestones shipped, explicitly deferred items, future directions. |
 | `docs/COMPATIBILITY.md` | Version matrix, minimum versions, known compatibility notes. |
-| `docs/adr/*` | Architectural decisions (M2–M5). |
+| `docs/adr/*` | Architectural decisions (M2–M8). |
 | `CLAUDE.md` | Code rules, workflow, core invariants. |
 
 Amendments to frozen contracts require updating this document and other affected docs in the same commit.
@@ -639,11 +660,162 @@ This architecture freeze is verified by:
 
 ## 20. Future reference
 
-Contributors to v1.1.0 and beyond should:
+Contributors to v1.4.0 and beyond should:
 
 1. Read this document before proposing architectural changes.
 2. Update this document if the proposal touches frozen contracts.
 3. Reference this document in release notes if a boundary shift occurs (even an allowed evolution).
 4. Use this document as a guide when deciding if a feature is a minor-version addition or a major-version change.
+5. Read §21 (Simulation framework) and §22 (Contributor prohibitions) before extending M8 or building M9+ features that interact with resolution.
 
 The v1.x series is a stable, backwards-compatible platform. Stability enables confidence; confidence enables adoption. Preserve these guarantees.
+
+---
+
+## 21. Simulation framework (M8 / v1.3.0)
+
+**Status: Frozen for v1.x.** Country simulation is an administrator testing affordance introduced in M8. It does not change the public API shape, provider contracts, or cache write semantics.
+
+### 21.1 Architectural placement
+
+Simulation is implemented as a **post-resolution context transformation**, not as a geo provider:
+
+```
+Client Request
+    ↓
+IP Resolution (ClientIpResolver)
+    ↓
+Providers (ContextResolver chain)
+    ↓
+GeoCache (read-only for this path)
+    ↓
+ContextResolver::resolve()
+    ↓
+universal_geo_context filter
+    ↓ SimulationContextFilter @ priority 100 (optional, when authorized + active)
+VisitorContext (final, per request)
+    ↓
+Downstream plugins / consumers
+```
+
+**Ordering invariant:**
+
+1. After `ContextResolver` has produced a real resolution (cache hit or miss).
+2. After any GeoCache lookup has completed — simulation never participates in cache keying or cache population.
+3. Before downstream consumers receive `VisitorContext` via `Plugin::context()` or the public API wrappers.
+
+**Introducing a `SimulationProvider` (or registering simulation inside the provider chain) would violate this architecture.** Providers produce evidence from request signals; simulation is an explicit administrator override of the final context. Mixing the two would break cache isolation, provider-health semantics, and the evidence-not-policy principle.
+
+### 21.2 Cache contract
+
+Simulation **never**:
+
+- writes to `GeoCache`;
+- modifies cached `VisitorContext` instances in place;
+- invalidates cache or bumps the cache epoch;
+- alters provider-health records;
+- changes provider ordering or availability.
+
+Real resolution continues to run on every request; simulation replaces only the **returned** context at filter time. Cache entries for the real resolution remain intact and are reused on subsequent requests exactly as before M8.
+
+Cache isolation is part of the frozen v1.x contract. Any proposal to cache simulated contexts requires an ADR and is likely a major-version architectural change.
+
+### 21.3 VisitorContext semantics when simulated
+
+When simulation is active and authorized, `SimulationContextFilter` returns a **new** immutable `VisitorContext` (never mutates the resolver output):
+
+| Field | Value | Rationale |
+|---|---|---|
+| `country_code` | Administrator-selected ISO 3166-1 alpha-2 | The purpose of simulation |
+| `source` | `'simulation'` | Explicitly distinguishes override from real evidence; downstream plugins can detect and handle accordingly |
+| `confidence` | `1.0` | Administrator explicitly chose the country; no probabilistic uncertainty |
+| `region_code` | `null` | M8 simulates country only; region is out of scope and must not be inferred |
+| `is_cached` | `false` | Simulated context is never a cache artifact; avoids conflating test state with production cache behaviour |
+
+**Future changes to these semantics require an ADR** and Product Owner approval per §17.
+
+### 21.4 Authorization model
+
+Frozen rules:
+
+- **Authenticated administrator only** — `is_user_logged_in()` and `current_user_can( 'manage_options' )`.
+- **Capability checked on every request** — `SimulationState::active_country()` re-validates authorization; a stale cookie after logout or capability loss is ignored.
+- **Cookie alone never authorizes simulation** — a copied or forged cookie without a live authorized session has no effect.
+- **Fail-closed** — invalid signature, malformed payload, unknown country code, or failed authorization → simulation inactive; real resolved context is returned unchanged.
+
+State changes (start, change country, stop) require nonce-protected POST via `admin_post_universal_geo_simulation_*` handlers in `SimulationController`. No public REST or AJAX control surface.
+
+### 21.5 Cookie model
+
+| Property | Value |
+|---|---|
+| Name | `universal_geo_sim` |
+| Format | `{version}.{country}.{hmac32}` signed with `wp_salt( 'auth' )` |
+| Lifetime | Session cookie (no `Expires`/`Max-Age`; cleared on browser close or explicit stop) |
+| HttpOnly | Yes |
+| Secure | Yes when `is_ssl()` |
+| SameSite | `Lax` |
+| Contents | Simulated country code only |
+| Excluded | IP address, provider information, credentials, real resolved country |
+| Persistence | Cookie only — no database, transients, or user meta |
+
+Multisite: per-site via WordPress `COOKIEPATH` / `COOKIE_DOMAIN`; subsites do not share simulation unless cookie domain spans sites.
+
+### 21.6 Composition root
+
+In `Plugin::init()` (M8+):
+
+- `SimulationContextFilter` is registered **unconditionally** on every request.
+- `SimulationAdminBar` is registered unconditionally; renders only when simulation is active.
+- `DetectionPage` and `SimulationController` are registered only on admin requests (`should_register_admin()`).
+
+Registration order is intentional: simulation filter hooks at priority 100 on `universal_geo_context`, after resolver output and alongside other filter consumers documented in `docs/HOOKS.md`.
+
+**Do not** register `SimulationContextFilter` only from `wp-admin` — front-end requests from authorized administrators must receive simulated context.
+
+### 21.7 Public API
+
+The public API has **not** changed in M8:
+
+- Same six functions in `src/api.php`.
+- Same `VisitorContext` properties and immutability contract.
+- Same hook signatures (`universal_geo_context` existed before M8; simulation uses it).
+- No provider interface changes.
+
+Simulation affects **only the returned `VisitorContext` value** when active. `universal_geo_get_source()` may return `'simulation'` — this is a new possible **value** of an existing field, not a new API surface.
+
+Downstream plugins consume the public API normally; no WooCommerce dependency; no downstream plugin modifications required.
+
+### 21.8 Downstream plugin philosophy
+
+Simulation is transparent to the API contract but **explicit in semantics**:
+
+- Downstream plugins receive a valid `VisitorContext` through the same functions and hooks as production traffic.
+- They **should** treat `source === 'simulation'` as an administrator override, not evidence of the visitor's real location.
+- Universal Geo Context does not implement currency, tax, shipping, compliance, or other policy — simulation inherits that boundary.
+
+M9 (Live Detection inspector) and later milestones may add **read-only diagnostics** that observe the resolution pipeline; they must not alter these simulation contracts.
+
+---
+
+## 22. Contributor prohibitions (simulation and v1.x baseline)
+
+The following are **architectural violations** for v1.x unless explicitly approved via ADR and an amendment to this document:
+
+| Do not… | Reason |
+|---|---|
+| Create a `SimulationProvider` | Simulation is post-resolution, not evidence-based provider output |
+| Register `SimulationContextFilter` only in admin | Front-end consumers must see simulated context when authorized |
+| Cache simulated contexts in `GeoCache` | Breaks cache isolation; conflates test state with production cache |
+| Modify cached contexts in place for simulation | Immutability and cache determinism |
+| Invalidate cache or bump epoch for simulation | Simulation must not affect cache lifecycle |
+| Alter provider-health records for simulation | Health reflects real provider behaviour only |
+| Bypass authorization (cookie-only activation) | Fail-closed administrator gate is frozen |
+| Persist simulation state to the database | Cookie-only, session-scoped model |
+| Store IP or provider data in the simulation cookie | Privacy and security contract |
+| Introduce policy decisions in simulation | Evidence not policy — simulation overrides country only |
+| Make simulation depend on WooCommerce | Optional provider pattern applies; simulation is core admin feature |
+| Change VisitorContext simulation semantics without an ADR | `source`, `confidence`, `region_code`, `is_cached` values are frozen |
+| Add a public REST/AJAX endpoint to control simulation | POST + nonce + `admin_post_*` only |
+
+When in doubt, read ADR-0008 and §21 above before proposing changes.

@@ -976,4 +976,38 @@ ADR-0008.
 When active, the filter returns a new `VisitorContext` with
 `source = simulation`, `confidence = 1.0`, `region_code = null`,
 `is_cached = false`. Real resolution and cache entries are unchanged.
-Multisite: per-site cookie via `COOKIEPATH` / `COOKIE_DOMAIN`.
+Multisite: per-site via WordPress `COOKIEPATH` / `COOKIE_DOMAIN`.
+
+### Simulation lifecycle (architectural overview)
+
+The simulation framework sits **after** real geo resolution and **before** any consumer reads context. It is frozen for v1.x — see `docs/ARCHITECTURE_FREEZE.md` §21 and ADR-0008.
+
+```
+Client Request
+       ↓
+IP Resolution          ClientIpResolver + TrustedProxies
+       ↓
+Providers              ContextResolver chain (Cloudflare → MaxMind → WooCommerce → Remote → Default)
+       ↓
+GeoCache               Read-only lookup; real resolution cached here
+       ↓
+ContextResolver        Produces VisitorContext (real evidence)
+       ↓
+universal_geo_context  SimulationContextFilter @ priority 100 (optional)
+       ↓
+VisitorContext         Final immutable value (real or simulated)
+       ↓
+Downstream Plugins     universal_geo_get_context(), hooks, WooCommerce extensions, etc.
+```
+
+**Stage notes:**
+
+| Stage | Role | Simulation interaction |
+|---|---|---|
+| IP Resolution | Derives client IP from trusted headers | Unaffected; simulation does not alter IP |
+| Providers | Produce country evidence from IP/signals | Unaffected; full chain still runs |
+| GeoCache | Memoizes real resolution per configuration | Unaffected; simulation never reads/writes cache for override |
+| ContextResolver | Selects first confident provider result | Unaffected; produces real context before filter |
+| SimulationContextFilter | Post-resolution override | Replaces returned context when authorized + active cookie |
+| VisitorContext | Public contract to consumers | Same shape; simulated values use frozen semantics |
+| Downstream plugins | Policy and UX | Consume API normally; may inspect `source === 'simulation'` |
