@@ -122,8 +122,8 @@ final class AdminComponentsTest extends TestCase {
 			array(),
 			new GeoCache( false, 900, 'sig' )
 		);
-		$cookie = new SimulationCookie();
-		$state  = new SimulationState( $cookie, new SimulationAuthorization() );
+		$cookie   = new SimulationCookie();
+		$state    = new SimulationState( $cookie, new SimulationAuthorization() );
 
 		return new DetectionPage(
 			$resolver,

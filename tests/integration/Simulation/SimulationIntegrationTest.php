@@ -112,8 +112,8 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 	}
 
 	public function test_start_simulation_writes_cookie_and_redirects(): void {
-		$nonce = wp_create_nonce( 'universal_geo_simulation' );
-		$_POST = array(
+		$nonce                = wp_create_nonce( 'universal_geo_simulation' );
+		$_POST                = array(
 			'simulation_country' => 'DE',
 			'_wpnonce'           => $nonce,
 		);
@@ -134,8 +134,8 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 	public function test_change_simulation_updates_cookie(): void {
 		$this->cookie()->write( 'DE' );
 
-		$nonce = wp_create_nonce( 'universal_geo_simulation' );
-		$_POST = array(
+		$nonce                = wp_create_nonce( 'universal_geo_simulation' );
+		$_POST                = array(
 			'simulation_country' => 'FR',
 			'_wpnonce'           => $nonce,
 		);
@@ -167,8 +167,8 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 	}
 
 	public function test_invalid_country_is_rejected(): void {
-		$nonce = wp_create_nonce( 'universal_geo_simulation' );
-		$_POST = array(
+		$nonce                = wp_create_nonce( 'universal_geo_simulation' );
+		$_POST                = array(
 			'simulation_country' => 'ZZ',
 			'_wpnonce'           => $nonce,
 		);
@@ -188,8 +188,8 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber_id );
 
-		$nonce = wp_create_nonce( 'universal_geo_simulation' );
-		$_POST = array(
+		$nonce                = wp_create_nonce( 'universal_geo_simulation' );
+		$_POST                = array(
 			'simulation_country' => 'DE',
 			'_wpnonce'           => $nonce,
 		);
@@ -236,7 +236,7 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 		$bar = new \WP_Admin_Bar();
 		( new SimulationAdminBar( $this->state(), new CountryCatalog() ) )->register();
 
-		do_action( 'admin_bar_menu', $bar );
+		do_action( 'admin_bar_menu', $bar ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WordPress core's own hook, fired to simulate admin-bar rendering.
 
 		$node = $bar->get_node( 'universal-geo-simulation' );
 
@@ -252,7 +252,7 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 		$bar = new \WP_Admin_Bar();
 		( new SimulationAdminBar( $this->state(), new CountryCatalog() ) )->register();
 
-		do_action( 'admin_bar_menu', $bar );
+		do_action( 'admin_bar_menu', $bar ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WordPress core's own hook, fired to simulate admin-bar rendering.
 
 		$this->assertNull( $bar->get_node( 'universal-geo-simulation' ) );
 	}
