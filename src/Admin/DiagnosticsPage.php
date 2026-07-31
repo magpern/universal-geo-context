@@ -12,7 +12,7 @@ namespace UniversalGeo\Admin;
 use UniversalGeo\Diagnostics\DiagnosticsService;
 
 /**
- * Full diagnostics report (unchanged M6 content scope, new navigation).
+ * Full diagnostics report with design-system presentation.
  *
  * @internal
  * @final
@@ -22,16 +22,18 @@ final class DiagnosticsPage implements Page {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param DiagnosticsService  $diagnostics Full report supplier.
-	 * @param ReportRenderer      $renderer    Definition-list renderer.
-	 * @param AdminHeaderRenderer $header      Shared page header.
-	 * @param AdminActionRenderer $actions     Shared action controls.
+	 * @param DiagnosticsService     $diagnostics Full report supplier.
+	 * @param ReportRenderer         $renderer    Definition-list renderer.
+	 * @param AdminHeaderRenderer      $header      Shared page header.
+	 * @param AdminActionRenderer      $actions     Shared action controls.
+	 * @param AdminComponentRenderer   $components  Design-system components.
 	 */
 	public function __construct(
 		private readonly DiagnosticsService $diagnostics,
 		private readonly ReportRenderer $renderer,
 		private readonly AdminHeaderRenderer $header,
-		private readonly AdminActionRenderer $actions
+		private readonly AdminActionRenderer $actions,
+		private readonly AdminComponentRenderer $components
 	) {
 	}
 
@@ -83,8 +85,11 @@ final class DiagnosticsPage implements Page {
 
 		$report      = $this->diagnostics->report();
 		$report_text = $this->build_copy_text( $report );
+		$status      = $this->diagnostics->worst_site_health_status();
+		$shell       = $this->header->shell();
 
 		echo '<div class="wrap">';
+		$shell->open();
 		$this->header->render(
 			$this->slug(),
 			$this->title(),
@@ -96,87 +101,152 @@ final class DiagnosticsPage implements Page {
 			}
 		);
 
-		echo '<details class="universal-geo-diagnostics-copy-wrap" style="max-width:960px;margin:0 0 1.5em;">';
-		echo '<summary><strong>' . esc_html__( 'Copy report', 'universal-geo-context' ) . '</strong></summary>';
-		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'Select the text below and copy it for support tickets. Values are already masked.', 'universal-geo-context' )
+		$shell->open_content( true );
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->health_summary_panel( $status, AdminPageRegistry::page_url( AdminPageSlugs::DIAGNOSTICS ) );
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->copy_report_panel( 'ugc-diagnostics-copy-report', $report_text );
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->feature_section_open(
+			__( 'Network & client', 'universal-geo-context' ),
+			__( 'Client address, trusted proxies, and forwarding headers.', 'universal-geo-context' )
 		);
-		printf(
-			'<textarea class="universal-geo-diagnostics-copy" readonly rows="12" aria-label="%s">%s</textarea>',
-			esc_attr__( 'Diagnostics report (read-only)', 'universal-geo-context' ),
-			esc_textarea( $report_text )
-		);
-		echo '</details>';
 
-		echo '<h2>' . esc_html__( 'Client address', 'universal-geo-context' ) . '</h2>';
-		$this->renderer->render_definition_list( $report['client_address'] );
+		$this->render_section_card( __( 'Client address', 'universal-geo-context' ), $report['client_address'] );
+		$this->render_section_card( __( 'Trusted proxies', 'universal-geo-context' ), $report['trusted_proxies'] );
 
-		echo '<h2>' . esc_html__( 'Trusted proxies', 'universal-geo-context' ) . '</h2>';
-		$this->renderer->render_definition_list( $report['trusted_proxies'] );
-
-		echo '<h2>' . esc_html__( 'Forwarding headers', 'universal-geo-context' ) . '</h2>';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open( __( 'Forwarding headers', 'universal-geo-context' ), '' );
 		foreach ( $report['forwarding_headers'] as $row ) {
 			$this->renderer->render_definition_list( $row );
 		}
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->settings_card_close();
 
-		echo '<h2>' . esc_html__( 'Cloudflare', 'universal-geo-context' ) . '</h2>';
-		$this->renderer->render_definition_list( $report['cloudflare'] );
+		$this->render_section_card( __( 'Cloudflare', 'universal-geo-context' ), $report['cloudflare'] );
 
-		echo '<h2>' . esc_html__( 'WooCommerce', 'universal-geo-context' ) . '</h2>';
-		$this->renderer->render_definition_list( $report['woocommerce'] );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->feature_section_close();
 
-		echo '<h2>' . esc_html__( 'MaxMind', 'universal-geo-context' ) . '</h2>';
-		$this->renderer->render_definition_list( $report['maxmind'] );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->feature_section_open(
+			__( 'Providers & data sources', 'universal-geo-context' ),
+			__( 'MaxMind, remote provider, WooCommerce, and provider health.', 'universal-geo-context' )
+		);
 
-		echo '<h2>' . esc_html__( 'Managed database', 'universal-geo-context' ) . '</h2>';
-		$this->renderer->render_definition_list( $report['maxmind_managed'] );
+		$this->render_section_card( __( 'WooCommerce', 'universal-geo-context' ), $report['woocommerce'] );
+		$this->render_section_card( __( 'MaxMind', 'universal-geo-context' ), $report['maxmind'] );
+		$this->render_section_card( __( 'Managed database', 'universal-geo-context' ), $report['maxmind_managed'] );
 
-		echo '<h2>' . esc_html__( 'Remote provider', 'universal-geo-context' ) . '</h2>';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open( __( 'Remote provider', 'universal-geo-context' ), '' );
 		if ( $report['remote']['enabled'] ) {
-			printf(
-				'<p><em>%s</em></p>',
-				esc_html__(
-					'The remote provider is enabled — viewing this page performs one live request to the configured remote service, as part of the provider probe table below.',
-					'universal-geo-context'
-				)
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+			echo $this->components->warning_panel(
+				'',
+				__( 'The remote provider is enabled — viewing this page performs one live request to the configured remote service, as part of the provider probe table below.', 'universal-geo-context' )
 			);
 		}
 		$this->renderer->render_definition_list( $report['remote'] );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->settings_card_close();
 
-		echo '<h2>' . esc_html__( 'Providers', 'universal-geo-context' ) . '</h2>';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open( __( 'Providers', 'universal-geo-context' ), '' );
 		foreach ( $report['providers'] as $row ) {
 			$this->renderer->render_definition_list( $row );
 		}
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->settings_card_close();
 
-		echo '<h2>' . esc_html__( 'Provider health', 'universal-geo-context' ) . '</h2>';
-		if ( array() === $report['provider_health'] ) {
-			echo '<div class="universal-geo-empty-state">';
-			echo '<p>' . esc_html__( 'No provider failures have been recorded.', 'universal-geo-context' ) . '</p>';
-			echo '<div class="universal-geo-action-buttons">';
+		$this->render_provider_health_section( $report['provider_health'] );
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->feature_section_close();
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->feature_section_open(
+			__( 'Runtime', 'universal-geo-context' ),
+			__( 'Cache and environment details.', 'universal-geo-context' )
+		);
+
+		$this->render_section_card( __( 'Cache', 'universal-geo-context' ), $report['cache'] );
+		$this->render_section_card( __( 'Environment', 'universal-geo-context' ), $report['environment'] );
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->feature_section_close();
+
+		$shell->close_content();
+		$shell->close();
+		echo '</div>';
+	}
+
+	/**
+	 * Renders one diagnostics settings card with a definition list body.
+	 *
+	 * @param string               $title  Card title.
+	 * @param array<string, mixed> $values Definition list values.
+	 *
+	 * @return void
+	 */
+	private function render_section_card( string $title, array $values ): void {
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open( $title, '' );
+		$this->renderer->render_definition_list( $values );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->settings_card_close();
+	}
+
+	/**
+	 * Renders the provider health section with empty state support.
+	 *
+	 * @param array<string, array<string, mixed>> $provider_health Provider health rows.
+	 *
+	 * @return void
+	 */
+	private function render_provider_health_section( array $provider_health ): void {
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open(
+			__( 'Provider health', 'universal-geo-context' ),
+			__( 'Recorded provider failures from recent resolution attempts.', 'universal-geo-context' ),
+			$this->components->status_badge(
+				array() === $provider_health ? __( 'No failures', 'universal-geo-context' ) : __( 'Issues recorded', 'universal-geo-context' ),
+				array() === $provider_health ? 'active' : 'warning'
+			)
+		);
+
+		if ( array() === $provider_health ) {
+			ob_start();
 			$this->actions->render_refresh_providers_form(
 				AdminPageSlugs::DIAGNOSTICS,
 				__( 'Refresh Providers', 'universal-geo-context' )
 			);
+			echo ' ';
 			$this->actions->render_link_button(
 				AdminPageRegistry::page_url( AdminPageSlugs::PROVIDERS ),
 				__( 'Learn more', 'universal-geo-context' )
 			);
-			echo '</div></div>';
+			$actions = ob_get_clean();
+
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+			echo $this->components->empty_state(
+				'dashicons-yes-alt',
+				__( 'No provider failures recorded', 'universal-geo-context' ),
+				__( 'Provider health summaries appear after you refresh diagnostics.', 'universal-geo-context' ),
+				$actions
+			);
 		} else {
-			foreach ( $report['provider_health'] as $provider_id => $row ) {
-				echo '<h3>' . esc_html( (string) $provider_id ) . '</h3>';
+			foreach ( $provider_health as $provider_id => $row ) {
+				printf( '<h5 class="ugc-ui-provider-card__title">%s</h5>', esc_html( (string) $provider_id ) );
 				$this->renderer->render_definition_list( $row );
 			}
 		}
 
-		echo '<h2>' . esc_html__( 'Cache', 'universal-geo-context' ) . '</h2>';
-		$this->renderer->render_definition_list( $report['cache'] );
-
-		echo '<h2>' . esc_html__( 'Environment', 'universal-geo-context' ) . '</h2>';
-		$this->renderer->render_definition_list( $report['environment'] );
-
-		echo '</div>';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->settings_card_close();
 	}
 
 	/**

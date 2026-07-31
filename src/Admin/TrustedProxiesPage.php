@@ -26,12 +26,13 @@ final class TrustedProxiesPage implements Page {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param DiagnosticsService  $diagnostics Masked report slices for status display.
-	 * @param ServerRequest       $request     Raw peer for "Trust this peer".
-	 * @param ReportRenderer      $renderer    Definition-list renderer.
-	 * @param AdminNotices        $notices     PRG redirects.
-	 * @param AdminHeaderRenderer $header     Shared page header.
-	 * @param AdminActionRenderer $actions    Shared action controls.
+	 * @param DiagnosticsService     $diagnostics Masked report slices for status display.
+	 * @param ServerRequest          $request     Raw peer for "Trust this peer".
+	 * @param ReportRenderer         $renderer    Definition-list renderer.
+	 * @param AdminNotices           $notices     PRG redirects.
+	 * @param AdminHeaderRenderer    $header      Shared page header.
+	 * @param AdminActionRenderer    $actions     Shared action controls.
+	 * @param AdminComponentRenderer $components  Design-system components.
 	 */
 	public function __construct(
 		private readonly DiagnosticsService $diagnostics,
@@ -39,7 +40,8 @@ final class TrustedProxiesPage implements Page {
 		private readonly ReportRenderer $renderer,
 		private readonly AdminNotices $notices,
 		private readonly AdminHeaderRenderer $header,
-		private readonly AdminActionRenderer $actions
+		private readonly AdminActionRenderer $actions,
+		private readonly AdminComponentRenderer $components
 	) {
 	}
 
@@ -102,8 +104,10 @@ final class TrustedProxiesPage implements Page {
 
 		$sections = $this->diagnostics->trusted_proxies_page_sections();
 		$settings = Settings::sanitize( get_option( Settings::OPTION_NAME, false ) );
+		$shell    = $this->header->shell();
 
 		echo '<div class="wrap">';
+		$shell->open();
 		$this->header->render(
 			$this->slug(),
 			$this->title(),
@@ -115,55 +119,102 @@ final class TrustedProxiesPage implements Page {
 			}
 		);
 
-		echo '<h2>' . esc_html__( 'Current status', 'universal-geo-context' ) . '</h2>';
+		$shell->open_content( true );
+
+		$peer_trusted = ! empty( $sections['trusted_proxies']['peer_trusted'] );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open(
+			__( 'Current status', 'universal-geo-context' ),
+			__( 'How the current request peer is evaluated against trusted proxy rules.', 'universal-geo-context' ),
+			$this->components->status_badge(
+				$peer_trusted ? __( 'Peer trusted', 'universal-geo-context' ) : __( 'Peer not trusted', 'universal-geo-context' ),
+				$peer_trusted ? 'active' : 'warning'
+			)
+		);
+
 		$this->renderer->render_definition_list( $sections['trusted_proxies'] );
 
-		if ( ! $sections['trusted_proxies']['peer_trusted'] ) {
+		if ( ! $peer_trusted ) {
 			$url = wp_nonce_url( admin_url( 'admin-post.php?action=universal_geo_trust_peer' ), 'universal_geo_trust_peer' );
-			printf(
-				'<p><a class="button" href="%1$s">%2$s</a></p>',
-				esc_url( $url ),
-				esc_html__( 'Trust this peer', 'universal-geo-context' )
-			);
+			ob_start();
+			printf( '<a class="button button-primary" href="%1$s">%2$s</a>', esc_url( $url ), esc_html__( 'Trust this peer', 'universal-geo-context' ) );
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+			echo $this->components->settings_card_footer( ob_get_clean() );
+		} else {
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+			echo $this->components->settings_card_close();
 		}
 
-		echo '<h2>' . esc_html__( 'Cloudflare', 'universal-geo-context' ) . '</h2>';
+		$cf_enabled = ! empty( $sections['cloudflare']['preset_enabled'] );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open(
+			__( 'Cloudflare', 'universal-geo-context' ),
+			__( 'Cloudflare-specific forwarding headers and preset status.', 'universal-geo-context' ),
+			$this->components->status_badge(
+				$cf_enabled ? __( 'Preset enabled', 'universal-geo-context' ) : __( 'Preset disabled', 'universal-geo-context' ),
+				$cf_enabled ? 'active' : 'disabled'
+			)
+		);
+
 		$this->renderer->render_definition_list( $sections['cloudflare'] );
 
-		if ( $sections['cloudflare']['peer_in_cf_ranges'] && ! $sections['cloudflare']['preset_enabled'] ) {
+		if ( ! empty( $sections['cloudflare']['peer_in_cf_ranges'] ) && ! $cf_enabled ) {
 			$url = wp_nonce_url( admin_url( 'admin-post.php?action=universal_geo_enable_cf_preset' ), 'universal_geo_enable_cf_preset' );
-			printf(
-				'<p><a class="button" href="%1$s">%2$s</a></p>',
-				esc_url( $url ),
-				esc_html__( 'Enable the Cloudflare preset', 'universal-geo-context' )
-			);
+			ob_start();
+			printf( '<a class="button" href="%1$s">%2$s</a>', esc_url( $url ), esc_html__( 'Enable the Cloudflare preset', 'universal-geo-context' ) );
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+			echo $this->components->settings_card_footer( ob_get_clean() );
+		} else {
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+			echo $this->components->settings_card_close();
 		}
 
-		echo '<h2>' . esc_html__( 'Configuration', 'universal-geo-context' ) . '</h2>';
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->info_panel(
+			__( 'Security guidance', 'universal-geo-context' ),
+			__( 'Only trust proxies you control. Misconfigured trusted proxies can allow clients to spoof their IP address.', 'universal-geo-context' )
+		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open(
+			__( 'Configuration', 'universal-geo-context' ),
+			__( 'Define trusted proxy networks and Cloudflare header trust.', 'universal-geo-context' )
+		);
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-ugc-sticky-root="trusted-proxies">';
 		wp_nonce_field( 'universal_geo_save_trusted_proxies' );
 		echo '<input type="hidden" name="action" value="universal_geo_save_trusted_proxies" />';
-		echo '<table class="form-table"><tbody>';
 
-		printf(
-			'<tr><th scope="row"><label for="universal_geo_trusted_proxies">%1$s</label></th>' .
-			'<td><textarea id="universal_geo_trusted_proxies" name="trusted_proxies" rows="4" cols="50">%2$s</textarea>' .
-			'<p class="description">%3$s</p></td></tr>',
-			esc_html__( 'Trusted proxies', 'universal-geo-context' ),
-			esc_textarea( implode( "\n", $settings['trusted_proxies'] ) ),
-			esc_html__( 'One CIDR or IP per line. Empty = trust no forwarding header.', 'universal-geo-context' )
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->textarea_row(
+			'trusted_proxies',
+			__( 'Trusted proxies', 'universal-geo-context' ),
+			implode( "\n", $settings['trusted_proxies'] ),
+			__( 'One CIDR or IP per line. Empty = trust no forwarding header.', 'universal-geo-context' ),
+			array(
+				'id'   => 'universal_geo_trusted_proxies',
+				'rows' => '4',
+			)
 		);
 
-		printf(
-			'<tr><th scope="row">%1$s</th><td><label><input type="checkbox" name="trust_cloudflare" value="1" %2$s /> %3$s</label></td></tr>',
-			esc_html__( 'Trust Cloudflare', 'universal-geo-context' ),
-			checked( $settings['trust_cloudflare'], true, false ),
-			esc_html__( 'Trust the CF-Connecting-IP / CF-IPCountry headers once the peer is trusted.', 'universal-geo-context' )
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->toggle_row(
+			'trust_cloudflare',
+			$settings['trust_cloudflare'],
+			__( 'Trust Cloudflare', 'universal-geo-context' ),
+			__( 'Trust the CF-Connecting-IP / CF-IPCountry headers once the peer is trusted.', 'universal-geo-context' )
 		);
 
-		echo '</tbody></table>';
-		submit_button();
-		echo '</form></div>';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->sticky_save_bar( 'trusted-proxies' );
+		echo '</form>';
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->settings_card_close();
+
+		$shell->close_content();
+		$shell->close();
+		echo '</div>';
 	}
 
 	/**
