@@ -4,7 +4,7 @@ Tags: geolocation, country, geoip, woocommerce, privacy
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -108,6 +108,12 @@ No. It detects geographic facts only. Consumers — other plugins reading
 its public functions — decide what those facts mean.
 
 == Changelog ==
+
+= 1.3.0 =
+* Country simulation: administrators can override the visitor country for their browser session only, via a signed HttpOnly cookie and the existing `universal_geo_context` filter (source `simulation`).
+* Detection & Testing → Simulation tab: start, change, and stop controls; real vs effective country display; ISO country selector.
+* Admin bar indicator when simulation is active, linking to the Simulation tab.
+* Removed the one-release legacy redirect from `options-general.php?page=universal-geo-context` (planned for M8).
 
 = 1.2.0 =
 * Admin navigation: a top-level **Universal Geo Context** menu replaces the former Settings submenu, with six pages — Overview, Detection & Testing, Providers, Trusted Proxies, Diagnostics, and Settings.

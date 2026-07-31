@@ -21,6 +21,7 @@ added in M7 for admin navigation:
 | 0005 | Privacy model | M3, amended M4 | [0005-privacy-model.md](0005-privacy-model.md) |
 | 0006 | Optional WooCommerce integration | M2 | [0006-optional-woocommerce-integration.md](0006-optional-woocommerce-integration.md) |
 | 0007 | Admin navigation restructuring | M7 | [0007-admin-navigation-restructuring.md](0007-admin-navigation-restructuring.md) |
+| 0008 | Country simulation framework | M8 | [0008-country-simulation-framework.md](0008-country-simulation-framework.md) |
 
 ## Format
 

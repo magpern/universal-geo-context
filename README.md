@@ -2,7 +2,7 @@
 
 **Visitor geolocation detection and country resolution — evidence-based, privacy-respecting, and easily extensible.**
 
-**Status: v1.2.0 (M7) shipped.** A working WordPress plugin that resolves a
+**Status: v1.3.0 (M8) shipped.** A working WordPress plugin that resolves a
 visitor's country from a fixed chain of providers (Cloudflare headers, a
 local MaxMind database, WooCommerce's own geolocation, an optional remote
 MaxMind web service, and a configured default), attributes the answer to a
@@ -48,7 +48,7 @@ Full documentation: [docs/API.md](docs/API.md).
 **Universal Geo Context** in the WordPress admin sidebar, with six pages:
 
 - **Overview** — at-a-glance dashboard (current resolution, provider health, remote provider, trusted proxies, cache, environment).
-- **Detection & Testing** — placeholders for simulation (v1.3.0) and live detection (v1.4.0).
+- **Detection & Testing** — country simulation for administrators (v1.3.0); live detection inspector (v1.4.0).
 - **Providers** — placeholder for detailed provider inspection (v1.4.0).
 - **Trusted Proxies** — trusted-proxy CIDRs, Cloudflare preset, trust-current-peer actions.
 - **Diagnostics** — full diagnostics report (live resolution, masked IPs, provider probes on demand, MaxMind managed-database status, Site Health results).
@@ -87,6 +87,7 @@ deployment topologies and recipes.
 - **v1.0.0 (M5)** — WP-CLI (`context`, `diagnostics`, `cache flush`); a Site Health `debug_information` section; translation readiness; Privacy Policy Guide integration; humanized diagnostics labels; real ISO 3166-1 validation for the default-country setting; release maturity (`readme.txt`, `LICENSE`, automated version-parity test, release-audit script). Shipped.
 - **v1.1.0 (M6)** — Managed GeoLite2 Country database downloads: opt-in automatic download/validate/install via a redirect-safe fetch, atomic install with rollback, WP-Cron scheduling; one shared MaxMind credential pair for both the remote provider and managed downloads; a new Site Health test; `wp universal-geo database status|download|validate|remove|restore`; new admin UI actions. Shipped.
 - **v1.2.0 (M7)** — Admin navigation restructuring: top-level menu, six focused pages, Overview dashboard, shared report renderer, plugin row links, one-release legacy URL redirect. Shipped.
+- **v1.3.0 (M8)** — Country simulation framework: administrator-only, session-scoped country override via signed cookie and post-resolution filter; Simulation tab UI; admin-bar indicator; legacy Settings URL redirect removed. Shipped.
 
 Full timeline: [docs/ROADMAP.md](docs/ROADMAP.md).
 

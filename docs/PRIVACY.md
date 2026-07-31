@@ -107,7 +107,34 @@ plain text anywhere, never leaves the server by default, and is discarded
 the instant a country has been derived. The legal basis for this processing
 (legitimate interest, etc.) is the site operator's to determine — this
 plugin does not make that determination and does not display a
-cookie/consent banner of its own (it sets no cookies).
+cookie/consent banner of its own for visitor geolocation (the derived-context
+cache uses no browser cookie). M8 adds a separate, administrator-only
+simulation cookie — see §Simulation cookie below.
+
+## Simulation cookie (M8)
+
+When an administrator uses **Detection & Testing → Simulation**, the plugin
+sets a signed browser cookie (`universal_geo_sim`) scoped to the current
+WordPress site (`COOKIEPATH` / `COOKIE_DOMAIN`). The cookie:
+
+- stores **only** a validated ISO 3166-1 alpha-2 country code plus a format
+  version and an HMAC signature derived from WordPress auth salts;
+- does **not** store the visitor's IP address, real detected country,
+  credentials, or provider data;
+- is **HttpOnly**, **Secure** when HTTPS is active, and **SameSite=Lax**;
+- uses session lifetime (no explicit expiry) until the administrator stops
+  simulation or clears it via the admin UI;
+- is honored **only** for logged-in users with `manage_options` on every
+  request — a copied or forged cookie is ignored for everyone else;
+- is **not** written to the database, object cache, or shared geo cache;
+- affects **only** the effective `VisitorContext` returned to API consumers
+  for that authorized administrator's requests — ordinary storefront visitors
+  are unaffected.
+
+The cookie exists solely to let administrators test downstream plugins against
+a different country without changing settings, providers, or MaxMind data. It
+is not technically necessary for visitor geolocation and is not set unless an
+administrator explicitly starts simulation.
 
 The remote provider (M4) is the one consequential, deliberately-surfaced
 exception to "the IP never leaves the server." It ships disabled and stays

@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Universal Geo Context 1.2.0\n"
+"Project-Id-Version: Universal Geo Context 1.3.0\n"
 "Report-Msgid-Bugs-To: https://github.com/magpern/universal-geo-context/issues\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-31T06:41:09+00:00\n"
+"POT-Creation-Date: 2026-07-31T06:59:39+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: universal-geo-context\n"
@@ -20,7 +20,7 @@ msgstr ""
 #: src/Admin/Menu.php:62
 #: src/Admin/OverviewPage.php:64
 #: src/Diagnostics/DiagnosticsService.php:231
-#: src/Plugin.php:257
+#: src/Plugin.php:277
 msgid "Universal Geo Context"
 msgstr ""
 
@@ -107,25 +107,103 @@ msgstr ""
 msgid "The previous version could not be restored. See the status below for details."
 msgstr ""
 
-#: src/Admin/DetectionPage.php:35
-#: src/Admin/DetectionPage.php:44
+#: src/Admin/AdminNotices.php:139
+msgid "Country simulation started for your browser session."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:140
+msgid "Simulated country updated for your browser session."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:141
+msgid "Country simulation stopped."
+msgstr ""
+
+#: src/Admin/AdminNotices.php:142
+msgid "Simulation could not be updated because the selected country is not valid."
+msgstr ""
+
+#: src/Admin/DetectionPage.php:68
+#: src/Admin/DetectionPage.php:77
 msgid "Detection & Testing"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:108
+#: src/Admin/DetectionPage.php:141
 msgid "Live Detection"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:114
+#: src/Admin/DetectionPage.php:147
 msgid "Simulation"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:127
+#: src/Admin/DetectionPage.php:160
 msgid "The Live Detection inspector is planned for v1.4.0. It will let you probe an arbitrary IP address through the provider chain without affecting real visitor resolution."
 msgstr ""
 
-#: src/Admin/DetectionPage.php:142
-msgid "Country simulation for testing downstream plugins is planned for v1.3.0. It will let administrators verify consumer plugins against arbitrary countries without VPNs or proxy manipulation."
+#: src/Admin/DetectionPage.php:181
+msgid "Country simulation overrides the visitor context for your browser session only. It does not change real geolocation, provider configuration, or shared geo caches. Use it to test how downstream plugins respond to a different visitor country."
+msgstr ""
+
+#: src/Admin/DetectionPage.php:182
+msgid "This is a developer and QA tool — not a production mechanism for controlling customer experience."
+msgstr ""
+
+#: src/Admin/DetectionPage.php:184
+msgid "Current context"
+msgstr ""
+
+#: src/Admin/DetectionPage.php:186
+msgid "Real resolved country"
+msgstr ""
+
+#: src/Admin/DetectionPage.php:187
+msgid "Effective country (what consumers see)"
+msgstr ""
+
+#: src/Admin/DetectionPage.php:190
+msgid "Simulation active"
+msgstr ""
+
+#: src/Admin/DetectionPage.php:191
+#: src/Admin/SettingsPage.php:570
+msgid "Yes"
+msgstr ""
+
+#: src/Admin/DetectionPage.php:191
+#: src/Admin/SettingsPage.php:570
+msgid "No"
+msgstr ""
+
+#: src/Admin/DetectionPage.php:196
+msgid "Simulated country"
+msgstr ""
+
+#: src/Admin/DetectionPage.php:203
+msgid "Controls"
+msgstr ""
+
+#: src/Admin/DetectionPage.php:208
+msgid "Change simulated country"
+msgstr ""
+
+#: src/Admin/DetectionPage.php:216
+msgid "Stop simulation"
+msgstr ""
+
+#: src/Admin/DetectionPage.php:221
+msgid "Start simulation"
+msgstr ""
+
+#: src/Admin/DetectionPage.php:239
+msgid "Unknown"
+msgstr ""
+
+#: src/Admin/DetectionPage.php:270
+msgid "Country"
+msgstr ""
+
+#: src/Admin/DetectionPage.php:272
+msgid "Select a country…"
 msgstr ""
 
 #: src/Admin/DiagnosticsPage.php:49
@@ -202,6 +280,8 @@ msgstr ""
 #: src/Admin/TrustedProxiesPage.php:163
 #: src/Admin/TrustedProxiesPage.php:191
 #: src/Admin/TrustedProxiesPage.php:222
+#: src/Simulation/SimulationController.php:74
+#: src/Simulation/SimulationController.php:93
 msgid "You do not have permission to do this."
 msgstr ""
 
@@ -470,14 +550,6 @@ msgstr ""
 msgid "Installed"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:570
-msgid "Yes"
-msgstr ""
-
-#: src/Admin/SettingsPage.php:570
-msgid "No"
-msgstr ""
-
 #: src/Admin/SettingsPage.php:575
 msgid "Last attempt"
 msgstr ""
@@ -512,6 +584,12 @@ msgstr ""
 
 #: src/Admin/SettingsPage.php:618
 msgid "Are you sure?"
+msgstr ""
+
+#. translators: %s: simulated country label
+#: src/Admin/SimulationAdminBar.php:71
+#, php-format
+msgid "Geo Simulation: %s"
 msgstr ""
 
 #: src/Admin/TrustedProxiesPage.php:105
@@ -942,19 +1020,19 @@ msgstr ""
 msgid "Twice weekly (Universal Geo Context)"
 msgstr ""
 
-#: src/Plugin.php:316
+#: src/Plugin.php:336
 msgid "Called before Universal Geo Context has booted. Call at or after the plugins_loaded priority 20."
 msgstr ""
 
-#: src/Plugin.php:343
+#: src/Plugin.php:363
 msgid "The universal_geo_context filter must return a VisitorContext with a valid country code."
 msgstr ""
 
-#: src/Plugin.php:710
+#: src/Plugin.php:730
 msgid "The universal_geo_maxmind_db_path filter must return a string."
 msgstr ""
 
-#: src/Plugin.php:832
+#: src/Plugin.php:852
 msgid "The universal_geo_providers filter must only return GeoProviderInterface instances; a non-conforming element was dropped."
 msgstr ""
 
@@ -968,6 +1046,1010 @@ msgstr ""
 
 #: src/Privacy/PrivacyPolicyContent.php:65
 msgid "This site has enabled the optional remote provider: visitor IP addresses are sent to MaxMind, Inc. (geolite.info) to look up a country. This transfer only happens because an administrator explicitly enabled it and acknowledged the transfer."
+msgstr ""
+
+#: src/Privacy/PrivacyPolicyContent.php:74
+msgid "Site administrators may use an optional country simulation feature for testing. When active, a signed browser cookie stores only a selected ISO country code for that administrator's session. The cookie contains no IP address, is not used for ordinary visitors, and is not stored in the database."
+msgstr ""
+
+#: src/Simulation/CountryNames.php:27
+msgid "Afghanistan"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:28
+msgid "Albania"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:29
+msgid "Algeria"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:30
+msgid "American Samoa"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:31
+msgid "Andorra"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:32
+msgid "Angola"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:33
+msgid "Anguilla"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:34
+msgid "Antarctica"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:35
+msgid "Antigua and Barbuda"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:36
+msgid "Argentina"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:37
+msgid "Armenia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:38
+msgid "Aruba"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:39
+msgid "Australia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:40
+msgid "Austria"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:41
+msgid "Azerbaijan"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:42
+msgid "Bahamas"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:43
+msgid "Bahrain"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:44
+msgid "Bangladesh"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:45
+msgid "Barbados"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:46
+msgid "Belarus"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:47
+msgid "Belgium"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:48
+msgid "Belize"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:49
+msgid "Benin"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:50
+msgid "Bermuda"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:51
+msgid "Bhutan"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:52
+msgid "Bolivia, Plurinational State of"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:53
+msgid "Bonaire, Sint Eustatius and Saba"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:54
+msgid "Bosnia and Herzegovina"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:55
+msgid "Botswana"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:56
+msgid "Bouvet Island"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:57
+msgid "Brazil"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:58
+msgid "British Indian Ocean Territory"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:59
+msgid "Brunei Darussalam"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:60
+msgid "Bulgaria"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:61
+msgid "Burkina Faso"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:62
+msgid "Burundi"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:63
+msgid "Cabo Verde"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:64
+msgid "Cambodia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:65
+msgid "Cameroon"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:66
+msgid "Canada"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:67
+msgid "Cayman Islands"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:68
+msgid "Central African Republic"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:69
+msgid "Chad"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:70
+msgid "Chile"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:71
+msgid "China"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:72
+msgid "Christmas Island"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:73
+msgid "Cocos (Keeling) Islands"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:74
+msgid "Colombia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:75
+msgid "Comoros"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:76
+msgid "Congo"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:77
+msgid "Congo, Democratic Republic of the"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:78
+msgid "Cook Islands"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:79
+msgid "Costa Rica"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:80
+msgid "Croatia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:81
+msgid "Cuba"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:82
+msgid "Curaçao"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:83
+msgid "Cyprus"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:84
+msgid "Czechia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:85
+msgid "Côte d'Ivoire"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:86
+msgid "Denmark"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:87
+msgid "Djibouti"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:88
+msgid "Dominica"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:89
+msgid "Dominican Republic"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:90
+msgid "Ecuador"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:91
+msgid "Egypt"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:92
+msgid "El Salvador"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:93
+msgid "Equatorial Guinea"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:94
+msgid "Eritrea"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:95
+msgid "Estonia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:96
+msgid "Eswatini"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:97
+msgid "Ethiopia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:98
+msgid "Falkland Islands (Malvinas)"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:99
+msgid "Faroe Islands"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:100
+msgid "Fiji"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:101
+msgid "Finland"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:102
+msgid "France"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:103
+msgid "French Guiana"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:104
+msgid "French Polynesia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:105
+msgid "French Southern Territories"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:106
+msgid "Gabon"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:107
+msgid "Gambia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:108
+msgid "Georgia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:109
+msgid "Germany"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:110
+msgid "Ghana"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:111
+msgid "Gibraltar"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:112
+msgid "Greece"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:113
+msgid "Greenland"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:114
+msgid "Grenada"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:115
+msgid "Guadeloupe"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:116
+msgid "Guam"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:117
+msgid "Guatemala"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:118
+msgid "Guernsey"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:119
+msgid "Guinea"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:120
+msgid "Guinea-Bissau"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:121
+msgid "Guyana"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:122
+msgid "Haiti"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:123
+msgid "Heard Island and McDonald Islands"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:124
+msgid "Holy See"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:125
+msgid "Honduras"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:126
+msgid "Hong Kong"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:127
+msgid "Hungary"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:128
+msgid "Iceland"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:129
+msgid "India"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:130
+msgid "Indonesia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:131
+msgid "Iran, Islamic Republic of"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:132
+msgid "Iraq"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:133
+msgid "Ireland"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:134
+msgid "Isle of Man"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:135
+msgid "Israel"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:136
+msgid "Italy"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:137
+msgid "Jamaica"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:138
+msgid "Japan"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:139
+msgid "Jersey"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:140
+msgid "Jordan"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:141
+msgid "Kazakhstan"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:142
+msgid "Kenya"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:143
+msgid "Kiribati"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:144
+msgid "Korea, Democratic People's Republic of"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:145
+msgid "Korea, Republic of"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:146
+msgid "Kosovo"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:147
+msgid "Kuwait"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:148
+msgid "Kyrgyzstan"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:149
+msgid "Lao People's Democratic Republic"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:150
+msgid "Latvia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:151
+msgid "Lebanon"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:152
+msgid "Lesotho"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:153
+msgid "Liberia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:154
+msgid "Libya"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:155
+msgid "Liechtenstein"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:156
+msgid "Lithuania"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:157
+msgid "Luxembourg"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:158
+msgid "Macao"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:159
+msgid "Madagascar"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:160
+msgid "Malawi"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:161
+msgid "Malaysia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:162
+msgid "Maldives"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:163
+msgid "Mali"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:164
+msgid "Malta"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:165
+msgid "Marshall Islands"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:166
+msgid "Martinique"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:167
+msgid "Mauritania"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:168
+msgid "Mauritius"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:169
+msgid "Mayotte"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:170
+msgid "Mexico"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:171
+msgid "Micronesia, Federated States of"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:172
+msgid "Moldova, Republic of"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:173
+msgid "Monaco"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:174
+msgid "Mongolia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:175
+msgid "Montenegro"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:176
+msgid "Montserrat"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:177
+msgid "Morocco"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:178
+msgid "Mozambique"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:179
+msgid "Myanmar"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:180
+msgid "Namibia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:181
+msgid "Nauru"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:182
+msgid "Nepal"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:183
+msgid "Netherlands, Kingdom of the"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:184
+msgid "New Caledonia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:185
+msgid "New Zealand"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:186
+msgid "Nicaragua"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:187
+msgid "Niger"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:188
+msgid "Nigeria"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:189
+msgid "Niue"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:190
+msgid "Norfolk Island"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:191
+msgid "North Macedonia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:192
+msgid "Northern Mariana Islands"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:193
+msgid "Norway"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:194
+msgid "Oman"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:195
+msgid "Pakistan"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:196
+msgid "Palau"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:197
+msgid "Palestine, State of"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:198
+msgid "Panama"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:199
+msgid "Papua New Guinea"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:200
+msgid "Paraguay"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:201
+msgid "Peru"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:202
+msgid "Philippines"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:203
+msgid "Pitcairn"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:204
+msgid "Poland"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:205
+msgid "Portugal"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:206
+msgid "Puerto Rico"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:207
+msgid "Qatar"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:208
+msgid "Romania"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:209
+msgid "Russian Federation"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:210
+msgid "Rwanda"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:211
+msgid "Réunion"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:212
+msgid "Saint Barthélemy"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:213
+msgid "Saint Helena, Ascension and Tristan da Cunha"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:214
+msgid "Saint Kitts and Nevis"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:215
+msgid "Saint Lucia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:216
+msgid "Saint Martin (French part)"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:217
+msgid "Saint Pierre and Miquelon"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:218
+msgid "Saint Vincent and the Grenadines"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:219
+msgid "Samoa"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:220
+msgid "San Marino"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:221
+msgid "Sao Tome and Principe"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:222
+msgid "Saudi Arabia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:223
+msgid "Senegal"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:224
+msgid "Serbia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:225
+msgid "Seychelles"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:226
+msgid "Sierra Leone"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:227
+msgid "Singapore"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:228
+msgid "Sint Maarten (Dutch part)"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:229
+msgid "Slovakia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:230
+msgid "Slovenia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:231
+msgid "Solomon Islands"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:232
+msgid "Somalia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:233
+msgid "South Africa"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:234
+msgid "South Georgia and the South Sandwich Islands"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:235
+msgid "South Sudan"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:236
+msgid "Spain"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:237
+msgid "Sri Lanka"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:238
+msgid "Sudan"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:239
+msgid "Suriname"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:240
+msgid "Svalbard and Jan Mayen"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:241
+msgid "Sweden"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:242
+msgid "Switzerland"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:243
+msgid "Syrian Arab Republic"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:244
+msgid "Taiwan, Province of China"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:245
+msgid "Tajikistan"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:246
+msgid "Tanzania, United Republic of"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:247
+msgid "Thailand"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:248
+msgid "Timor-Leste"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:249
+msgid "Togo"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:250
+msgid "Tokelau"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:251
+msgid "Tonga"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:252
+msgid "Trinidad and Tobago"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:253
+msgid "Tunisia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:254
+msgid "Turkmenistan"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:255
+msgid "Turks and Caicos Islands"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:256
+msgid "Tuvalu"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:257
+msgid "Türkiye"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:258
+msgid "Uganda"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:259
+msgid "Ukraine"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:260
+msgid "United Arab Emirates"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:261
+msgid "United Kingdom of Great Britain and Northern Ireland"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:262
+msgid "United States Minor Outlying Islands"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:263
+msgid "United States of America"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:264
+msgid "Uruguay"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:265
+msgid "Uzbekistan"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:266
+msgid "Vanuatu"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:267
+msgid "Venezuela, Bolivarian Republic of"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:268
+msgid "Viet Nam"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:269
+msgid "Virgin Islands (British)"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:270
+msgid "Virgin Islands (U.S.)"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:271
+msgid "Wallis and Futuna"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:272
+msgid "Western Sahara"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:273
+msgid "Yemen"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:274
+msgid "Zambia"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:275
+msgid "Zimbabwe"
+msgstr ""
+
+#: src/Simulation/CountryNames.php:276
+msgid "Åland Islands"
 msgstr ""
 
 #: universal-geo-context.php:47

@@ -928,9 +928,10 @@ registers these admin classes explicitly on the existing admin-only path
 
 | Class | Responsibility |
 |---|---|
-| `Menu` | Top-level menu + six submenus; legacy URL redirect (one release) |
+| `Menu` | Top-level menu + six submenus |
 | `OverviewPage` | Six-card dashboard; explicit Refresh now POST only |
-| `DetectionPage` | Live Detection / Simulation tab placeholders (M8/M9) |
+| `DetectionPage` | Live Detection placeholder (M9); Simulation tab (M8) |
+| `SimulationAdminBar` | Admin-bar indicator when simulation is active (M8) |
 | `ProvidersPage` | Informational placeholder (M9) |
 | `TrustedProxiesPage` | Trusted-proxy settings and trust actions |
 | `DiagnosticsPage` | Full diagnostics report via `ReportRenderer` |
@@ -952,5 +953,27 @@ without calling `ContextResolver::probe()`. Current resolution uses
 existing Site Health verdict methods, including managed MaxMind.
 
 **Legacy compatibility:** `Menu::maybe_redirect_legacy_page_url()` on
-`admin_init` redirects `options-general.php?page=universal-geo-context` to
+`admin_init` redirected `options-general.php?page=universal-geo-context` to
 Overview and `tab=diagnostics` to Diagnostics. **Removed in M8 (v1.3.0).**
+
+### M8 — Country simulation framework (v1.3.0)
+
+Summarized in the same spirit as M2–M7 above. **No public API shape change,
+no new provider, no geo-cache write, no settings schema migration** — an
+administrator-only post-resolution filter plus signed session cookie. See
+ADR-0008.
+
+| Class | Responsibility |
+|---|---|
+| `SimulationCookie` | Signed HttpOnly cookie (`universal_geo_sim`) |
+| `SimulationState` | Cookie read + per-request authorization |
+| `SimulationAuthorization` | `manage_options` + logged-in gate |
+| `SimulationContextFilter` | `universal_geo_context` @ priority 100 |
+| `SimulationController` | Nonce-protected POST start/change/stop |
+| `CountryCatalog` / `CountryNames` | ISO alpha-2 selector labels |
+| `SimulationAdminBar` | Visible badge when simulation is active |
+
+When active, the filter returns a new `VisitorContext` with
+`source = simulation`, `confidence = 1.0`, `region_code = null`,
+`is_cached = false`. Real resolution and cache entries are unchanged.
+Multisite: per-site cookie via `COOKIEPATH` / `COOKIE_DOMAIN`.

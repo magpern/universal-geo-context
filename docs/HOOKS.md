@@ -1,13 +1,16 @@
 # Hooks and Extension Points
 
-**Status: M5 complete.** All seven v1 hooks are shipped (M1 shipped two, M2
+**Status: M8 complete.** All seven v1 hooks are shipped (M1 shipped two, M2
 added four, M3 added the seventh and last: `universal_geo_maxmind_db_path`).
 M4 adds no new public hook — the remote provider is wired entirely through
 existing surfaces (`universal_geo_providers` sees it in its fixed slot;
 `universal_geo_provider_failed` fires for its failures identically to any
 other provider). M5 adds no new public hook either — WP-CLI and Site
 Health's `debug_information` both consume `DiagnosticsService::report()`
-directly, not a hook; the seven-hook v1 surface remains closed.
+directly, not a hook; the seven-hook v1 surface remains closed. M8 adds no
+new public hook — country simulation is implemented as an internal filter on
+`universal_geo_context` at priority **100** (`SimulationContextFilter`), after
+real resolution completes and after the core context is constructed.
 
 All hooks use the `universal_geo_` namespace; filters are nouns, actions are
 `{subject}_{past-participle}`.
@@ -78,6 +81,14 @@ do_action( 'universal_geo_provider_failed', string $provider_id, string $reason 
   priority 10, not inside `plugins_loaded` itself at a later priority.
   `universal_geo_trusted_proxies` fires lazily, on first resolution, so
   registering it any time before that first call works.
+- **Country simulation (M8)** registers on `universal_geo_context` at priority
+  **100** inside `Plugin::init()` for every request. When an authorized
+  administrator has an active signed cookie, the filter replaces the country
+  with the simulated value, sets `source` to `simulation`, `confidence` to
+  `1.0`, `region_code` to `null`, and `is_cached` to `false`. When
+  simulation is inactive, the filter is a no-op. Third-party filters on
+  `universal_geo_context` should choose their priority relative to 100 if they
+  need to run before or after simulation.
 - `universal_geo_maxmind_db_path`'s return value is hardened identically to
   `universal_geo_default_country`: a non-string result is discarded with
   `_doing_it_wrong()` and the pre-filter path (the settings/WooCommerce-

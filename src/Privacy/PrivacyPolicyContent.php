@@ -69,6 +69,14 @@ final class PrivacyPolicyContent {
 			);
 		}
 
+		$paragraphs[] = sprintf(
+			'<p>%s</p>',
+			esc_html__(
+				'Site administrators may use an optional country simulation feature for testing. When active, a signed browser cookie stores only a selected ISO country code for that administrator\'s session. The cookie contains no IP address, is not used for ordinary visitors, and is not stored in the database.',
+				'universal-geo-context'
+			)
+		);
+
 		return implode( "\n", $paragraphs );
 	}
 }

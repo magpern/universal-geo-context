@@ -1,6 +1,6 @@
 # Roadmap
 
-**Status: M1–M7 shipped. v1.0.0 is the first production-ready release; v1.1.0 adds managed GeoLite2 downloads; v1.2.0 restructures admin navigation.**
+**Status: M1–M8 shipped through v1.3.0. v1.0.0 is the first production-ready release; v1.1.0 adds managed GeoLite2 downloads; v1.2.0 restructures admin navigation; v1.3.0 adds country simulation.**
 
 **Architecture governance**: See `docs/ARCHITECTURE_FREEZE.md` for the frozen contracts of the v1.x series and guidance on architectural evolution for future milestones.
 
@@ -15,8 +15,9 @@
 - **v1.0.0 (M5)** — Operational maturity: WP-CLI (`context`, `diagnostics`, `cache flush`); a Site Health `debug_information` section; translation readiness (`load_plugin_textdomain()`, `.pot`, a CI drift check); Privacy Policy Guide integration (`wp_add_privacy_policy_content()`); humanized diagnostics labels; real ISO 3166-1 validation for the default-country setting; `readme.txt`, `LICENSE`, an automated version-parity test, and a release-audit script. Shipped.
 - **v1.1.0 (M6)** — Managed GeoLite2 Country database downloads: opt-in automatic download/validate/install via a redirect-safe two-hop fetch (credentials never reach the redirect target), `.sha256` checksum verification (confirmed against a live MaxMind account and implemented during M6J acceptance) alongside MMDB structural validation, atomic install with rollback, WP-Cron scheduling (weekly or twice-weekly); one shared MaxMind credential pair for both the remote provider and managed downloads, with backward-compatible migration from the old remote-only fields; a new `universal_geo_maxmind_managed` Site Health test; `wp universal-geo database status|download|validate|remove|restore`; new admin UI actions. `maxmind-db/reader` promoted from a dev-only to a production dependency. Shipped.
 - **v1.2.0 (M7)** — Admin navigation restructuring: replace the monolithic Settings-submenu `AdminScreen` with a top-level **Universal Geo Context** menu and six focused pages (Overview, Detection & Testing, Providers, Trusted Proxies, Diagnostics, Settings). Overview dashboard (six cards, no auto-probe); shared `ReportRenderer`; trusted-proxy settings moved to their own page; Detection & Testing and Providers placeholders; plugin row links; one-release legacy URL redirect from `options-general.php?page=universal-geo-context` (removed M8). No new geo-resolution behavior, public API changes, or settings schema migration. Shipped.
+- **v1.3.0 (M8)** — Country simulation framework: administrator-only, session-scoped country override via signed cookie and post-resolution `universal_geo_context` filter; Simulation tab UI; admin-bar indicator; legacy Settings URL redirect removed. No provider, cache, or public API shape changes. Shipped.
 
-## Explicitly deferred to 1.3 or later
+## Explicitly deferred to 1.4 or later
 
 - **Logs admin page** — slug `universal-geo-context-logs` reserved in documentation; not registered until a future milestone defines log storage and retention
 - Region support (via GeoLite2-City + ISO 3166-2 table)
