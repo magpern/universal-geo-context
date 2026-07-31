@@ -11,9 +11,12 @@ namespace UniversalGeo;
 
 use UniversalGeo\Admin\AdminActionRenderer;
 use UniversalGeo\Admin\AdminAssets;
+use UniversalGeo\Admin\AdminComponentRenderer;
 use UniversalGeo\Admin\AdminHeaderRenderer;
-use UniversalGeo\Admin\AdminNavigationRenderer;
 use UniversalGeo\Admin\AdminNotices;
+use UniversalGeo\Admin\AdminPageShell;
+use UniversalGeo\Admin\AdminPageShellViewModelFactory;
+use UniversalGeo\Admin\DefinitionListRenderer;
 use UniversalGeo\Admin\DetectionInspectorRenderer;
 use UniversalGeo\Admin\DetectionPage;
 use UniversalGeo\Admin\DiagnosticsPage;
@@ -24,8 +27,10 @@ use UniversalGeo\Admin\ProvidersPage;
 use UniversalGeo\Admin\QuickActionsRenderer;
 use UniversalGeo\Admin\ReportRenderer;
 use UniversalGeo\Admin\RowLinks;
+use UniversalGeo\Admin\SectionNavigation;
 use UniversalGeo\Admin\SimulationAdminBar;
 use UniversalGeo\Admin\SettingsPage;
+use UniversalGeo\Admin\TimelineRenderer;
 use UniversalGeo\Admin\TrustedProxiesPage;
 use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Cli\Command as CliCommand;
@@ -230,11 +235,16 @@ final class Plugin {
 		if ( $register_admin ) {
 			$diagnostics->register();
 
-			$notices         = new AdminNotices();
-			$report_renderer = new ReportRenderer( $diagnostics );
-			$admin_actions   = new AdminActionRenderer();
-			$admin_header    = new AdminHeaderRenderer( new AdminNavigationRenderer() );
-			$quick_actions   = new QuickActionsRenderer( $admin_actions );
+			$notices              = new AdminNotices();
+			$components           = new AdminComponentRenderer();
+			$definition_list      = new DefinitionListRenderer( $diagnostics );
+			$report_renderer      = new ReportRenderer( $definition_list );
+			$admin_actions        = new AdminActionRenderer();
+			$shell_factory        = new AdminPageShellViewModelFactory();
+			$admin_shell          = new AdminPageShell( new SectionNavigation() );
+			$admin_header         = new AdminHeaderRenderer( $admin_shell, $shell_factory );
+			$quick_actions        = new QuickActionsRenderer( $admin_actions, $components );
+			$timeline_renderer    = new TimelineRenderer( $components, new ExplanationFormatter() );
 
 			( new AdminAssets() )->register();
 
@@ -252,7 +262,9 @@ final class Plugin {
 			$inspector_renderer = new DetectionInspectorRenderer(
 				$report_renderer,
 				new ExplanationFormatter(),
-				$diagnostics
+				$diagnostics,
+				$components,
+				$timeline_renderer
 			);
 
 			$overview_page = new OverviewPage(
@@ -262,7 +274,9 @@ final class Plugin {
 				$notices,
 				$admin_header,
 				$quick_actions,
-				$admin_actions
+				$admin_actions,
+				$components,
+				$simulation_state
 			);
 
 			$detection_page = new DetectionPage(
@@ -273,13 +287,16 @@ final class Plugin {
 				$inspector_service,
 				$inspector_renderer,
 				$admin_header,
-				$admin_actions
+				$admin_actions,
+				$components,
+				$report_renderer
 			);
 			$providers_page = new ProvidersPage(
 				$inspector_service,
 				$report_renderer,
 				$admin_header,
-				$admin_actions
+				$admin_actions,
+				$components
 			);
 
 			$trusted_proxies_page = new TrustedProxiesPage(
@@ -288,14 +305,16 @@ final class Plugin {
 				$report_renderer,
 				$notices,
 				$admin_header,
-				$admin_actions
+				$admin_actions,
+				$components
 			);
 
 			$diagnostics_page = new DiagnosticsPage(
 				$diagnostics,
 				$report_renderer,
 				$admin_header,
-				$admin_actions
+				$admin_actions,
+				$components
 			);
 
 			$settings_page = new SettingsPage(
@@ -303,7 +322,9 @@ final class Plugin {
 				$graph['database_manager'],
 				$notices,
 				$admin_header,
-				$admin_actions
+				$admin_actions,
+				$components,
+				$report_renderer
 			);
 
 			( new Menu(

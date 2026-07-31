@@ -16,6 +16,7 @@ use UniversalGeo\Admin\AdminNotices;
 use UniversalGeo\Admin\AdminPageRegistry;
 use UniversalGeo\Admin\AdminPageSlugs;
 use UniversalGeo\Admin\AdminProbeFreshFlag;
+use UniversalGeo\Admin\DefinitionListRenderer;
 use UniversalGeo\Admin\DetectionInspectorRenderer;
 use UniversalGeo\Admin\DetectionPage;
 use UniversalGeo\Admin\FirstRunNotice;
@@ -24,6 +25,7 @@ use UniversalGeo\Admin\OverviewPage;
 use UniversalGeo\Admin\ProvidersPage;
 use UniversalGeo\Admin\ReportRenderer;
 use UniversalGeo\Admin\SettingsPage;
+use UniversalGeo\Admin\TimelineRenderer;
 use UniversalGeo\Admin\TrustedProxiesPage;
 use UniversalGeo\Simulation\CountryCatalog;
 use UniversalGeo\Simulation\SimulationAuthorization;
@@ -115,18 +117,23 @@ final class AdminComponentsTest extends TestCase {
 			$database_manager,
 			new AdminNotices(),
 			AdminUxFactory::header(),
-			AdminUxFactory::actions()
+			AdminUxFactory::actions(),
+			AdminUxFactory::components(),
+			new ReportRenderer( new DefinitionListRenderer( $this->diagnostics() ) )
 		);
 	}
 
 	private function trusted_proxies_page( ?DiagnosticsService $diagnostics = null ): TrustedProxiesPage {
+		$diagnostics = $diagnostics ?? $this->diagnostics();
+
 		return new TrustedProxiesPage(
-			$diagnostics ?? $this->diagnostics(),
+			$diagnostics,
 			ServerRequestFactory::make(),
-			new ReportRenderer( $diagnostics ?? $this->diagnostics() ),
+			new ReportRenderer( new DefinitionListRenderer( $diagnostics ) ),
 			new AdminNotices(),
 			AdminUxFactory::header(),
-			AdminUxFactory::actions()
+			AdminUxFactory::actions(),
+			AdminUxFactory::components()
 		);
 	}
 
@@ -154,10 +161,14 @@ final class AdminComponentsTest extends TestCase {
 		$state       = new SimulationState( $cookie, new SimulationAuthorization() );
 		$diagnostics = $this->diagnostics();
 		$inspector   = $this->inspector_service( $resolver, $diagnostics );
+		$diagnostics = $this->diagnostics();
+		$definition    = new DefinitionListRenderer( $diagnostics );
 		$renderer    = new DetectionInspectorRenderer(
-			new ReportRenderer( $diagnostics ),
+			new ReportRenderer( $definition ),
 			new ExplanationFormatter(),
-			$diagnostics
+			$diagnostics,
+			AdminUxFactory::components(),
+			new TimelineRenderer( AdminUxFactory::components(), new ExplanationFormatter() )
 		);
 
 		return new DetectionPage(
@@ -168,7 +179,9 @@ final class AdminComponentsTest extends TestCase {
 			$inspector,
 			$renderer,
 			AdminUxFactory::header(),
-			AdminUxFactory::actions()
+			AdminUxFactory::actions(),
+			AdminUxFactory::components(),
+			new ReportRenderer( $definition )
 		);
 	}
 
@@ -176,20 +189,22 @@ final class AdminComponentsTest extends TestCase {
 		$diagnostics      = $this->diagnostics();
 		$database_manager = $this->unused_database_manager();
 		$notices          = new AdminNotices();
-		$renderer         = new ReportRenderer( $diagnostics );
+		$definition       = new DefinitionListRenderer( $diagnostics );
+		$renderer         = new ReportRenderer( $definition );
 		$resolver         = new ContextResolver(
 			new ClientIpResolver( ServerRequestFactory::make(), new TrustedProxies( array(), false ) ),
 			array(),
 			new GeoCache( false, 900, 'sig' )
 		);
+		$state            = new SimulationState( new SimulationCookie(), new SimulationAuthorization() );
 
 		return new Menu(
-			new OverviewPage( $diagnostics, $resolver, $renderer, $notices, AdminUxFactory::header(), AdminUxFactory::quick_actions(), AdminUxFactory::actions() ),
+			new OverviewPage( $diagnostics, $resolver, $renderer, $notices, AdminUxFactory::header(), AdminUxFactory::quick_actions(), AdminUxFactory::actions(), AdminUxFactory::components(), $state ),
 			$this->detection_page( $resolver ),
-			new ProvidersPage( $this->inspector_service( $resolver, $diagnostics ), $renderer, AdminUxFactory::header(), AdminUxFactory::actions() ),
-			new TrustedProxiesPage( $diagnostics, ServerRequestFactory::make(), $renderer, $notices, AdminUxFactory::header(), AdminUxFactory::actions() ),
-			new \UniversalGeo\Admin\DiagnosticsPage( $diagnostics, $renderer, AdminUxFactory::header(), AdminUxFactory::actions() ),
-			new SettingsPage( new UpdateScheduler( $database_manager ), $database_manager, $notices, AdminUxFactory::header(), AdminUxFactory::actions() )
+			new ProvidersPage( $this->inspector_service( $resolver, $diagnostics ), $renderer, AdminUxFactory::header(), AdminUxFactory::actions(), AdminUxFactory::components() ),
+			new TrustedProxiesPage( $diagnostics, ServerRequestFactory::make(), $renderer, $notices, AdminUxFactory::header(), AdminUxFactory::actions(), AdminUxFactory::components() ),
+			new \UniversalGeo\Admin\DiagnosticsPage( $diagnostics, $renderer, AdminUxFactory::header(), AdminUxFactory::actions(), AdminUxFactory::components() ),
+			new SettingsPage( new UpdateScheduler( $database_manager ), $database_manager, $notices, AdminUxFactory::header(), AdminUxFactory::actions(), AdminUxFactory::components(), $renderer )
 		);
 	}
 
@@ -303,11 +318,13 @@ final class AdminComponentsTest extends TestCase {
 		$page        = new OverviewPage(
 			$diagnostics,
 			$resolver,
-			new ReportRenderer( $diagnostics ),
+			new ReportRenderer( new DefinitionListRenderer( $diagnostics ) ),
 			new AdminNotices(),
 			AdminUxFactory::header(),
 			AdminUxFactory::quick_actions(),
-			AdminUxFactory::actions()
+			AdminUxFactory::actions(),
+			AdminUxFactory::components(),
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() )
 		);
 
 		ob_start();
@@ -350,11 +367,13 @@ final class AdminComponentsTest extends TestCase {
 		$page     = new OverviewPage(
 			$this->diagnostics(),
 			$resolver,
-			new ReportRenderer( $this->diagnostics() ),
+			new ReportRenderer( new DefinitionListRenderer( $this->diagnostics() ) ),
 			new AdminNotices(),
 			AdminUxFactory::header(),
 			AdminUxFactory::quick_actions(),
-			AdminUxFactory::actions()
+			AdminUxFactory::actions(),
+			AdminUxFactory::components(),
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() )
 		);
 
 		$_POST = array(
@@ -405,20 +424,23 @@ final class AdminComponentsTest extends TestCase {
 		$page        = new OverviewPage(
 			$diagnostics,
 			$resolver,
-			new ReportRenderer( $diagnostics ),
+			new ReportRenderer( new DefinitionListRenderer( $diagnostics ) ),
 			new AdminNotices(),
 			AdminUxFactory::header(),
 			AdminUxFactory::quick_actions(),
-			AdminUxFactory::actions()
+			AdminUxFactory::actions(),
+			AdminUxFactory::components(),
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() )
 		);
 
 		ob_start();
 		$page->render();
 		$html = ob_get_clean();
 
-		$this->assertStringContainsString( 'universal-geo-admin-nav', $html );
-		$this->assertStringContainsString( 'nav-tab-active', $html );
+		$this->assertStringContainsString( 'ugc-shell-nav', $html );
+		$this->assertStringContainsString( 'ugc-shell-nav__item--active', $html );
 		$this->assertStringContainsString( 'Quick Actions', $html );
+		$this->assertStringContainsString( 'ugc-ui-statistics-grid', $html );
 		$this->assertStringContainsString( 'Open Detection & Testing', $html );
 		$this->assertStringContainsString( AdminPageRegistry::description( AdminPageSlugs::OVERVIEW ), $html );
 	}
@@ -428,8 +450,9 @@ final class AdminComponentsTest extends TestCase {
 		$this->settings_page()->render();
 		$html = ob_get_clean();
 
-		$this->assertStringContainsString( 'nav-tab-active', $html );
+		$this->assertStringContainsString( 'ugc-shell-nav__item--active', $html );
 		$this->assertStringContainsString( 'page=universal-geo-context-settings', $html );
+		$this->assertStringContainsString( 'data-ugc-sticky-root="settings"', $html );
 		$this->assertStringContainsString( AdminPageRegistry::description( AdminPageSlugs::SETTINGS ), $html );
 	}
 }

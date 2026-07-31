@@ -12,10 +12,12 @@ namespace UniversalGeo\Tests\Integration\Simulation;
 use UniversalGeo\Admin\AdminNotices;
 use UniversalGeo\Tests\Support\AdminUxFactory;
 use UniversalGeo\Admin\AdminPageSlugs;
+use UniversalGeo\Admin\DefinitionListRenderer;
 use UniversalGeo\Admin\DetectionInspectorRenderer;
 use UniversalGeo\Admin\DetectionPage;
 use UniversalGeo\Admin\ReportRenderer;
 use UniversalGeo\Admin\SimulationAdminBar;
+use UniversalGeo\Admin\TimelineRenderer;
 use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Diagnostics\DiagnosticsService;
 use UniversalGeo\Diagnostics\ProviderHealthStore;
@@ -109,10 +111,13 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 			new ProviderExplanationBuilder( $resolver ),
 			new ResolutionTimelineBuilder()
 		);
-		$renderer    = new DetectionInspectorRenderer(
-			new ReportRenderer( $diagnostics ),
+		$definition = new DefinitionListRenderer( $diagnostics );
+		$renderer   = new DetectionInspectorRenderer(
+			new ReportRenderer( $definition ),
 			new ExplanationFormatter(),
-			$diagnostics
+			$diagnostics,
+			AdminUxFactory::components(),
+			new TimelineRenderer( AdminUxFactory::components(), new ExplanationFormatter() )
 		);
 
 		$cookie = $cookie ?? $this->cookie();
@@ -125,7 +130,9 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 			$inspector,
 			$renderer,
 			AdminUxFactory::header(),
-			AdminUxFactory::actions()
+			AdminUxFactory::actions(),
+			AdminUxFactory::components(),
+			new ReportRenderer( $definition )
 		);
 	}
 
