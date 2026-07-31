@@ -18,56 +18,72 @@ namespace UniversalGeo\Admin;
 final class QuickActionsRenderer {
 
 	/**
-	 * Stores the action renderer.
+	 * Stores the injected dependencies.
 	 *
-	 * @param AdminActionRenderer $actions Shared admin controls.
+	 * @param AdminActionRenderer      $actions    Shared admin controls.
+	 * @param AdminComponentRenderer     $components Design-system components.
 	 */
 	public function __construct(
-		private readonly AdminActionRenderer $actions
+		private readonly AdminActionRenderer $actions,
+		private readonly AdminComponentRenderer $components
 	) {
 	}
 
 	/**
-	 * Renders the Quick Actions card.
+	 * Renders the Quick Actions panel.
 	 *
 	 * @return void
 	 */
 	public function render(): void {
-		echo '<div class="postbox universal-geo-quick-actions"><div class="postbox-header"><h2 class="hndle">';
-		echo esc_html__( 'Quick Actions', 'universal-geo-context' );
-		echo '</h2></div><div class="inside">';
-		echo '<div class="universal-geo-action-buttons">';
-
-		$this->actions->render_link_button(
-			AdminPageRegistry::page_url( AdminPageSlugs::SETTINGS ),
-			__( 'Configure Settings', 'universal-geo-context' )
-		);
-
-		$this->actions->render_link_button(
-			AdminPageRegistry::page_url( AdminPageSlugs::DETECTION ),
-			__( 'Detection & Testing', 'universal-geo-context' )
-		);
-
+		ob_start();
 		$this->actions->render_refresh_providers_form(
 			AdminPageSlugs::OVERVIEW,
 			__( 'Refresh Provider Diagnostics', 'universal-geo-context' )
 		);
+		$refresh_html = ob_get_clean();
 
-		$this->actions->render_link_button(
-			AdminPageRegistry::page_url( AdminPageSlugs::PROVIDERS ),
-			__( 'Providers', 'universal-geo-context' )
+		$actions = array(
+			array(
+				'label'       => __( 'Configure Settings', 'universal-geo-context' ),
+				'url'         => AdminPageRegistry::page_url( AdminPageSlugs::SETTINGS ),
+				'description' => __( 'Defaults, MaxMind, remote provider', 'universal-geo-context' ),
+			),
+			array(
+				'label'       => __( 'Detection & Testing', 'universal-geo-context' ),
+				'url'         => AdminPageRegistry::page_url( AdminPageSlugs::DETECTION ),
+				'description' => __( 'Inspect resolution and simulate countries', 'universal-geo-context' ),
+			),
+			array(
+				'label'       => __( 'Providers', 'universal-geo-context' ),
+				'url'         => AdminPageRegistry::page_url( AdminPageSlugs::PROVIDERS ),
+				'description' => __( 'Availability, health, and configuration', 'universal-geo-context' ),
+			),
+			array(
+				'label'       => __( 'Trusted Proxies', 'universal-geo-context' ),
+				'url'         => AdminPageRegistry::page_url( AdminPageSlugs::TRUSTED_PROXIES ),
+				'description' => __( 'Forwarded IP handling', 'universal-geo-context' ),
+			),
+			array(
+				'label'       => __( 'Diagnostics', 'universal-geo-context' ),
+				'url'         => AdminPageRegistry::page_url( AdminPageSlugs::DIAGNOSTICS ),
+				'description' => __( 'Full troubleshooting report', 'universal-geo-context' ),
+			),
 		);
 
-		$this->actions->render_link_button(
-			AdminPageRegistry::page_url( AdminPageSlugs::TRUSTED_PROXIES ),
-			__( 'Trusted Proxies', 'universal-geo-context' )
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->feature_section_open(
+			__( 'Quick Actions', 'universal-geo-context' ),
+			__( 'Jump to common administrative tasks.', 'universal-geo-context' )
 		);
 
-		$this->actions->render_link_button(
-			AdminPageRegistry::page_url( AdminPageSlugs::DIAGNOSTICS ),
-			__( 'Diagnostics', 'universal-geo-context' )
-		);
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->quick_actions_panel( __( 'Quick Actions', 'universal-geo-context' ), $actions );
 
-		echo '</div></div></div>';
+		if ( '' !== $refresh_html ) {
+			printf( '<div class="ugc-ui-quick-actions__utility">%s</div>', $refresh_html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Form markup from action renderer.
+		}
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->feature_section_close();
 	}
 }
