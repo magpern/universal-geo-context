@@ -256,7 +256,7 @@ final class GeoValidatorTest extends TestCase {
 		);
 
 		sort( $public );
-		$this->assertSame( array( 'country', 'region' ), $public );
+		$this->assertSame( array( 'country', 'country_codes', 'region' ), $public );
 	}
 
 	public function test_class_has_no_constructor(): void {

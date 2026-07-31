@@ -22,6 +22,11 @@ use UniversalGeo\Admin\ProvidersPage;
 use UniversalGeo\Admin\ReportRenderer;
 use UniversalGeo\Admin\SettingsPage;
 use UniversalGeo\Admin\TrustedProxiesPage;
+use UniversalGeo\Simulation\CountryCatalog;
+use UniversalGeo\Simulation\SimulationAuthorization;
+use UniversalGeo\Simulation\SimulationController;
+use UniversalGeo\Simulation\SimulationCookie;
+use UniversalGeo\Simulation\SimulationState;
 use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Diagnostics\DiagnosticsService;
 use UniversalGeo\Diagnostics\ProviderHealthStore;
@@ -111,6 +116,23 @@ final class AdminComponentsTest extends TestCase {
 		);
 	}
 
+	private function detection_page( ?ContextResolver $resolver = null ): DetectionPage {
+		$resolver = $resolver ?? new ContextResolver(
+			new ClientIpResolver( ServerRequestFactory::make(), new TrustedProxies( array(), false ) ),
+			array(),
+			new GeoCache( false, 900, 'sig' )
+		);
+		$cookie = new SimulationCookie();
+		$state  = new SimulationState( $cookie, new SimulationAuthorization() );
+
+		return new DetectionPage(
+			$resolver,
+			$state,
+			new CountryCatalog(),
+			new SimulationController( $cookie, $state, new AdminNotices() )
+		);
+	}
+
 	private function menu(): Menu {
 		$diagnostics      = $this->diagnostics();
 		$database_manager = $this->unused_database_manager();
@@ -124,7 +146,7 @@ final class AdminComponentsTest extends TestCase {
 
 		return new Menu(
 			new OverviewPage( $diagnostics, $resolver, $renderer, $notices ),
-			new DetectionPage(),
+			$this->detection_page( $resolver ),
 			new ProvidersPage(),
 			new TrustedProxiesPage( $diagnostics, ServerRequestFactory::make(), $renderer, $notices ),
 			new \UniversalGeo\Admin\DiagnosticsPage( $diagnostics, $renderer ),
@@ -151,9 +173,9 @@ final class AdminComponentsTest extends TestCase {
 	public function test_menu_register_wires_handlers(): void {
 		$this->menu()->register();
 		$this->assertArrayHasKey( 'admin_menu', $GLOBALS['universal_geo_test_actions'] );
-		$this->assertArrayHasKey( 'admin_init', $GLOBALS['universal_geo_test_actions'] );
 		$this->assertArrayHasKey( 'admin_post_universal_geo_save_settings', $GLOBALS['universal_geo_test_actions'] );
 		$this->assertArrayHasKey( 'admin_post_universal_geo_refresh_providers', $GLOBALS['universal_geo_test_actions'] );
+		$this->assertArrayHasKey( 'admin_post_universal_geo_simulation_start', $GLOBALS['universal_geo_test_actions'] );
 	}
 
 	public function test_notice_redirect_url_uses_admin_php(): void {
@@ -204,7 +226,7 @@ final class AdminComponentsTest extends TestCase {
 
 	public function test_detection_page_active_tab(): void {
 		unset( $_GET['tab'] );
-		$page = new DetectionPage();
+		$page = $this->detection_page();
 		$this->assertSame( 'live', $this->invoke_private( $page, 'active_tab' ) );
 
 		$_GET['tab'] = 'simulation';

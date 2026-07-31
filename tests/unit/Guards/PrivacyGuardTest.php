@@ -72,7 +72,10 @@ final class PrivacyGuardTest extends TestCase {
 
 	use SourceGuardTrait;
 
-	private const HASH_HMAC_ALLOWED_FILE = 'Cache/GeoCache.php';
+	private const HASH_HMAC_ALLOWED_FILES = array(
+		'Cache/GeoCache.php',
+		'Simulation/SimulationCookie.php',
+	);
 
 	private const WP_CACHE_FUNCTIONS = array(
 		'wp_cache_set',
@@ -163,24 +166,24 @@ final class PrivacyGuardTest extends TestCase {
 
 	private const FILE_WRITE_ALLOWED_DIRECTORY = 'MaxMind/';
 
-	// ---- Rule 1: hash_hmac confined to GeoCache -------------------------------
+	// ---- Rule 1: hash_hmac confined to allowlisted files ----------------------
 
 	/**
 	 * @dataProvider source_file_provider
 	 */
-	public function test_hash_hmac_appears_only_in_geo_cache( string $file ): void {
+	public function test_hash_hmac_appears_only_in_allowlisted_files( string $file ): void {
 		$relative = $this->relative_source_path( $file );
 		$code     = $this->strip_comments( (string) file_get_contents( $file ) );
 
-		if ( self::HASH_HMAC_ALLOWED_FILE === $relative ) {
-			$this->assertMatchesRegularExpression( '/\bhash_hmac\s*\(/', $code, self::HASH_HMAC_ALLOWED_FILE . ' should itself call hash_hmac() — otherwise this rule is vacuous.' );
+		if ( in_array( $relative, self::HASH_HMAC_ALLOWED_FILES, true ) ) {
+			$this->assertMatchesRegularExpression( '/\bhash_hmac\s*\(/', $code, $relative . ' should itself call hash_hmac() — otherwise this rule is vacuous.' );
 			return;
 		}
 
 		$this->assertDoesNotMatchRegularExpression(
 			'/\bhash_hmac\s*\(/',
 			$code,
-			sprintf( '%s must not call hash_hmac() — only %s may hash an IP.', $relative, self::HASH_HMAC_ALLOWED_FILE )
+			sprintf( '%s must not call hash_hmac() — only %s may use it.', $relative, implode( ', ', self::HASH_HMAC_ALLOWED_FILES ) )
 		);
 	}
 

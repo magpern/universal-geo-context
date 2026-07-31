@@ -93,6 +93,13 @@ final class CompositionRootTest extends TestCase {
 		'UpdateLock',
 		'UpdateScheduler',
 		'DatabaseCommand',
+		'SimulationCookie',
+		'SimulationState',
+		'SimulationContextFilter',
+		'SimulationController',
+		'SimulationAuthorization',
+		'CountryCatalog',
+		'SimulationAdminBar',
 	);
 
 	/**
