@@ -11,6 +11,7 @@ declare( strict_types=1 );
 namespace UniversalGeo\Tests\Integration\Admin;
 
 use UniversalGeo\Admin\AdminNotices;
+use UniversalGeo\Tests\Support\AdminUxFactory;
 use UniversalGeo\Admin\SettingsPage;
 use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Diagnostics\DiagnosticsService;
@@ -63,7 +64,9 @@ final class AdminScreenMaxMindDatabaseTest extends WP_UnitTestCase {
 		return new SettingsPage(
 			new UpdateScheduler( $database_manager ),
 			$database_manager,
-			new AdminNotices()
+			new AdminNotices(),
+			AdminUxFactory::header(),
+			AdminUxFactory::actions()
 		);
 	}
 

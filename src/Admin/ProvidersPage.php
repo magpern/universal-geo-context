@@ -24,10 +24,14 @@ final class ProvidersPage implements Page {
 	 *
 	 * @param DetectionInspectorService $inspector Provider detail supplier.
 	 * @param ReportRenderer            $renderer  Definition-list renderer.
+	 * @param AdminHeaderRenderer       $header    Shared page header.
+	 * @param AdminActionRenderer       $actions   Shared action controls.
 	 */
 	public function __construct(
 		private readonly DetectionInspectorService $inspector,
-		private readonly ReportRenderer $renderer
+		private readonly ReportRenderer $renderer,
+		private readonly AdminHeaderRenderer $header,
+		private readonly AdminActionRenderer $actions
 	) {
 	}
 
@@ -81,8 +85,20 @@ final class ProvidersPage implements Page {
 		$details         = $this->inspector->provider_details( $refresh_summary );
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html( $this->title() ) . '</h1>';
-		echo '<p class="description">' . esc_html__( 'Observational provider diagnostics. Credentials are never shown. Run Refresh now to run one live probe.', 'universal-geo-context' ) . '</p>';
+		$this->header->render(
+			$this->slug(),
+			$this->title(),
+			function (): void {
+				$this->actions->render_refresh_providers_form(
+					$this->slug(),
+					__( 'Refresh Providers', 'universal-geo-context' )
+				);
+				$this->actions->render_link_button(
+					AdminPageRegistry::page_url( AdminPageSlugs::SETTINGS ),
+					__( 'Open Settings', 'universal-geo-context' )
+				);
+			}
+		);
 
 		if ( null !== $refresh_summary ) {
 			printf(
@@ -98,15 +114,8 @@ final class ProvidersPage implements Page {
 			);
 		}
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin: 1em 0;">';
-		wp_nonce_field( 'universal_geo_refresh_providers' );
-		echo '<input type="hidden" name="action" value="universal_geo_refresh_providers" />';
-		echo '<input type="hidden" name="universal_geo_redirect_page" value="' . esc_attr( $this->slug() ) . '" />';
-		submit_button( __( 'Refresh provider diagnostics', 'universal-geo-context' ), 'secondary', 'submit', false );
-		echo '</form>';
-
 		foreach ( $details as $provider_id => $section ) {
-			echo '<div class="postbox" style="max-width:960px;margin-top:1.5em;"><div class="postbox-header"><h2 class="hndle">';
+			echo '<div class="postbox" style="max-width:960px;margin-top:1em;"><div class="postbox-header"><h2 class="hndle">';
 			echo esc_html( ucfirst( (string) $provider_id ) );
 			echo '</h2></div><div class="inside">';
 
@@ -136,9 +145,12 @@ final class ProvidersPage implements Page {
 	 */
 	private function settings_url_for_provider( string $provider_id ): ?string {
 		return match ( $provider_id ) {
-			'cloudflare', 'maxmind', 'remote', 'default' => admin_url( 'admin.php?page=' . AdminPageSlugs::SETTINGS ),
+			'cloudflare'  => AdminPageRegistry::page_url( AdminPageSlugs::TRUSTED_PROXIES ),
+			'maxmind'       => AdminPageRegistry::page_url( AdminPageSlugs::SETTINGS ) . '#universal-geo-managed-database',
+			'remote'        => AdminPageRegistry::page_url( AdminPageSlugs::SETTINGS ) . '#universal-geo-remote-provider',
+			'default'       => AdminPageRegistry::page_url( AdminPageSlugs::SETTINGS ),
 			'woocommerce' => admin_url( 'admin.php?page=wc-settings&tab=integration' ),
-			default       => null,
+			default         => null,
 		};
 	}
 }

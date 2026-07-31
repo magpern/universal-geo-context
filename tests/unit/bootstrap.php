@@ -139,6 +139,18 @@ if ( ! function_exists( 'esc_html' ) ) {
 	}
 }
 
+if ( ! function_exists( 'esc_attr__' ) ) {
+	function esc_attr__( $text, $domain = 'default' ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		return $text;
+	}
+}
+
+if ( ! function_exists( 'esc_textarea' ) ) {
+	function esc_textarea( $text ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return $text;
+	}
+}
+
 if ( ! function_exists( 'esc_attr' ) ) {
 	function esc_attr( $text ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
 		return $text;
@@ -162,6 +174,26 @@ if ( ! function_exists( 'wp_nonce_field' ) ) {
 if ( ! function_exists( 'submit_button' ) ) {
 	function submit_button( $text = null, $type = 'primary', $name = 'submit', $wrap = true, $other_attributes = null ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 		echo '<input type="submit" name="' . esc_attr( $name ) . '" class="button" value="' . esc_attr( (string) $text ) . '" />';
+	}
+}
+
+if ( ! function_exists( 'checked' ) ) {
+	function checked( $checked, $current = true, $display = true ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		$result = ( (string) $checked === (string) $current ) ? ' checked="checked"' : '';
+		if ( $display ) {
+			echo $result; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		}
+		return $result;
+	}
+}
+
+if ( ! function_exists( 'selected' ) ) {
+	function selected( $selected, $current = true, $display = true ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		$result = ( (string) $selected === (string) $current ) ? ' selected="selected"' : '';
+		if ( $display ) {
+			echo $result; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		}
+		return $result;
 	}
 }
 

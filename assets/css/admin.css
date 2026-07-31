@@ -1,0 +1,87 @@
+/**
+ * Universal Geo Context — admin presentation (M10).
+ */
+
+.universal-geo-admin-header {
+	margin: 0 0 1.25rem;
+}
+
+.universal-geo-admin-header > .description {
+	margin: 0.35rem 0 0;
+	max-width: 60rem;
+}
+
+.universal-geo-admin-nav {
+	margin-top: 0.85rem;
+}
+
+.universal-geo-admin-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+	margin-top: 0.85rem;
+}
+
+.universal-geo-admin-actions .universal-geo-inline-form {
+	margin: 0;
+}
+
+.universal-geo-action-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	align-items: center;
+}
+
+.universal-geo-overview-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+	gap: 1rem;
+	margin-top: 0.5rem;
+}
+
+.universal-geo-overview-card,
+.universal-geo-quick-actions {
+	margin: 0;
+}
+
+.universal-geo-overview-card .inside,
+.universal-geo-quick-actions .inside {
+	padding-top: 0.75rem;
+}
+
+.universal-geo-card-footer {
+	margin-top: 1rem;
+	padding-top: 0.75rem;
+	border-top: 1px solid #dcdcde;
+}
+
+.universal-geo-empty-state {
+	margin: 0.5rem 0 0;
+	color: #50575e;
+}
+
+.universal-geo-empty-state .universal-geo-action-buttons {
+	margin-top: 0.75rem;
+}
+
+.universal-geo-detection-inspector .postbox {
+	max-width: 960px;
+}
+
+.universal-geo-health-link {
+	text-decoration: none;
+}
+
+.universal-geo-health-link .notice {
+	margin: 0 0 1rem;
+}
+
+.universal-geo-diagnostics-copy {
+	width: 100%;
+	max-width: 960px;
+	min-height: 8rem;
+	font-family: Consolas, Monaco, monospace;
+	font-size: 12px;
+}

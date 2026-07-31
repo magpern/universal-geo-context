@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace UniversalGeo\Tests\Integration\Admin;
 
 use UniversalGeo\Admin\AdminNotices;
+use UniversalGeo\Tests\Support\AdminUxFactory;
 use UniversalGeo\Admin\AdminPageSlugs;
 use UniversalGeo\Admin\FirstRunNotice;
 use UniversalGeo\Admin\Menu;
@@ -77,7 +78,9 @@ final class AdminPagesTest extends WP_UnitTestCase {
 		return new SettingsPage(
 			new UpdateScheduler( $database_manager ),
 			$database_manager,
-			new AdminNotices()
+			new AdminNotices(),
+			AdminUxFactory::header(),
+			AdminUxFactory::actions()
 		);
 	}
 
@@ -114,7 +117,9 @@ final class AdminPagesTest extends WP_UnitTestCase {
 			$diagnostics,
 			$request,
 			new \UniversalGeo\Admin\ReportRenderer( $diagnostics ),
-			new AdminNotices()
+			new AdminNotices(),
+			AdminUxFactory::header(),
+			AdminUxFactory::actions()
 		);
 	}
 

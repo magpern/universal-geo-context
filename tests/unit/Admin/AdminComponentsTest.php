@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionMethod;
 use UniversalGeo\Admin\AdminNotices;
+use UniversalGeo\Admin\AdminPageRegistry;
 use UniversalGeo\Admin\AdminPageSlugs;
 use UniversalGeo\Admin\AdminProbeFreshFlag;
 use UniversalGeo\Admin\DetectionInspectorRenderer;
@@ -45,6 +46,7 @@ use UniversalGeo\MaxMind\UpdateScheduler;
 use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
+use UniversalGeo\Tests\Support\AdminUxFactory;
 use UniversalGeo\Tests\Support\FakeHttpTransport;
 use UniversalGeo\Tests\Support\ServerRequestFactory;
 use UniversalGeo\Tests\Unit\Doubles\TrackingGeoProvider;
@@ -111,7 +113,9 @@ final class AdminComponentsTest extends TestCase {
 		return new SettingsPage(
 			new UpdateScheduler( $database_manager ),
 			$database_manager,
-			new AdminNotices()
+			new AdminNotices(),
+			AdminUxFactory::header(),
+			AdminUxFactory::actions()
 		);
 	}
 
@@ -120,7 +124,9 @@ final class AdminComponentsTest extends TestCase {
 			$diagnostics ?? $this->diagnostics(),
 			ServerRequestFactory::make(),
 			new ReportRenderer( $diagnostics ?? $this->diagnostics() ),
-			new AdminNotices()
+			new AdminNotices(),
+			AdminUxFactory::header(),
+			AdminUxFactory::actions()
 		);
 	}
 
@@ -160,7 +166,9 @@ final class AdminComponentsTest extends TestCase {
 			new CountryCatalog(),
 			new SimulationController( $cookie, $state, new AdminNotices() ),
 			$inspector,
-			$renderer
+			$renderer,
+			AdminUxFactory::header(),
+			AdminUxFactory::actions()
 		);
 	}
 
@@ -176,12 +184,12 @@ final class AdminComponentsTest extends TestCase {
 		);
 
 		return new Menu(
-			new OverviewPage( $diagnostics, $resolver, $renderer, $notices ),
+			new OverviewPage( $diagnostics, $resolver, $renderer, $notices, AdminUxFactory::header(), AdminUxFactory::quick_actions(), AdminUxFactory::actions() ),
 			$this->detection_page( $resolver ),
-			new ProvidersPage( $this->inspector_service( $resolver, $diagnostics ), $renderer ),
-			new TrustedProxiesPage( $diagnostics, ServerRequestFactory::make(), $renderer, $notices ),
-			new \UniversalGeo\Admin\DiagnosticsPage( $diagnostics, $renderer ),
-			new SettingsPage( new UpdateScheduler( $database_manager ), $database_manager, $notices )
+			new ProvidersPage( $this->inspector_service( $resolver, $diagnostics ), $renderer, AdminUxFactory::header(), AdminUxFactory::actions() ),
+			new TrustedProxiesPage( $diagnostics, ServerRequestFactory::make(), $renderer, $notices, AdminUxFactory::header(), AdminUxFactory::actions() ),
+			new \UniversalGeo\Admin\DiagnosticsPage( $diagnostics, $renderer, AdminUxFactory::header(), AdminUxFactory::actions() ),
+			new SettingsPage( new UpdateScheduler( $database_manager ), $database_manager, $notices, AdminUxFactory::header(), AdminUxFactory::actions() )
 		);
 	}
 
@@ -292,14 +300,22 @@ final class AdminComponentsTest extends TestCase {
 			array(),
 			new GeoCache( false, 900, 'sig' )
 		);
-		$page        = new OverviewPage( $diagnostics, $resolver, new ReportRenderer( $diagnostics ), new AdminNotices() );
+		$page        = new OverviewPage(
+			$diagnostics,
+			$resolver,
+			new ReportRenderer( $diagnostics ),
+			new AdminNotices(),
+			AdminUxFactory::header(),
+			AdminUxFactory::quick_actions(),
+			AdminUxFactory::actions()
+		);
 
 		ob_start();
 		$page->render();
 		$html = ob_get_clean();
 
 		$this->assertStringContainsString( 'name="action" value="universal_geo_refresh_providers"', $html );
-		$this->assertStringContainsString( 'Refresh now', $html );
+		$this->assertStringContainsString( 'Refresh Providers', $html );
 	}
 
 	public function test_probe_fresh_flag_requires_prg_message_and_counts(): void {
@@ -331,7 +347,15 @@ final class AdminComponentsTest extends TestCase {
 			array( $provider ),
 			new GeoCache( false, 900, 'sig' )
 		);
-		$page     = new OverviewPage( $this->diagnostics(), $resolver, new ReportRenderer( $this->diagnostics() ), new AdminNotices() );
+		$page     = new OverviewPage(
+			$this->diagnostics(),
+			$resolver,
+			new ReportRenderer( $this->diagnostics() ),
+			new AdminNotices(),
+			AdminUxFactory::header(),
+			AdminUxFactory::quick_actions(),
+			AdminUxFactory::actions()
+		);
 
 		$_POST = array(
 			'_wpnonce' => 'test',
@@ -347,5 +371,65 @@ final class AdminComponentsTest extends TestCase {
 
 		$this->assertSame( 1, $provider->resolve_calls );
 		unset( $_POST );
+	}
+
+	public function test_admin_navigation_order_places_settings_second(): void {
+		$slugs = array_map(
+			static fn( array $item ): string => $item['slug'],
+			AdminPageRegistry::navigation_items()
+		);
+
+		$this->assertSame(
+			array(
+				AdminPageSlugs::OVERVIEW,
+				AdminPageSlugs::SETTINGS,
+				AdminPageSlugs::DETECTION,
+				AdminPageSlugs::PROVIDERS,
+				AdminPageSlugs::TRUSTED_PROXIES,
+				AdminPageSlugs::DIAGNOSTICS,
+			),
+			$slugs
+		);
+	}
+
+	public function test_overview_renders_shared_navigation_and_quick_actions(): void {
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.1';
+		\UniversalGeo\Plugin::instance()->init();
+
+		$diagnostics = $this->diagnostics();
+		$resolver    = new ContextResolver(
+			new ClientIpResolver( ServerRequestFactory::make(), new TrustedProxies( array(), false ) ),
+			array(),
+			new GeoCache( false, 900, 'sig' )
+		);
+		$page        = new OverviewPage(
+			$diagnostics,
+			$resolver,
+			new ReportRenderer( $diagnostics ),
+			new AdminNotices(),
+			AdminUxFactory::header(),
+			AdminUxFactory::quick_actions(),
+			AdminUxFactory::actions()
+		);
+
+		ob_start();
+		$page->render();
+		$html = ob_get_clean();
+
+		$this->assertStringContainsString( 'universal-geo-admin-nav', $html );
+		$this->assertStringContainsString( 'nav-tab-active', $html );
+		$this->assertStringContainsString( 'Quick Actions', $html );
+		$this->assertStringContainsString( 'Open Detection & Testing', $html );
+		$this->assertStringContainsString( AdminPageRegistry::description( AdminPageSlugs::OVERVIEW ), $html );
+	}
+
+	public function test_settings_page_renders_navigation_with_active_tab(): void {
+		ob_start();
+		$this->settings_page()->render();
+		$html = ob_get_clean();
+
+		$this->assertStringContainsString( 'nav-tab-active', $html );
+		$this->assertStringContainsString( 'page=universal-geo-context-settings', $html );
+		$this->assertStringContainsString( AdminPageRegistry::description( AdminPageSlugs::SETTINGS ), $html );
 	}
 }

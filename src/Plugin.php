@@ -9,6 +9,10 @@ declare( strict_types=1 );
 
 namespace UniversalGeo;
 
+use UniversalGeo\Admin\AdminActionRenderer;
+use UniversalGeo\Admin\AdminAssets;
+use UniversalGeo\Admin\AdminHeaderRenderer;
+use UniversalGeo\Admin\AdminNavigationRenderer;
 use UniversalGeo\Admin\AdminNotices;
 use UniversalGeo\Admin\DetectionInspectorRenderer;
 use UniversalGeo\Admin\DetectionPage;
@@ -17,6 +21,7 @@ use UniversalGeo\Admin\FirstRunNotice;
 use UniversalGeo\Admin\Menu;
 use UniversalGeo\Admin\OverviewPage;
 use UniversalGeo\Admin\ProvidersPage;
+use UniversalGeo\Admin\QuickActionsRenderer;
 use UniversalGeo\Admin\ReportRenderer;
 use UniversalGeo\Admin\RowLinks;
 use UniversalGeo\Admin\SimulationAdminBar;
@@ -227,6 +232,11 @@ final class Plugin {
 
 			$notices         = new AdminNotices();
 			$report_renderer = new ReportRenderer( $diagnostics );
+			$admin_actions   = new AdminActionRenderer();
+			$admin_header    = new AdminHeaderRenderer( new AdminNavigationRenderer() );
+			$quick_actions   = new QuickActionsRenderer( $admin_actions );
+
+			( new AdminAssets() )->register();
 
 			$provider_builder   = new ProviderExplanationBuilder( $graph['resolver'] );
 			$timeline_builder   = new ResolutionTimelineBuilder();
@@ -249,7 +259,10 @@ final class Plugin {
 				$diagnostics,
 				$graph['resolver'],
 				$report_renderer,
-				$notices
+				$notices,
+				$admin_header,
+				$quick_actions,
+				$admin_actions
 			);
 
 			$detection_page = new DetectionPage(
@@ -258,26 +271,39 @@ final class Plugin {
 				$country_catalog,
 				new SimulationController( $simulation_cookie, $simulation_state, $notices ),
 				$inspector_service,
-				$inspector_renderer
+				$inspector_renderer,
+				$admin_header,
+				$admin_actions
 			);
 			$providers_page = new ProvidersPage(
 				$inspector_service,
-				$report_renderer
+				$report_renderer,
+				$admin_header,
+				$admin_actions
 			);
 
 			$trusted_proxies_page = new TrustedProxiesPage(
 				$diagnostics,
 				$graph['server_request'],
 				$report_renderer,
-				$notices
+				$notices,
+				$admin_header,
+				$admin_actions
 			);
 
-			$diagnostics_page = new DiagnosticsPage( $diagnostics, $report_renderer );
+			$diagnostics_page = new DiagnosticsPage(
+				$diagnostics,
+				$report_renderer,
+				$admin_header,
+				$admin_actions
+			);
 
 			$settings_page = new SettingsPage(
 				$graph['update_scheduler'],
 				$graph['database_manager'],
-				$notices
+				$notices,
+				$admin_header,
+				$admin_actions
 			);
 
 			( new Menu(

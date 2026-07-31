@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Universal Geo Context 1.4.0\n"
+"Project-Id-Version: Universal Geo Context 1.5.0\n"
 "Report-Msgid-Bugs-To: https://github.com/magpern/universal-geo-context/issues\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-31T07:51:04+00:00\n"
+"POT-Creation-Date: 2026-07-31T08:04:52+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: universal-geo-context\n"
@@ -18,9 +18,9 @@ msgstr ""
 #: universal-geo-context.php:3
 #: src/Admin/Menu.php:61
 #: src/Admin/Menu.php:62
-#: src/Admin/OverviewPage.php:64
+#: src/Admin/OverviewPage.php:70
 #: src/Diagnostics/DiagnosticsService.php:253
-#: src/Plugin.php:304
+#: src/Plugin.php:330
 msgid "Universal Geo Context"
 msgstr ""
 
@@ -37,6 +37,14 @@ msgstr ""
 #. Author of the plugin
 #: universal-geo-context.php:7
 msgid "magpern"
+msgstr ""
+
+#: src/Admin/AdminActionRenderer.php:53
+msgid "Refresh provider diagnostics"
+msgstr ""
+
+#: src/Admin/AdminNavigationRenderer.php:28
+msgid "Universal Geo Context pages"
 msgstr ""
 
 #: src/Admin/AdminNotices.php:122
@@ -123,225 +131,307 @@ msgstr ""
 msgid "Simulation could not be updated because the selected country is not valid."
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:69
-msgid "This page is observational — it explains the current request without changing detection. Run Refresh now to run one live provider probe."
+#: src/Admin/AdminPageRegistry.php:29
+#: src/Admin/OverviewPage.php:79
+msgid "Overview"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:76
-#: src/Admin/ProvidersPage.php:105
-msgid "Refresh provider diagnostics"
+#: src/Admin/AdminPageRegistry.php:33
+#: src/Admin/RowLinks.php:41
+#: src/Admin/SettingsPage.php:73
+#: src/Admin/SettingsPage.php:82
+msgid "Settings"
+msgstr ""
+
+#: src/Admin/AdminPageRegistry.php:37
+#: src/Admin/DetectionPage.php:77
+#: src/Admin/DetectionPage.php:86
+#: src/Admin/QuickActionsRenderer.php:48
+msgid "Detection & Testing"
+msgstr ""
+
+#: src/Admin/AdminPageRegistry.php:41
+#: src/Admin/DiagnosticsPage.php:147
+#: src/Admin/OverviewPage.php:145
+#: src/Admin/ProvidersPage.php:53
+#: src/Admin/ProvidersPage.php:62
+#: src/Admin/QuickActionsRenderer.php:58
+msgid "Providers"
+msgstr ""
+
+#: src/Admin/AdminPageRegistry.php:45
+#: src/Admin/OverviewPage.php:198
+#: src/Admin/QuickActionsRenderer.php:63
+#: src/Admin/TrustedProxiesPage.php:72
+#: src/Admin/TrustedProxiesPage.php:81
+msgid "Trusted Proxies"
+msgstr ""
+
+#: src/Admin/AdminPageRegistry.php:49
+#: src/Admin/DiagnosticsPage.php:53
+#: src/Admin/DiagnosticsPage.php:62
+#: src/Admin/QuickActionsRenderer.php:68
+msgid "Diagnostics"
+msgstr ""
+
+#: src/Admin/AdminPageRegistry.php:63
+msgid "Monitor the current health and configuration of Universal Geo Context."
+msgstr ""
+
+#: src/Admin/AdminPageRegistry.php:67
+msgid "Configure providers, downloads, defaults, and plugin behaviour."
+msgstr ""
+
+#: src/Admin/AdminPageRegistry.php:71
+msgid "Inspect how the current visitor location was resolved and test simulated locations."
+msgstr ""
+
+#: src/Admin/AdminPageRegistry.php:75
+msgid "Review provider availability, health, and configuration."
+msgstr ""
+
+#: src/Admin/AdminPageRegistry.php:79
+msgid "Configure trusted proxy networks and forwarded IP handling."
+msgstr ""
+
+#: src/Admin/AdminPageRegistry.php:83
+msgid "Review system health and troubleshooting information."
 msgstr ""
 
 #. translators: 1: ok count, 2: total providers
-#: src/Admin/DetectionInspectorRenderer.php:97
-#: src/Admin/ProvidersPage.php:93
+#: src/Admin/DetectionInspectorRenderer.php:78
+#: src/Admin/ProvidersPage.php:109
 #, php-format
 msgid "Last explicit refresh: %1$d of %2$d providers returned a country."
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:114
+#: src/Admin/DetectionInspectorRenderer.php:95
 msgid "Current effective context"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:129
+#: src/Admin/DetectionInspectorRenderer.php:110
 msgid "Real context (before simulation)"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:133
+#: src/Admin/DetectionInspectorRenderer.php:114
 msgid "Simulation is active — providers did not return the simulated country below."
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:150
+#: src/Admin/DetectionInspectorRenderer.php:131
 msgid "Resolution timeline"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:188
+#: src/Admin/DetectionInspectorRenderer.php:169
 msgid "Provider results"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:191
+#: src/Admin/DetectionInspectorRenderer.php:172
 msgid "Inferred from the current real resolution path immediately after explicit refresh (one live probe ran when you clicked Refresh)."
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:193
+#: src/Admin/DetectionInspectorRenderer.php:174
 msgid "Inferred from the current real resolution path. Run Refresh now for a full live probe of every provider."
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:208
+#: src/Admin/DetectionInspectorRenderer.php:189
 #: src/Explanation/ResolutionTimelineBuilder.php:233
 #: src/Explanation/ResolutionTimelineBuilder.php:241
 msgid "Winner"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:240
-#: src/Admin/DiagnosticsPage.php:131
-#: src/Admin/OverviewPage.php:172
+#: src/Admin/DetectionInspectorRenderer.php:221
+#: src/Admin/DiagnosticsPage.php:173
+#: src/Admin/OverviewPage.php:207
 msgid "Cache"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:242
+#: src/Admin/DetectionInspectorRenderer.php:223
 msgid "Simulation never writes to the geo cache. Values below describe real resolution caching only."
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:257
-#: src/Admin/DiagnosticsPage.php:88
-#: src/Admin/TrustedProxiesPage.php:139
+#: src/Admin/DetectionInspectorRenderer.php:238
+#: src/Admin/DiagnosticsPage.php:115
+#: src/Admin/TrustedProxiesPage.php:152
 msgid "Trusted proxies"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:260
-#: src/Admin/DiagnosticsPage.php:91
+#: src/Admin/DetectionInspectorRenderer.php:241
+#: src/Admin/DiagnosticsPage.php:118
 msgid "Forwarding headers"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:268
-#: src/Admin/DiagnosticsPage.php:96
-#: src/Admin/TrustedProxiesPage.php:117
+#: src/Admin/DetectionInspectorRenderer.php:249
+#: src/Admin/DiagnosticsPage.php:123
+#: src/Admin/TrustedProxiesPage.php:130
 msgid "Cloudflare"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:283
-#: src/Admin/DiagnosticsPage.php:134
-#: src/Admin/OverviewPage.php:179
+#: src/Admin/DetectionInspectorRenderer.php:264
+#: src/Admin/DiagnosticsPage.php:176
+#: src/Admin/OverviewPage.php:216
 msgid "Environment"
 msgstr ""
 
-#: src/Admin/DetectionInspectorRenderer.php:288
+#: src/Admin/DetectionInspectorRenderer.php:269
 msgid "Site Health:"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:73
-#: src/Admin/DetectionPage.php:82
-msgid "Detection & Testing"
+#: src/Admin/DetectionPage.php:118
+msgid "Refresh Detection"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:146
+#: src/Admin/DetectionPage.php:125
+msgid "Start Simulation"
+msgstr ""
+
+#: src/Admin/DetectionPage.php:167
 msgid "Detection"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:152
+#: src/Admin/DetectionPage.php:173
 #: src/Explanation/ResolutionTimelineBuilder.php:266
 #: src/Explanation/ResolutionTimelineBuilder.php:274
 msgid "Simulation"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:180
+#: src/Admin/DetectionPage.php:201
 msgid "Country simulation overrides the visitor context for your browser session only. It does not change real geolocation, provider configuration, or shared geo caches. Use it to test how downstream plugins respond to a different visitor country."
 msgstr ""
 
-#: src/Admin/DetectionPage.php:181
+#: src/Admin/DetectionPage.php:202
 msgid "This is a developer and QA tool — not a production mechanism for controlling customer experience."
 msgstr ""
 
-#: src/Admin/DetectionPage.php:183
+#: src/Admin/DetectionPage.php:204
 msgid "Current context"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:185
+#: src/Admin/DetectionPage.php:206
 msgid "Real resolved country"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:186
+#: src/Admin/DetectionPage.php:207
 msgid "Effective country (what consumers see)"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:189
+#: src/Admin/DetectionPage.php:210
 #: src/Diagnostics/DiagnosticsService.php:421
 msgid "Simulation active"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:190
-#: src/Admin/SettingsPage.php:570
+#: src/Admin/DetectionPage.php:211
+#: src/Admin/SettingsPage.php:583
 msgid "Yes"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:190
-#: src/Admin/SettingsPage.php:570
+#: src/Admin/DetectionPage.php:211
+#: src/Admin/SettingsPage.php:583
 msgid "No"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:195
+#: src/Admin/DetectionPage.php:216
 msgid "Simulated country"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:202
+#: src/Admin/DetectionPage.php:223
 msgid "Controls"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:207
+#: src/Admin/DetectionPage.php:228
 msgid "Change simulated country"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:215
+#: src/Admin/DetectionPage.php:236
 msgid "Stop simulation"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:220
+#: src/Admin/DetectionPage.php:241
 msgid "Start simulation"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:238
+#: src/Admin/DetectionPage.php:259
 msgid "Unknown"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:269
+#: src/Admin/DetectionPage.php:290
 msgid "Country"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:271
+#: src/Admin/DetectionPage.php:292
 msgid "Select a country…"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:49
-#: src/Admin/DiagnosticsPage.php:58
-msgid "Diagnostics"
+#: src/Admin/DiagnosticsPage.php:94
+msgid "Refresh Diagnostics"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:85
-msgid "Client address"
+#: src/Admin/DiagnosticsPage.php:100
+msgid "Copy report"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:99
-msgid "WooCommerce"
+#: src/Admin/DiagnosticsPage.php:103
+msgid "Select the text below and copy it for support tickets. Values are already masked."
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:102
-msgid "MaxMind"
-msgstr ""
-
-#: src/Admin/DiagnosticsPage.php:105
-msgid "Managed database"
-msgstr ""
-
-#: src/Admin/DiagnosticsPage.php:108
-msgid "Remote provider"
+#: src/Admin/DiagnosticsPage.php:107
+msgid "Diagnostics report (read-only)"
 msgstr ""
 
 #: src/Admin/DiagnosticsPage.php:112
+msgid "Client address"
+msgstr ""
+
+#: src/Admin/DiagnosticsPage.php:126
+msgid "WooCommerce"
+msgstr ""
+
+#: src/Admin/DiagnosticsPage.php:129
+msgid "MaxMind"
+msgstr ""
+
+#: src/Admin/DiagnosticsPage.php:132
+msgid "Managed database"
+msgstr ""
+
+#: src/Admin/DiagnosticsPage.php:135
+msgid "Remote provider"
+msgstr ""
+
+#: src/Admin/DiagnosticsPage.php:139
 msgid "The remote provider is enabled — viewing this page performs one live request to the configured remote service, as part of the provider probe table below."
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:120
-#: src/Admin/OverviewPage.php:121
-#: src/Admin/ProvidersPage.php:49
-#: src/Admin/ProvidersPage.php:58
-msgid "Providers"
-msgstr ""
-
-#: src/Admin/DiagnosticsPage.php:125
+#: src/Admin/DiagnosticsPage.php:152
 msgid "Provider health"
 msgstr ""
 
+#: src/Admin/DiagnosticsPage.php:155
+#: src/Admin/OverviewPage.php:166
+msgid "No provider failures have been recorded."
+msgstr ""
+
+#: src/Admin/DiagnosticsPage.php:159
+#: src/Admin/OverviewPage.php:113
+#: src/Admin/OverviewPage.php:170
+#: src/Admin/ProvidersPage.php:94
+msgid "Refresh Providers"
+msgstr ""
+
+#: src/Admin/DiagnosticsPage.php:163
+#: src/Admin/OverviewPage.php:174
+msgid "Learn more"
+msgstr ""
+
 #: src/Admin/FirstRunNotice.php:64
-#: src/Admin/OverviewPage.php:195
-#: src/Admin/SettingsPage.php:159
-#: src/Admin/SettingsPage.php:238
-#: src/Admin/SettingsPage.php:255
-#: src/Admin/SettingsPage.php:272
-#: src/Admin/SettingsPage.php:289
-#: src/Admin/TrustedProxiesPage.php:163
-#: src/Admin/TrustedProxiesPage.php:191
-#: src/Admin/TrustedProxiesPage.php:222
+#: src/Admin/OverviewPage.php:234
+#: src/Admin/SettingsPage.php:172
+#: src/Admin/SettingsPage.php:251
+#: src/Admin/SettingsPage.php:268
+#: src/Admin/SettingsPage.php:285
+#: src/Admin/SettingsPage.php:302
+#: src/Admin/TrustedProxiesPage.php:176
+#: src/Admin/TrustedProxiesPage.php:204
+#: src/Admin/TrustedProxiesPage.php:235
 #: src/Simulation/SimulationController.php:74
 #: src/Simulation/SimulationController.php:93
 msgid "You do not have permission to do this."
@@ -359,64 +449,82 @@ msgstr ""
 msgid "Dismiss"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:73
-msgid "Overview"
+#: src/Admin/OverviewPage.php:117
+#: src/Admin/OverviewPage.php:194
+#: src/Admin/OverviewPage.php:212
+#: src/Admin/ProvidersPage.php:98
+#: src/Admin/TrustedProxiesPage.php:113
+msgid "Open Settings"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:106
+#: src/Admin/OverviewPage.php:128
 msgid "Current Resolution"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:126
+#: src/Admin/OverviewPage.php:141
+msgid "Open Detection & Testing"
+msgstr ""
+
+#: src/Admin/OverviewPage.php:150
 msgid "Last refresh:"
 msgstr ""
 
 #. translators: 1: number of providers that returned ok, 2: total providers probed
-#: src/Admin/OverviewPage.php:130
+#: src/Admin/OverviewPage.php:154
 #, php-format
 msgid "%1$d of %2$d providers returned a country on the last explicit refresh."
 msgstr ""
 
-#: src/Admin/OverviewPage.php:137
-msgid "No explicit refresh has been run yet. Last-known failure records appear below."
+#: src/Admin/OverviewPage.php:161
+msgid "No explicit refresh has been run yet. Provider health summaries appear after you refresh diagnostics."
 msgstr ""
 
-#: src/Admin/OverviewPage.php:141
-msgid "No provider failure records on file."
+#: src/Admin/OverviewPage.php:185
+msgid "Open Providers"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:152
-msgid "Refresh now"
-msgstr ""
-
-#: src/Admin/OverviewPage.php:158
+#: src/Admin/OverviewPage.php:189
 msgid "Remote Provider"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:165
-#: src/Admin/TrustedProxiesPage.php:68
-#: src/Admin/TrustedProxiesPage.php:77
-msgid "Trusted Proxies"
+#: src/Admin/OverviewPage.php:203
+msgid "Open Trusted Proxies"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:278
+#: src/Admin/OverviewPage.php:221
+msgid "Open Diagnostics"
+msgstr ""
+
+#: src/Admin/OverviewPage.php:326
 msgid "Overall health: critical issues detected"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:279
+#: src/Admin/OverviewPage.php:327
 msgid "Overall health: recommended improvements available"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:280
+#: src/Admin/OverviewPage.php:328
 msgid "Overall health: good"
 msgstr ""
 
-#: src/Admin/ProvidersPage.php:85
-msgid "Observational provider diagnostics. Credentials are never shown. Run Refresh now to run one live probe."
+#: src/Admin/OverviewPage.php:338
+msgid "Overall Health"
 msgstr ""
 
-#: src/Admin/ProvidersPage.php:120
+#: src/Admin/ProvidersPage.php:129
 msgid "Open related settings"
+msgstr ""
+
+#: src/Admin/QuickActionsRenderer.php:37
+msgid "Quick Actions"
+msgstr ""
+
+#: src/Admin/QuickActionsRenderer.php:43
+msgid "Configure Settings"
+msgstr ""
+
+#: src/Admin/QuickActionsRenderer.php:53
+msgid "Refresh Provider Diagnostics"
 msgstr ""
 
 #: src/Admin/ReportRenderer.php:47
@@ -434,12 +542,6 @@ msgstr ""
 msgid "n/a"
 msgstr ""
 
-#: src/Admin/RowLinks.php:41
-#: src/Admin/SettingsPage.php:69
-#: src/Admin/SettingsPage.php:78
-msgid "Settings"
-msgstr ""
-
 #: src/Admin/RowLinks.php:72
 msgid "GitHub"
 msgstr ""
@@ -448,208 +550,212 @@ msgstr ""
 msgid "Documentation"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:114
+#: src/Admin/SettingsPage.php:113
+msgid "Download MaxMind Database"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:127
 #: src/Diagnostics/DiagnosticsService.php:434
 msgid "Default country"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:116
+#: src/Admin/SettingsPage.php:129
 msgid "A real two-letter ISO 3166-1 country code (e.g. SE). Empty = no fallback. An unrecognized code is rejected and the previous value is kept."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:121
+#: src/Admin/SettingsPage.php:134
 msgid "Enable derived-context cache"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:123
+#: src/Admin/SettingsPage.php:136
 msgid "Requires a persistent object cache; otherwise a safe no-op."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:129
+#: src/Admin/SettingsPage.php:142
 #: src/Diagnostics/DiagnosticsService.php:413
 msgid "Cache TTL (seconds)"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:137
+#: src/Admin/SettingsPage.php:150
 msgid "MaxMind database path"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:139
+#: src/Admin/SettingsPage.php:152
 msgid "Absolute path to a .mmdb file under the WordPress content directory. Empty = auto-detect via WooCommerce."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:394
+#: src/Admin/SettingsPage.php:407
 msgid "MaxMind account"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:398
+#: src/Admin/SettingsPage.php:411
 msgid "One shared credential pair, used by both the remote provider below and managed database downloads. A MaxMind account has one account ID/license key regardless of which MaxMind product it authenticates against."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:412
+#: src/Admin/SettingsPage.php:425
 msgid "Account ID"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:413
-#: src/Admin/SettingsPage.php:427
+#: src/Admin/SettingsPage.php:426
+#: src/Admin/SettingsPage.php:440
 msgid "Currently configured (hidden)"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:413
-#: src/Admin/SettingsPage.php:427
+#: src/Admin/SettingsPage.php:426
+#: src/Admin/SettingsPage.php:440
 msgid "Not configured"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:417
-#: src/Admin/SettingsPage.php:431
+#: src/Admin/SettingsPage.php:430
+#: src/Admin/SettingsPage.php:444
 msgid "Supplied via a wp-config.php constant and cannot be edited here."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:418
-#: src/Admin/SettingsPage.php:432
+#: src/Admin/SettingsPage.php:431
+#: src/Admin/SettingsPage.php:445
 msgid "Leave blank to keep the stored value unchanged."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:426
+#: src/Admin/SettingsPage.php:439
 msgid "License key"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:439
+#: src/Admin/SettingsPage.php:452
 msgid "Clear stored credentials"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:440
+#: src/Admin/SettingsPage.php:453
 msgid "Blanks both fields above on save, regardless of what (if anything) is also typed."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:455
+#: src/Admin/SettingsPage.php:468
 msgid "Remote provider (MaxMind GeoLite2 Country Web Service)"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:459
+#: src/Admin/SettingsPage.php:472
 msgid "Disabled by default. When enabled, this plugin sends visitor IP addresses to MaxMind, Inc. at geolite.info to derive a country — the one exception to this plugin never letting an IP address leave the server. Enabling requires both the MaxMind account credentials above and the acknowledgement below, in the same submission."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:469
+#: src/Admin/SettingsPage.php:482
 msgid "Transfer acknowledgement"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:471
+#: src/Admin/SettingsPage.php:484
 msgid "I acknowledge that enabling the remote provider transfers visitor IP addresses to MaxMind, Inc."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:477
+#: src/Admin/SettingsPage.php:490
 msgid "Enable remote provider"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:479
+#: src/Admin/SettingsPage.php:492
 msgid "Use MaxMind GeoLite2 Country Web Service as a fallback provider."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:480
+#: src/Admin/SettingsPage.php:493
 msgid "Requires the acknowledgement above in the same save, and the MaxMind account credentials above."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:487
+#: src/Admin/SettingsPage.php:500
 msgid "Request timeout (seconds)"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:489
+#: src/Admin/SettingsPage.php:502
 msgid "Bounds how long a single remote lookup may hold a page view open. 1–5 seconds; default 2."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:503
+#: src/Admin/SettingsPage.php:516
 msgid "Managed database (automatic GeoLite2 Country downloads)"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:507
+#: src/Admin/SettingsPage.php:520
 msgid "Disabled by default. When enabled, this plugin downloads and keeps the GeoLite2 Country database up to date automatically, using the MaxMind account credentials above."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:517
+#: src/Admin/SettingsPage.php:530
 msgid "Enable managed database"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:519
+#: src/Admin/SettingsPage.php:532
 msgid "Let this plugin download and install the GeoLite2 Country database itself."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:525
+#: src/Admin/SettingsPage.php:538
 msgid "Enable automatic updates"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:527
+#: src/Admin/SettingsPage.php:540
 msgid "Keep the managed database current on a schedule (WP-Cron)."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:528
+#: src/Admin/SettingsPage.php:541
 msgid "Requires \"Enable managed database\" above, in the same save."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:536
+#: src/Admin/SettingsPage.php:549
 #: src/Diagnostics/DiagnosticsService.php:399
 msgid "Update frequency"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:538
+#: src/Admin/SettingsPage.php:551
 msgid "Weekly"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:540
+#: src/Admin/SettingsPage.php:553
 msgid "Twice weekly"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:541
+#: src/Admin/SettingsPage.php:554
 msgid "GeoLite2 Country is published at most twice a week."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:546
+#: src/Admin/SettingsPage.php:559
 #: src/Diagnostics/DiagnosticsService.php:400
 msgid "Retain previous version"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:548
+#: src/Admin/SettingsPage.php:561
 msgid "Keep one prior generation on disk after a successful update, restorable below."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:569
+#: src/Admin/SettingsPage.php:582
 #: src/Diagnostics/DiagnosticsService.php:397
 msgid "Installed"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:575
+#: src/Admin/SettingsPage.php:588
 msgid "Last attempt"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:576
+#: src/Admin/SettingsPage.php:589
 msgid "Never"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:581
+#: src/Admin/SettingsPage.php:594
 msgid "Last result"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:582
+#: src/Admin/SettingsPage.php:595
 msgid "None"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:588
+#: src/Admin/SettingsPage.php:601
 msgid "Download now"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:590
+#: src/Admin/SettingsPage.php:603
 msgid "Check database"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:592
+#: src/Admin/SettingsPage.php:605
 msgid "Remove managed database"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:594
+#: src/Admin/SettingsPage.php:607
 msgid "Restore previous version"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:618
+#: src/Admin/SettingsPage.php:631
 msgid "Are you sure?"
 msgstr ""
 
@@ -659,32 +765,32 @@ msgstr ""
 msgid "Geo Simulation: %s"
 msgstr ""
 
-#: src/Admin/TrustedProxiesPage.php:105
+#: src/Admin/TrustedProxiesPage.php:118
 msgid "Current status"
 msgstr ""
 
-#: src/Admin/TrustedProxiesPage.php:113
+#: src/Admin/TrustedProxiesPage.php:126
 msgid "Trust this peer"
 msgstr ""
 
-#: src/Admin/TrustedProxiesPage.php:125
+#: src/Admin/TrustedProxiesPage.php:138
 msgid "Enable the Cloudflare preset"
 msgstr ""
 
-#: src/Admin/TrustedProxiesPage.php:129
+#: src/Admin/TrustedProxiesPage.php:142
 msgid "Configuration"
 msgstr ""
 
-#: src/Admin/TrustedProxiesPage.php:141
+#: src/Admin/TrustedProxiesPage.php:154
 msgid "One CIDR or IP per line. Empty = trust no forwarding header."
 msgstr ""
 
-#: src/Admin/TrustedProxiesPage.php:146
+#: src/Admin/TrustedProxiesPage.php:159
 #: src/Diagnostics/DiagnosticsService.php:365
 msgid "Trust Cloudflare"
 msgstr ""
 
-#: src/Admin/TrustedProxiesPage.php:148
+#: src/Admin/TrustedProxiesPage.php:161
 msgid "Trust the CF-Connecting-IP / CF-IPCountry headers once the peer is trusted."
 msgstr ""
 
@@ -1282,19 +1388,19 @@ msgstr ""
 msgid "Twice weekly (Universal Geo Context)"
 msgstr ""
 
-#: src/Plugin.php:363
+#: src/Plugin.php:389
 msgid "Called before Universal Geo Context has booted. Call at or after the plugins_loaded priority 20."
 msgstr ""
 
-#: src/Plugin.php:390
+#: src/Plugin.php:416
 msgid "The universal_geo_context filter must return a VisitorContext with a valid country code."
 msgstr ""
 
-#: src/Plugin.php:758
+#: src/Plugin.php:784
 msgid "The universal_geo_maxmind_db_path filter must return a string."
 msgstr ""
 
-#: src/Plugin.php:880
+#: src/Plugin.php:906
 msgid "The universal_geo_providers filter must only return GeoProviderInterface instances; a non-conforming element was dropped."
 msgstr ""
 

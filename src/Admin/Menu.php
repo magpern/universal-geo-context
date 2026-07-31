@@ -100,11 +100,11 @@ final class Menu {
 	private function pages(): array {
 		return array(
 			$this->overview,
+			$this->settings,
 			$this->detection,
 			$this->providers,
 			$this->trusted_proxies,
 			$this->diagnostics,
-			$this->settings,
 		);
 	}
 }

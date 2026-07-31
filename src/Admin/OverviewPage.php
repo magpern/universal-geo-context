@@ -24,16 +24,22 @@ final class OverviewPage implements Page {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param DiagnosticsService $diagnostics Supplies overview slices and Site Health verdicts.
-	 * @param ContextResolver    $resolver    Used only for explicit Refresh now probe action.
-	 * @param ReportRenderer     $renderer    Renders definition lists inside cards.
-	 * @param AdminNotices       $notices     PRG redirects after refresh.
+	 * @param DiagnosticsService   $diagnostics   Supplies overview slices and Site Health verdicts.
+	 * @param ContextResolver      $resolver      Used only for explicit Refresh now probe action.
+	 * @param ReportRenderer       $renderer      Renders definition lists inside cards.
+	 * @param AdminNotices         $notices       PRG redirects after refresh.
+	 * @param AdminHeaderRenderer  $header        Shared page header.
+	 * @param QuickActionsRenderer $quick_actions Quick navigation card.
+	 * @param AdminActionRenderer  $actions       Shared action controls.
 	 */
 	public function __construct(
 		private readonly DiagnosticsService $diagnostics,
 		private readonly ContextResolver $resolver,
 		private readonly ReportRenderer $renderer,
-		private readonly AdminNotices $notices
+		private readonly AdminNotices $notices,
+		private readonly AdminHeaderRenderer $header,
+		private readonly QuickActionsRenderer $quick_actions,
+		private readonly AdminActionRenderer $actions
 	) {
 	}
 
@@ -95,10 +101,26 @@ final class OverviewPage implements Page {
 		$sections = $this->diagnostics->overview_sections();
 		$context  = Plugin::instance()->context();
 		$probe    = $this->last_refresh_summary_from_request();
+		$status   = $this->diagnostics->worst_site_health_status();
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html( $this->title() ) . '</h1>';
-		$this->render_health_badge( $this->diagnostics->worst_site_health_status() );
+		$this->header->render(
+			$this->slug(),
+			$this->title(),
+			function (): void {
+				$this->actions->render_refresh_providers_form(
+					$this->slug(),
+					__( 'Refresh Providers', 'universal-geo-context' )
+				);
+				$this->actions->render_link_button(
+					AdminPageRegistry::page_url( AdminPageSlugs::SETTINGS ),
+					__( 'Open Settings', 'universal-geo-context' )
+				);
+			}
+		);
+
+		$this->render_health_badge( $status );
+		$this->quick_actions->render();
 
 		echo '<div class="universal-geo-overview-grid">';
 
@@ -114,7 +136,9 @@ final class OverviewPage implements Page {
 						'is_cached'    => $context->is_cached,
 					)
 				);
-			}
+			},
+			AdminPageRegistry::page_url( AdminPageSlugs::DETECTION ),
+			__( 'Open Detection & Testing', 'universal-geo-context' )
 		);
 
 		$this->render_card(
@@ -134,52 +158,67 @@ final class OverviewPage implements Page {
 						)
 					);
 				} else {
-					echo '<p>' . esc_html__( 'No explicit refresh has been run yet. Last-known failure records appear below.', 'universal-geo-context' ) . '</p>';
+					echo '<p class="universal-geo-empty-state">' . esc_html__( 'No explicit refresh has been run yet. Provider health summaries appear after you refresh diagnostics.', 'universal-geo-context' ) . '</p>';
 				}
 
 				if ( array() === $sections['provider_health'] ) {
-					echo '<p>' . esc_html__( 'No provider failure records on file.', 'universal-geo-context' ) . '</p>';
+					echo '<div class="universal-geo-empty-state">';
+					echo '<p>' . esc_html__( 'No provider failures have been recorded.', 'universal-geo-context' ) . '</p>';
+					echo '<div class="universal-geo-action-buttons">';
+					$this->actions->render_refresh_providers_form(
+						$this->slug(),
+						__( 'Refresh Providers', 'universal-geo-context' )
+					);
+					$this->actions->render_link_button(
+						AdminPageRegistry::page_url( AdminPageSlugs::PROVIDERS ),
+						__( 'Learn more', 'universal-geo-context' )
+					);
+					echo '</div></div>';
 				} else {
 					foreach ( $sections['provider_health'] as $provider_id => $row ) {
 						echo '<h3>' . esc_html( (string) $provider_id ) . '</h3>';
 						$this->renderer->render_definition_list( $row );
 					}
 				}
-
-				echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:1em">';
-				wp_nonce_field( 'universal_geo_refresh_providers' );
-				echo '<input type="hidden" name="action" value="universal_geo_refresh_providers" />';
-				submit_button( __( 'Refresh now', 'universal-geo-context' ), 'secondary', 'submit', false );
-				echo '</form>';
-			}
+			},
+			AdminPageRegistry::page_url( AdminPageSlugs::PROVIDERS ),
+			__( 'Open Providers', 'universal-geo-context' )
 		);
 
 		$this->render_card(
 			__( 'Remote Provider', 'universal-geo-context' ),
 			function () use ( $sections ): void {
 				$this->renderer->render_definition_list( $sections['remote'] );
-			}
+			},
+			AdminPageRegistry::page_url( AdminPageSlugs::SETTINGS ) . '#universal-geo-remote-provider',
+			__( 'Open Settings', 'universal-geo-context' )
 		);
 
 		$this->render_card(
 			__( 'Trusted Proxies', 'universal-geo-context' ),
 			function () use ( $sections ): void {
 				$this->renderer->render_definition_list( $sections['trusted_proxies'] );
-			}
+			},
+			AdminPageRegistry::page_url( AdminPageSlugs::TRUSTED_PROXIES ),
+			__( 'Open Trusted Proxies', 'universal-geo-context' )
 		);
 
 		$this->render_card(
 			__( 'Cache', 'universal-geo-context' ),
 			function () use ( $sections ): void {
 				$this->renderer->render_definition_list( $sections['cache'] );
-			}
+			},
+			AdminPageRegistry::page_url( AdminPageSlugs::SETTINGS ),
+			__( 'Open Settings', 'universal-geo-context' )
 		);
 
 		$this->render_card(
 			__( 'Environment', 'universal-geo-context' ),
 			function () use ( $sections ): void {
 				$this->renderer->render_definition_list( $sections['environment'] );
-			}
+			},
+			AdminPageRegistry::page_url( AdminPageSlugs::DIAGNOSTICS ),
+			__( 'Open Diagnostics', 'universal-geo-context' )
 		);
 
 		echo '</div></div>';
@@ -210,7 +249,7 @@ final class OverviewPage implements Page {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified above; optional redirect target.
 		if ( isset( $_POST['universal_geo_redirect_page'] ) ) {
 			$candidate = sanitize_key( wp_unslash( $_POST['universal_geo_redirect_page'] ) );
-			if ( in_array( $candidate, array( AdminPageSlugs::OVERVIEW, AdminPageSlugs::DETECTION, AdminPageSlugs::PROVIDERS ), true ) ) {
+			if ( in_array( $candidate, array( AdminPageSlugs::OVERVIEW, AdminPageSlugs::DETECTION, AdminPageSlugs::PROVIDERS, AdminPageSlugs::DIAGNOSTICS ), true ) ) {
 				$redirect_page = $candidate;
 			}
 		}
@@ -245,18 +284,27 @@ final class OverviewPage implements Page {
 	}
 
 	/**
-	 * Renders one overview dashboard card.
+	 * Renders one overview dashboard card with an optional footer link.
 	 *
-	 * @param string   $heading  Card title.
-	 * @param callable $callback Renders card body.
+	 * @param string      $heading    Card title.
+	 * @param callable    $callback   Renders card body.
+	 * @param string|null $footer_url Optional footer link URL.
+	 * @param string      $footer_label Footer link label.
 	 *
 	 * @return void
 	 */
-	private function render_card( string $heading, callable $callback ): void {
+	private function render_card( string $heading, callable $callback, ?string $footer_url = null, string $footer_label = '' ): void {
 		echo '<div class="postbox universal-geo-overview-card"><div class="postbox-header"><h2 class="hndle">';
 		echo esc_html( $heading );
 		echo '</h2></div><div class="inside">';
 		$callback();
+
+		if ( null !== $footer_url && '' !== $footer_label ) {
+			echo '<div class="universal-geo-card-footer">';
+			$this->actions->render_link_button( $footer_url, $footer_label );
+			echo '</div>';
+		}
+
 		echo '</div></div>';
 	}
 
@@ -284,8 +332,10 @@ final class OverviewPage implements Page {
 		$label = $labels[ $status ] ?? $labels['good'];
 
 		printf(
-			'<div class="notice %1$s inline"><p>%2$s</p></div>',
+			'<a class="universal-geo-health-link" href="%1$s"><div class="notice %2$s inline"><p><strong>%3$s</strong> — %4$s</p></div></a>',
+			esc_url( AdminPageRegistry::page_url( AdminPageSlugs::DIAGNOSTICS ) ),
 			esc_attr( $class ),
+			esc_html__( 'Overall Health', 'universal-geo-context' ),
 			esc_html( $label )
 		);
 	}

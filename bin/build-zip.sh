@@ -31,6 +31,7 @@ cp "$ROOT/universal-geo-context.php" "$ROOT/uninstall.php" "$BUILD/"
 cp -R "$ROOT/src" "$BUILD/src"
 cp -R "$ROOT/vendor" "$BUILD/vendor"
 [ -d "$ROOT/languages" ] && cp -R "$ROOT/languages" "$BUILD/languages"
+[ -d "$ROOT/assets" ] && cp -R "$ROOT/assets" "$BUILD/assets"
 
 ( cd "$DIST" && zip -rq "universal-geo-context-${VERSION}.zip" universal-geo-context )
 

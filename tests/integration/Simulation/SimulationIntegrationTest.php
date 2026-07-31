@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace UniversalGeo\Tests\Integration\Simulation;
 
 use UniversalGeo\Admin\AdminNotices;
+use UniversalGeo\Tests\Support\AdminUxFactory;
 use UniversalGeo\Admin\AdminPageSlugs;
 use UniversalGeo\Admin\DetectionInspectorRenderer;
 use UniversalGeo\Admin\DetectionPage;
@@ -122,7 +123,9 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 			new CountryCatalog(),
 			$this->controller( $cookie ),
 			$inspector,
-			$renderer
+			$renderer,
+			AdminUxFactory::header(),
+			AdminUxFactory::actions()
 		);
 	}
 

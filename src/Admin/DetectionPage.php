@@ -35,6 +35,8 @@ final class DetectionPage implements Page {
 	 * @param SimulationController       $controller POST handlers for simulation.
 	 * @param DetectionInspectorService  $inspector  Explanation builder.
 	 * @param DetectionInspectorRenderer $renderer   Inspector UI renderer.
+	 * @param AdminHeaderRenderer        $header     Shared page header.
+	 * @param AdminActionRenderer        $actions    Shared action controls.
 	 */
 	public function __construct(
 		private readonly ContextResolver $resolver,
@@ -42,7 +44,9 @@ final class DetectionPage implements Page {
 		private readonly CountryCatalog $catalog,
 		private readonly SimulationController $controller,
 		private readonly DetectionInspectorService $inspector,
-		private readonly DetectionInspectorRenderer $renderer
+		private readonly DetectionInspectorRenderer $renderer,
+		private readonly AdminHeaderRenderer $header,
+		private readonly AdminActionRenderer $actions
 	) {
 	}
 
@@ -104,7 +108,24 @@ final class DetectionPage implements Page {
 		$tab = $this->active_tab();
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html( $this->title() ) . '</h1>';
+		$this->header->render(
+			$this->slug(),
+			$this->title(),
+			function () use ( $tab ): void {
+				if ( 'live' === $tab ) {
+					$this->actions->render_refresh_providers_form(
+						$this->slug(),
+						__( 'Refresh Detection', 'universal-geo-context' )
+					);
+				}
+
+				$simulation_url = add_query_arg( 'tab', 'simulation', admin_url( 'admin.php?page=' . $this->slug() ) );
+				$this->actions->render_link_button(
+					$simulation_url,
+					__( 'Start Simulation', 'universal-geo-context' )
+				);
+			}
+		);
 		$this->render_tab_nav( $tab );
 
 		if ( 'simulation' === $tab ) {

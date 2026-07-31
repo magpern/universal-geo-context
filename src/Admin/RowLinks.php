@@ -37,7 +37,7 @@ final class RowLinks {
 	public function add_action_links( array $links ): array {
 		$settings_link = sprintf(
 			'<a href="%1$s">%2$s</a>',
-			esc_url( admin_url( 'admin.php?page=' . AdminPageSlugs::OVERVIEW ) ),
+			esc_url( admin_url( 'admin.php?page=' . AdminPageSlugs::SETTINGS ) ),
 			esc_html__( 'Settings', 'universal-geo-context' )
 		);
 

@@ -26,16 +26,20 @@ final class TrustedProxiesPage implements Page {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param DiagnosticsService $diagnostics Masked report slices for status display.
-	 * @param ServerRequest      $request     Raw peer for "Trust this peer".
-	 * @param ReportRenderer     $renderer    Definition-list renderer.
-	 * @param AdminNotices       $notices     PRG redirects.
+	 * @param DiagnosticsService  $diagnostics Masked report slices for status display.
+	 * @param ServerRequest       $request     Raw peer for "Trust this peer".
+	 * @param ReportRenderer      $renderer    Definition-list renderer.
+	 * @param AdminNotices        $notices     PRG redirects.
+	 * @param AdminHeaderRenderer $header     Shared page header.
+	 * @param AdminActionRenderer $actions    Shared action controls.
 	 */
 	public function __construct(
 		private readonly DiagnosticsService $diagnostics,
 		private readonly ServerRequest $request,
 		private readonly ReportRenderer $renderer,
-		private readonly AdminNotices $notices
+		private readonly AdminNotices $notices,
+		private readonly AdminHeaderRenderer $header,
+		private readonly AdminActionRenderer $actions
 	) {
 	}
 
@@ -100,7 +104,16 @@ final class TrustedProxiesPage implements Page {
 		$settings = Settings::sanitize( get_option( Settings::OPTION_NAME, false ) );
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html( $this->title() ) . '</h1>';
+		$this->header->render(
+			$this->slug(),
+			$this->title(),
+			function (): void {
+				$this->actions->render_link_button(
+					AdminPageRegistry::page_url( AdminPageSlugs::SETTINGS ),
+					__( 'Open Settings', 'universal-geo-context' )
+				);
+			}
+		);
 
 		echo '<h2>' . esc_html__( 'Current status', 'universal-geo-context' ) . '</h2>';
 		$this->renderer->render_definition_list( $sections['trusted_proxies'] );

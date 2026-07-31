@@ -2,7 +2,7 @@
 
 **Visitor geolocation detection and country resolution — evidence-based, privacy-respecting, and easily extensible.**
 
-**Status: v1.4.0 (M9) — Detection Inspector shipped.** A working WordPress plugin that resolves a
+**Status: v1.5.0 (M10) — Admin navigation and UX polish.** A working WordPress plugin that resolves a
 visitor's country from a fixed chain of providers (Cloudflare headers, a
 local MaxMind database, WooCommerce's own geolocation, an optional remote
 MaxMind web service, and a configured default), attributes the answer to a
@@ -45,16 +45,16 @@ Full documentation: [docs/API.md](docs/API.md).
 
 ## Admin
 
-**Universal Geo Context** in the WordPress admin sidebar, with six pages:
+**Universal Geo Context** in the WordPress admin sidebar, with six pages linked by a shared in-plugin navigation bar:
 
-- **Overview** — at-a-glance dashboard (current resolution, provider health, remote provider, trusted proxies, cache, environment).
+- **Overview** — at-a-glance dashboard with Quick Actions and actionable cards (current resolution, provider health, remote provider, trusted proxies, cache, environment).
+- **Settings** — default country, cache, MaxMind account, remote provider, managed database downloads (primary configuration page).
 - **Detection & Testing** — Detection Inspector (v1.4.0); country simulation for administrators (v1.3.0).
-- **Providers** — placeholder for detailed provider inspection (v1.4.0).
+- **Providers** — per-provider diagnostic detail with configuration shortcuts (v1.4.0).
 - **Trusted Proxies** — trusted-proxy CIDRs, Cloudflare preset, trust-current-peer actions.
 - **Diagnostics** — full diagnostics report (live resolution, masked IPs, provider probes on demand, MaxMind managed-database status, Site Health results).
-- **Settings** — default country, cache, MaxMind account, remote provider, managed database downloads.
 
-Plugin list links: **Settings** (Overview), **Documentation**, **GitHub**.
+Plugin list links: **Settings** (Settings page), **Documentation**, **GitHub**.
 
 ## Settings (detail)
 

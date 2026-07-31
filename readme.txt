@@ -4,7 +4,7 @@ Tags: geolocation, country, geoip, woocommerce, privacy
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.4.0
+Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -108,6 +108,12 @@ No. It detects geographic facts only. Consumers — other plugins reading
 its public functions — decide what those facts mean.
 
 == Changelog ==
+
+= 1.5.0 =
+* Admin UX: shared in-plugin navigation on every page, page descriptions, Quick Actions on Overview, and actionable dashboard cards with footer links.
+* Settings promoted to second position in sidebar and internal navigation (URLs unchanged).
+* Contextual page actions reuse existing POST handlers (provider refresh, MaxMind download anchor, diagnostics reload).
+* Presentation-only admin stylesheet (`assets/css/admin.css`).
 
 = 1.4.0 =
 * Detection Inspector: the Detection & Testing → Detection tab explains the current request — effective vs real context, resolution timeline, provider results, cache state, trusted proxies, and environment — without changing detection.

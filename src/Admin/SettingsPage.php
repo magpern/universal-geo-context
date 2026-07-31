@@ -27,14 +27,18 @@ final class SettingsPage implements Page {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param UpdateScheduler $update_scheduler Reconciled after settings save.
-	 * @param DatabaseManager $database_manager Managed database actions.
-	 * @param AdminNotices    $notices          PRG redirects.
+	 * @param UpdateScheduler     $update_scheduler Reconciled after settings save.
+	 * @param DatabaseManager     $database_manager Managed database actions.
+	 * @param AdminNotices        $notices          PRG redirects.
+	 * @param AdminHeaderRenderer $header       Shared page header.
+	 * @param AdminActionRenderer $actions      Shared action controls.
 	 */
 	public function __construct(
 		private readonly UpdateScheduler $update_scheduler,
 		private readonly DatabaseManager $database_manager,
-		private readonly AdminNotices $notices
+		private readonly AdminNotices $notices,
+		private readonly AdminHeaderRenderer $header,
+		private readonly AdminActionRenderer $actions
 	) {
 	}
 
@@ -100,7 +104,16 @@ final class SettingsPage implements Page {
 		$settings = Settings::sanitize( get_option( Settings::OPTION_NAME, false ) );
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html( $this->title() ) . '</h1>';
+		$this->header->render(
+			$this->slug(),
+			$this->title(),
+			function (): void {
+				$this->actions->render_link_button(
+					AdminPageRegistry::page_url( AdminPageSlugs::SETTINGS ) . '#universal-geo-managed-database',
+					__( 'Download MaxMind Database', 'universal-geo-context' )
+				);
+			}
+		);
 
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'universal_geo_save_settings' );
@@ -452,7 +465,7 @@ final class SettingsPage implements Page {
 	 * @return void
 	 */
 	private function render_remote_settings_section( array $settings ): void {
-		echo '<h2>' . esc_html__( 'Remote provider (MaxMind GeoLite2 Country Web Service)', 'universal-geo-context' ) . '</h2>';
+		echo '<h2 id="universal-geo-remote-provider">' . esc_html__( 'Remote provider (MaxMind GeoLite2 Country Web Service)', 'universal-geo-context' ) . '</h2>';
 
 		printf(
 			'<p>%s</p>',
@@ -500,7 +513,7 @@ final class SettingsPage implements Page {
 	 * @return void
 	 */
 	private function render_managed_database_section( array $settings ): void {
-		echo '<h2>' . esc_html__( 'Managed database (automatic GeoLite2 Country downloads)', 'universal-geo-context' ) . '</h2>';
+		echo '<h2 id="universal-geo-managed-database">' . esc_html__( 'Managed database (automatic GeoLite2 Country downloads)', 'universal-geo-context' ) . '</h2>';
 
 		printf(
 			'<p>%s</p>',

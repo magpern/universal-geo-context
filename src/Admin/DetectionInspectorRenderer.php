@@ -47,7 +47,6 @@ final class DetectionInspectorRenderer {
 	public function render( ResolutionExplanation $explanation ): void {
 		echo '<div class="universal-geo-detection-inspector">';
 
-		$this->render_refresh_form();
 		$this->render_probe_notice( $explanation );
 		$this->render_context_section( $explanation );
 		$this->render_timeline( $explanation );
@@ -57,24 +56,6 @@ final class DetectionInspectorRenderer {
 		$this->render_environment( $explanation );
 
 		echo '</div>';
-	}
-
-	/**
-	 * Renders the explicit refresh form.
-	 *
-	 * @return void
-	 */
-	private function render_refresh_form(): void {
-		echo '<p class="description">';
-		echo esc_html__( 'This page is observational — it explains the current request without changing detection. Run Refresh now to run one live provider probe.', 'universal-geo-context' );
-		echo '</p>';
-
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin: 1em 0;">';
-		wp_nonce_field( 'universal_geo_refresh_providers' );
-		echo '<input type="hidden" name="action" value="universal_geo_refresh_providers" />';
-		echo '<input type="hidden" name="universal_geo_redirect_page" value="' . esc_attr( AdminPageSlugs::DETECTION ) . '" />';
-		submit_button( __( 'Refresh provider diagnostics', 'universal-geo-context' ), 'secondary', 'submit', false );
-		echo '</form>';
 	}
 
 	/**

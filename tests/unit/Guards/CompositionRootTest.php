@@ -105,6 +105,11 @@ final class CompositionRootTest extends TestCase {
 		'ResolutionTimelineBuilder',
 		'ExplanationFormatter',
 		'DetectionInspectorRenderer',
+		'AdminActionRenderer',
+		'AdminNavigationRenderer',
+		'AdminHeaderRenderer',
+		'QuickActionsRenderer',
+		'AdminAssets',
 	);
 
 	/**

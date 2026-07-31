@@ -22,12 +22,16 @@ final class DiagnosticsPage implements Page {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param DiagnosticsService $diagnostics Full report supplier.
-	 * @param ReportRenderer     $renderer    Definition-list renderer.
+	 * @param DiagnosticsService  $diagnostics Full report supplier.
+	 * @param ReportRenderer      $renderer    Definition-list renderer.
+	 * @param AdminHeaderRenderer $header      Shared page header.
+	 * @param AdminActionRenderer $actions     Shared action controls.
 	 */
 	public function __construct(
 		private readonly DiagnosticsService $diagnostics,
-		private readonly ReportRenderer $renderer
+		private readonly ReportRenderer $renderer,
+		private readonly AdminHeaderRenderer $header,
+		private readonly AdminActionRenderer $actions
 	) {
 	}
 
@@ -77,10 +81,33 @@ final class DiagnosticsPage implements Page {
 			return;
 		}
 
-		$report = $this->diagnostics->report();
+		$report      = $this->diagnostics->report();
+		$report_text = $this->build_copy_text( $report );
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html( $this->title() ) . '</h1>';
+		$this->header->render(
+			$this->slug(),
+			$this->title(),
+			function (): void {
+				$this->actions->render_link_button(
+					AdminPageRegistry::page_url( AdminPageSlugs::DIAGNOSTICS ),
+					__( 'Refresh Diagnostics', 'universal-geo-context' )
+				);
+			}
+		);
+
+		echo '<details class="universal-geo-diagnostics-copy-wrap" style="max-width:960px;margin:0 0 1.5em;">';
+		echo '<summary><strong>' . esc_html__( 'Copy report', 'universal-geo-context' ) . '</strong></summary>';
+		printf(
+			'<p class="description">%s</p>',
+			esc_html__( 'Select the text below and copy it for support tickets. Values are already masked.', 'universal-geo-context' )
+		);
+		printf(
+			'<textarea class="universal-geo-diagnostics-copy" readonly rows="12" aria-label="%s">%s</textarea>',
+			esc_attr__( 'Diagnostics report (read-only)', 'universal-geo-context' ),
+			esc_textarea( $report_text )
+		);
+		echo '</details>';
 
 		echo '<h2>' . esc_html__( 'Client address', 'universal-geo-context' ) . '</h2>';
 		$this->renderer->render_definition_list( $report['client_address'] );
@@ -123,9 +150,24 @@ final class DiagnosticsPage implements Page {
 		}
 
 		echo '<h2>' . esc_html__( 'Provider health', 'universal-geo-context' ) . '</h2>';
-		foreach ( $report['provider_health'] as $provider_id => $row ) {
-			echo '<h3>' . esc_html( (string) $provider_id ) . '</h3>';
-			$this->renderer->render_definition_list( $row );
+		if ( array() === $report['provider_health'] ) {
+			echo '<div class="universal-geo-empty-state">';
+			echo '<p>' . esc_html__( 'No provider failures have been recorded.', 'universal-geo-context' ) . '</p>';
+			echo '<div class="universal-geo-action-buttons">';
+			$this->actions->render_refresh_providers_form(
+				AdminPageSlugs::DIAGNOSTICS,
+				__( 'Refresh Providers', 'universal-geo-context' )
+			);
+			$this->actions->render_link_button(
+				AdminPageRegistry::page_url( AdminPageSlugs::PROVIDERS ),
+				__( 'Learn more', 'universal-geo-context' )
+			);
+			echo '</div></div>';
+		} else {
+			foreach ( $report['provider_health'] as $provider_id => $row ) {
+				echo '<h3>' . esc_html( (string) $provider_id ) . '</h3>';
+				$this->renderer->render_definition_list( $row );
+			}
 		}
 
 		echo '<h2>' . esc_html__( 'Cache', 'universal-geo-context' ) . '</h2>';
@@ -135,5 +177,58 @@ final class DiagnosticsPage implements Page {
 		$this->renderer->render_definition_list( $report['environment'] );
 
 		echo '</div>';
+	}
+
+	/**
+	 * Builds a plain-text diagnostics summary for manual copy.
+	 *
+	 * @param array<string, mixed> $report Full diagnostics report.
+	 *
+	 * @return string
+	 */
+	private function build_copy_text( array $report ): string {
+		$lines = array( 'Universal Geo Context — Diagnostics Report', '' );
+
+		foreach ( $report as $section_key => $section ) {
+			if ( ! is_array( $section ) ) {
+				continue;
+			}
+
+			$lines[] = strtoupper( str_replace( '_', ' ', (string) $section_key ) );
+
+			if ( isset( $section[0] ) && is_array( $section[0] ) ) {
+				foreach ( $section as $row ) {
+					if ( ! is_array( $row ) ) {
+						continue;
+					}
+					$lines[] = $this->format_copy_row( $row );
+				}
+			} else {
+				$lines[] = $this->format_copy_row( $section );
+			}
+
+			$lines[] = '';
+		}
+
+		return implode( "\n", $lines );
+	}
+
+	/**
+	 * Formats one associative row for plain-text export.
+	 *
+	 * @param array<string, mixed> $row Label/value pairs.
+	 *
+	 * @return string
+	 */
+	private function format_copy_row( array $row ): string {
+		$parts = array();
+
+		foreach ( $row as $key => $value ) {
+			if ( is_scalar( $value ) || null === $value ) {
+				$parts[] = sprintf( '%s: %s', (string) $key, (string) $value );
+			}
+		}
+
+		return implode( ' | ', $parts );
 	}
 }
