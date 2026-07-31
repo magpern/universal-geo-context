@@ -75,13 +75,7 @@ final class AdminPagesTest extends WP_UnitTestCase {
 			new UpdateLock()
 		);
 
-		return new SettingsPage(
-			new UpdateScheduler( $database_manager ),
-			$database_manager,
-			new AdminNotices(),
-			AdminUxFactory::header(),
-			AdminUxFactory::actions()
-		);
+		return AdminUxFactory::settings_page( $database_manager );
 	}
 
 	private function trusted_proxies_page(): TrustedProxiesPage {
@@ -116,10 +110,11 @@ final class AdminPagesTest extends WP_UnitTestCase {
 		return new TrustedProxiesPage(
 			$diagnostics,
 			$request,
-			new \UniversalGeo\Admin\ReportRenderer( $diagnostics ),
+			new \UniversalGeo\Admin\ReportRenderer( new \UniversalGeo\Admin\DefinitionListRenderer( $diagnostics ) ),
 			new AdminNotices(),
 			AdminUxFactory::header(),
-			AdminUxFactory::actions()
+			AdminUxFactory::actions(),
+			AdminUxFactory::components()
 		);
 	}
 
