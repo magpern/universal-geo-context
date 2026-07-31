@@ -30,6 +30,25 @@ final class AdminPageShell {
 	}
 
 	/**
+	 * Opens the admin page wrap and WordPress notice anchor.
+	 *
+	 * Core common.js moves global admin notices after `.wp-header-end`, or
+	 * otherwise after the first `.wrap h1`/`.wrap h2` — which would land
+	 * them inside the branded shell header.
+	 */
+	public function open_wrap(): void {
+		echo '<div class="wrap">';
+		echo '<hr class="wp-header-end">';
+	}
+
+	/**
+	 * Closes the admin page wrap opened by {@see open_wrap()}.
+	 */
+	public function close_wrap(): void {
+		echo '</div>';
+	}
+
+	/**
 	 * Opens the page shell wrapper.
 	 */
 	public function open(): void {

@@ -21,6 +21,22 @@ use UniversalGeo\Admin\SectionNavigation;
  */
 final class AdminPageShellTest extends TestCase {
 
+	public function test_open_wrap_renders_notice_anchor_before_shell(): void {
+		$shell = new AdminPageShell( new SectionNavigation() );
+
+		ob_start();
+		$shell->open_wrap();
+		$shell->open();
+		$html = ob_get_clean();
+
+		$this->assertStringContainsString( '<div class="wrap">', $html );
+		$this->assertStringContainsString( 'wp-header-end', $html );
+		$this->assertLessThan(
+			strpos( $html, 'ugc-settings-shell' ),
+			strpos( $html, 'wp-header-end' )
+		);
+	}
+
 	public function test_shell_header_renders_branded_navigation(): void {
 		$factory    = new AdminPageShellViewModelFactory();
 		$shell      = new AdminPageShell( new SectionNavigation() );

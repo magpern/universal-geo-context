@@ -112,7 +112,7 @@ final class DetectionPage implements Page {
 		$tab   = $this->active_tab();
 		$shell = $this->header->shell();
 
-		echo '<div class="wrap">';
+		$shell->open_wrap();
 		$shell->open();
 		$this->header->render(
 			$this->slug(),
@@ -144,7 +144,7 @@ final class DetectionPage implements Page {
 
 		$shell->close_content();
 		$shell->close();
-		echo '</div>';
+		$shell->close_wrap();
 	}
 
 	/**

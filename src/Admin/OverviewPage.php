@@ -109,7 +109,7 @@ final class OverviewPage implements Page {
 		$status   = $this->diagnostics->worst_site_health_status();
 		$shell    = $this->header->shell();
 
-		echo '<div class="wrap">';
+		$shell->open_wrap();
 		$shell->open();
 		$this->header->render(
 			$this->slug(),
@@ -159,7 +159,7 @@ final class OverviewPage implements Page {
 
 		$shell->close_content();
 		$shell->close();
-		echo '</div>';
+		$shell->close_wrap();
 	}
 
 	/**
