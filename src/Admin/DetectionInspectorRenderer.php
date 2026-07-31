@@ -25,11 +25,11 @@ final class DetectionInspectorRenderer {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param ReportRenderer           $report_renderer Definition list renderer.
-	 * @param ExplanationFormatter     $formatter       Status badge labels.
-	 * @param DiagnosticsService       $diagnostics     Field labels.
-	 * @param AdminComponentRenderer   $components      Design-system components.
-	 * @param TimelineRenderer         $timeline        Timeline component.
+	 * @param ReportRenderer         $report_renderer Definition list renderer.
+	 * @param ExplanationFormatter   $formatter       Status badge labels.
+	 * @param DiagnosticsService     $diagnostics     Field labels.
+	 * @param AdminComponentRenderer $components      Design-system components.
+	 * @param TimelineRenderer       $timeline        Timeline component.
 	 */
 	public function __construct(
 		private readonly ReportRenderer $report_renderer,

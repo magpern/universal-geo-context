@@ -132,7 +132,7 @@ final class ProvidersPage implements Page {
 			$this->renderer->render_definition_list( $section );
 			$body = ob_get_clean();
 
-			$action_html = '';
+			$action_html  = '';
 			$settings_url = $this->settings_url_for_provider( (string) $provider_id );
 			if ( null !== $settings_url ) {
 				ob_start();

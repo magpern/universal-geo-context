@@ -20,7 +20,7 @@ final class AdminHeaderRenderer {
 	/**
 	 * Stores the shell dependencies.
 	 *
-	 * @param AdminPageShell                $shell    Branded page shell.
+	 * @param AdminPageShell                 $shell    Branded page shell.
 	 * @param AdminPageShellViewModelFactory $factory Shell view-model factory.
 	 */
 	public function __construct(

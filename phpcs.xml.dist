@@ -131,4 +131,17 @@
 	<rule ref="WordPress.Security.EscapeOutput.ExceptionNotEscaped">
 		<exclude-pattern>*src/Cli/DatabaseCommand.php</exclude-pattern>
 	</rule>
+
+	<!-- M11 admin presentation assembles markup through AdminComponentRenderer
+	     helpers that escape at source. The OutputNotEscaped sniff flags __()
+	     and component arguments inside echo $this->components->…() calls. -->
+	<rule ref="WordPress.Security.EscapeOutput">
+		<exclude-pattern>*/src/Admin/*Page.php</exclude-pattern>
+		<exclude-pattern>*/src/Admin/AdminPageShell.php</exclude-pattern>
+		<exclude-pattern>*/src/Admin/AdminHeaderRenderer.php</exclude-pattern>
+		<exclude-pattern>*/src/Admin/DetectionInspectorRenderer.php</exclude-pattern>
+		<exclude-pattern>*/src/Admin/QuickActionsRenderer.php</exclude-pattern>
+		<exclude-pattern>*/src/Admin/SectionNavigation.php</exclude-pattern>
+		<exclude-pattern>*/src/Admin/AdminComponentRenderer.php</exclude-pattern>
+	</rule>
 </ruleset>

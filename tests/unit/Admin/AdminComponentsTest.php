@@ -162,7 +162,7 @@ final class AdminComponentsTest extends TestCase {
 		$diagnostics = $this->diagnostics();
 		$inspector   = $this->inspector_service( $resolver, $diagnostics );
 		$diagnostics = $this->diagnostics();
-		$definition    = new DefinitionListRenderer( $diagnostics );
+		$definition  = new DefinitionListRenderer( $diagnostics );
 		$renderer    = new DetectionInspectorRenderer(
 			new ReportRenderer( $definition ),
 			new ExplanationFormatter(),

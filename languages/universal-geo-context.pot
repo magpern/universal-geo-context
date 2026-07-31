@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-31T11:21:58+00:00\n"
+"POT-Creation-Date: 2026-07-31T11:43:52+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: universal-geo-context\n"
@@ -42,54 +42,54 @@ msgstr ""
 msgid "Refresh provider diagnostics"
 msgstr ""
 
-#: src/Admin/AdminComponentRenderer.php:495
+#: src/Admin/AdminComponentRenderer.php:503
 msgid "Unsaved changes"
 msgstr ""
 
-#: src/Admin/AdminComponentRenderer.php:496
+#: src/Admin/AdminComponentRenderer.php:504
 msgid "Discard"
 msgstr ""
 
-#: src/Admin/AdminComponentRenderer.php:497
+#: src/Admin/AdminComponentRenderer.php:505
 #: src/Admin/AdminPageShell.php:110
 #: src/Admin/AdminPageShell.php:111
 msgid "Save changes"
 msgstr ""
 
-#: src/Admin/AdminComponentRenderer.php:498
+#: src/Admin/AdminComponentRenderer.php:506
 msgid "All changes saved"
 msgstr ""
 
-#: src/Admin/AdminComponentRenderer.php:574
+#: src/Admin/AdminComponentRenderer.php:582
 msgid "Critical issues detected"
 msgstr ""
 
-#: src/Admin/AdminComponentRenderer.php:575
+#: src/Admin/AdminComponentRenderer.php:583
 msgid "Recommended improvements available"
 msgstr ""
 
-#: src/Admin/AdminComponentRenderer.php:576
+#: src/Admin/AdminComponentRenderer.php:584
 msgid "All systems healthy"
 msgstr ""
 
-#: src/Admin/AdminComponentRenderer.php:585
+#: src/Admin/AdminComponentRenderer.php:593
 #: src/Admin/OverviewPage.php:277
 msgid "Overall Health"
 msgstr ""
 
-#: src/Admin/AdminComponentRenderer.php:587
+#: src/Admin/AdminComponentRenderer.php:595
 msgid "View full diagnostics report"
 msgstr ""
 
-#: src/Admin/AdminComponentRenderer.php:600
+#: src/Admin/AdminComponentRenderer.php:608
 msgid "Copy report"
 msgstr ""
 
-#: src/Admin/AdminComponentRenderer.php:601
+#: src/Admin/AdminComponentRenderer.php:609
 msgid "Select the text below and copy it for support tickets. Values are already masked."
 msgstr ""
 
-#: src/Admin/AdminComponentRenderer.php:603
+#: src/Admin/AdminComponentRenderer.php:611
 msgid "Diagnostics report (read-only)"
 msgstr ""
 
@@ -198,7 +198,7 @@ msgid "Detection & Testing"
 msgstr ""
 
 #: src/Admin/AdminPageRegistry.php:41
-#: src/Admin/DiagnosticsPage.php:158
+#: src/Admin/DiagnosticsPage.php:154
 #: src/Admin/OverviewPage.php:345
 #: src/Admin/ProvidersPage.php:55
 #: src/Admin/ProvidersPage.php:64
@@ -273,7 +273,7 @@ msgid "%1$d of %2$d providers returned a country."
 msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:97
-#: src/Admin/DetectionPage.php:220
+#: src/Admin/DetectionPage.php:224
 #: src/Diagnostics/DiagnosticsService.php:421
 msgid "Simulation active"
 msgstr ""
@@ -338,7 +338,7 @@ msgid "Winner"
 msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:210
-#: src/Admin/DiagnosticsPage.php:176
+#: src/Admin/DiagnosticsPage.php:169
 #: src/Admin/OverviewPage.php:273
 #: src/Admin/OverviewPage.php:384
 msgid "Cache"
@@ -353,7 +353,7 @@ msgid "Observability"
 msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:227
-#: src/Admin/DiagnosticsPage.php:119
+#: src/Admin/DiagnosticsPage.php:116
 #: src/Admin/TrustedProxiesPage.php:191
 msgid "Trusted proxies"
 msgstr ""
@@ -363,12 +363,12 @@ msgid "How the client address was derived from forwarding headers."
 msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:233
-#: src/Admin/DiagnosticsPage.php:122
+#: src/Admin/DiagnosticsPage.php:119
 msgid "Forwarding headers"
 msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:241
-#: src/Admin/DiagnosticsPage.php:129
+#: src/Admin/DiagnosticsPage.php:126
 #: src/Admin/TrustedProxiesPage.php:151
 msgid "Cloudflare"
 msgstr ""
@@ -389,7 +389,7 @@ msgid "Good"
 msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:265
-#: src/Admin/DiagnosticsPage.php:177
+#: src/Admin/DiagnosticsPage.php:170
 #: src/Admin/OverviewPage.php:151
 #: src/Admin/OverviewPage.php:394
 msgid "Environment"
@@ -409,71 +409,71 @@ msgstr ""
 msgid "Start Simulation"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:174
+#: src/Admin/DetectionPage.php:173
 msgid "Detection and simulation panels"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:178
+#: src/Admin/DetectionPage.php:177
 msgid "Detection"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:184
+#: src/Admin/DetectionPage.php:183
 #: src/Admin/OverviewPage.php:275
 #: src/Explanation/ResolutionTimelineBuilder.php:266
 #: src/Explanation/ResolutionTimelineBuilder.php:274
 msgid "Simulation"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:215
+#: src/Admin/DetectionPage.php:216
 msgid "Developer and QA tool"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:216
+#: src/Admin/DetectionPage.php:217
 msgid "Country simulation overrides the visitor context for your browser session only. It does not change real geolocation, provider configuration, or shared geo caches."
 msgstr ""
 
-#: src/Admin/DetectionPage.php:220
+#: src/Admin/DetectionPage.php:224
 msgid "Simulation inactive"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:226
+#: src/Admin/DetectionPage.php:229
 msgid "Current context"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:227
+#: src/Admin/DetectionPage.php:230
 msgid "Real resolved country versus the effective country downstream plugins see."
 msgstr ""
 
-#: src/Admin/DetectionPage.php:247
+#: src/Admin/DetectionPage.php:252
 msgid "Controls"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:248
+#: src/Admin/DetectionPage.php:252
 msgid "Start, change, or stop a simulated visitor country for this browser session."
 msgstr ""
 
-#: src/Admin/DetectionPage.php:254
+#: src/Admin/DetectionPage.php:257
 msgid "Change simulated country"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:262
+#: src/Admin/DetectionPage.php:265
 msgid "Stop simulation"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:267
+#: src/Admin/DetectionPage.php:270
 msgid "Start simulation"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:283
+#: src/Admin/DetectionPage.php:286
 #: src/Admin/OverviewPage.php:235
 msgid "Unknown"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:304
+#: src/Admin/DetectionPage.php:307
 msgid "Select a country…"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:327
+#: src/Admin/DetectionPage.php:329
 msgid "Country"
 msgstr ""
 
@@ -481,89 +481,89 @@ msgstr ""
 msgid "Refresh Diagnostics"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:114
+#: src/Admin/DiagnosticsPage.php:113
 msgid "Network & client"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:115
+#: src/Admin/DiagnosticsPage.php:113
 msgid "Client address, trusted proxies, and forwarding headers."
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:118
+#: src/Admin/DiagnosticsPage.php:115
 msgid "Client address"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:136
+#: src/Admin/DiagnosticsPage.php:132
 msgid "Providers & data sources"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:137
+#: src/Admin/DiagnosticsPage.php:132
 msgid "MaxMind, remote provider, WooCommerce, and provider health."
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:140
+#: src/Admin/DiagnosticsPage.php:134
 msgid "WooCommerce"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:141
+#: src/Admin/DiagnosticsPage.php:135
 msgid "MaxMind"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:142
+#: src/Admin/DiagnosticsPage.php:136
 msgid "Managed database"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:145
+#: src/Admin/DiagnosticsPage.php:139
 msgid "Remote provider"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:150
+#: src/Admin/DiagnosticsPage.php:143
 msgid "The remote provider is enabled — viewing this page performs one live request to the configured remote service, as part of the provider probe table below."
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:172
+#: src/Admin/DiagnosticsPage.php:167
 #: src/Admin/OverviewPage.php:397
 msgid "Runtime"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:173
+#: src/Admin/DiagnosticsPage.php:167
 msgid "Cache and environment details."
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:213
-msgid "Provider health"
-msgstr ""
-
-#: src/Admin/DiagnosticsPage.php:214
-msgid "Recorded provider failures from recent resolution attempts."
-msgstr ""
-
-#: src/Admin/DiagnosticsPage.php:216
+#: src/Admin/DiagnosticsPage.php:205
 #: src/Admin/OverviewPage.php:257
 msgid "No failures"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:216
+#: src/Admin/DiagnosticsPage.php:205
 #: src/Admin/OverviewPage.php:342
 msgid "Issues recorded"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:225
+#: src/Admin/DiagnosticsPage.php:210
+msgid "Provider health"
+msgstr ""
+
+#: src/Admin/DiagnosticsPage.php:211
+msgid "Recorded provider failures from recent resolution attempts."
+msgstr ""
+
+#: src/Admin/DiagnosticsPage.php:222
 #: src/Admin/OverviewPage.php:120
 #: src/Admin/ProvidersPage.php:98
 msgid "Refresh Providers"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:230
+#: src/Admin/DiagnosticsPage.php:227
 msgid "Learn more"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:237
+#: src/Admin/DiagnosticsPage.php:233
 #: src/Admin/OverviewPage.php:328
 msgid "No provider failures recorded"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:238
+#: src/Admin/DiagnosticsPage.php:234
 #: src/Admin/OverviewPage.php:329
 msgid "Provider health summaries appear after you refresh diagnostics."
 msgstr ""

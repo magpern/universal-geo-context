@@ -25,15 +25,15 @@ final class OverviewPage implements Page {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param DiagnosticsService       $diagnostics   Supplies overview slices and Site Health verdicts.
-	 * @param ContextResolver          $resolver      Used only for explicit Refresh now probe action.
-	 * @param ReportRenderer           $renderer      Renders definition lists inside cards.
-	 * @param AdminNotices             $notices       PRG redirects after refresh.
-	 * @param AdminHeaderRenderer      $header        Shared page header.
-	 * @param QuickActionsRenderer     $quick_actions Quick navigation card.
-	 * @param AdminActionRenderer      $actions       Shared action controls.
-	 * @param AdminComponentRenderer   $components    Design-system components.
-	 * @param SimulationState          $simulation    Active simulation state.
+	 * @param DiagnosticsService     $diagnostics   Supplies overview slices and Site Health verdicts.
+	 * @param ContextResolver        $resolver      Used only for explicit Refresh now probe action.
+	 * @param ReportRenderer         $renderer      Renders definition lists inside cards.
+	 * @param AdminNotices           $notices       PRG redirects after refresh.
+	 * @param AdminHeaderRenderer    $header        Shared page header.
+	 * @param QuickActionsRenderer   $quick_actions Quick navigation card.
+	 * @param AdminActionRenderer    $actions       Shared action controls.
+	 * @param AdminComponentRenderer $components    Design-system components.
+	 * @param SimulationState        $simulation    Active simulation state.
 	 */
 	public function __construct(
 		private readonly DiagnosticsService $diagnostics,
@@ -224,17 +224,17 @@ final class OverviewPage implements Page {
 	/**
 	 * Renders the dashboard statistics grid.
 	 *
-	 * @param \UniversalGeo\Model\VisitorContext $context  Effective visitor context.
-	 * @param array<string, mixed>               $sections Overview diagnostic sections.
-	 * @param string                             $status   Site health status.
+	 * @param \UniversalGeo\Model\VisitorContext    $context  Effective visitor context.
+	 * @param array<string, mixed>                  $sections Overview diagnostic sections.
+	 * @param string                                $status   Site health status.
 	 * @param array{ok_count: int, total: int}|null $probe Last refresh summary.
 	 *
 	 * @return void
 	 */
 	private function render_statistics_grid( $context, array $sections, string $status, ?array $probe ): void {
-		$country  = $context->country_code ?? __( 'Unknown', 'universal-geo-context' );
-		$source   = (string) $context->source;
-		$health   = match ( $status ) {
+		$country = $context->country_code ?? __( 'Unknown', 'universal-geo-context' );
+		$source  = (string) $context->source;
+		$health  = match ( $status ) {
 			'critical'    => __( 'Critical', 'universal-geo-context' ),
 			'recommended' => __( 'Needs attention', 'universal-geo-context' ),
 			default       => __( 'Good', 'universal-geo-context' ),
@@ -282,8 +282,8 @@ final class OverviewPage implements Page {
 	/**
 	 * Renders operational overview cards.
 	 *
-	 * @param \UniversalGeo\Model\VisitorContext $context Effective visitor context.
-	 * @param array<string, mixed>             $sections Overview sections.
+	 * @param \UniversalGeo\Model\VisitorContext    $context Effective visitor context.
+	 * @param array<string, mixed>                  $sections Overview sections.
 	 * @param array{ok_count: int, total: int}|null $probe Last refresh summary.
 	 *
 	 * @return void

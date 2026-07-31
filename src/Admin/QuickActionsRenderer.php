@@ -20,8 +20,8 @@ final class QuickActionsRenderer {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param AdminActionRenderer      $actions    Shared admin controls.
-	 * @param AdminComponentRenderer     $components Design-system components.
+	 * @param AdminActionRenderer    $actions    Shared admin controls.
+	 * @param AdminComponentRenderer $components Design-system components.
 	 */
 	public function __construct(
 		private readonly AdminActionRenderer $actions,

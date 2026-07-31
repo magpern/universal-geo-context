@@ -35,7 +35,7 @@ final class TimelineRenderer {
 	/**
 	 * Renders the timeline as an ordered list with status badges.
 	 *
-	 * @param list<ResolutionStage> $stages Timeline stages.
+	 * @param array<int, ResolutionStage> $stages Timeline stages.
 	 *
 	 * @return string
 	 */

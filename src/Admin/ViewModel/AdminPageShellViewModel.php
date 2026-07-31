@@ -17,13 +17,15 @@ namespace UniversalGeo\Admin\ViewModel;
 final class AdminPageShellViewModel {
 
 	/**
-	 * @param string                         $plugin_title    Brand title in shell header.
-	 * @param string                         $page_title      Active page title.
-	 * @param string                         $subtitle        Active page description.
-	 * @param string                         $active_slug     Active page slug.
-	 * @param list<SectionNavItemViewModel>  $navigation_items Icon navigation items.
-	 * @param bool                           $has_header_save Whether header save is shown.
-	 * @param string                         $notice_html     Optional notice HTML.
+	 * Shell presentation data constructor.
+	 *
+	 * @param string                              $plugin_title     Brand title in shell header.
+	 * @param string                              $page_title       Active page title.
+	 * @param string                              $subtitle         Active page description.
+	 * @param string                              $active_slug      Active page slug.
+	 * @param array<int, SectionNavItemViewModel> $navigation_items Icon navigation items.
+	 * @param bool                                $has_header_save  Whether header save is shown.
+	 * @param string                              $notice_html      Optional notice HTML.
 	 */
 	public function __construct(
 		public readonly string $plugin_title,

@@ -36,12 +36,12 @@ final class AdminPageShellViewModelFactory {
 	 * @var array<string, string>
 	 */
 	private const ICONS = array(
-		AdminPageSlugs::OVERVIEW         => 'dashicons-dashboard',
-		AdminPageSlugs::SETTINGS         => 'dashicons-admin-settings',
-		AdminPageSlugs::DETECTION        => 'dashicons-search',
-		AdminPageSlugs::PROVIDERS        => 'dashicons-networking',
-		AdminPageSlugs::TRUSTED_PROXIES  => 'dashicons-shield',
-		AdminPageSlugs::DIAGNOSTICS      => 'dashicons-heart',
+		AdminPageSlugs::OVERVIEW        => 'dashicons-dashboard',
+		AdminPageSlugs::SETTINGS        => 'dashicons-admin-settings',
+		AdminPageSlugs::DETECTION       => 'dashicons-search',
+		AdminPageSlugs::PROVIDERS       => 'dashicons-networking',
+		AdminPageSlugs::TRUSTED_PROXIES => 'dashicons-shield',
+		AdminPageSlugs::DIAGNOSTICS     => 'dashicons-heart',
 	);
 
 	/**

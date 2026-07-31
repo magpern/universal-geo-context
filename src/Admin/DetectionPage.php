@@ -169,8 +169,7 @@ final class DetectionPage implements Page {
 	private function render_tab_nav( string $active ): void {
 		$base = admin_url( 'admin.php?page=' . $this->slug() );
 
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
-		echo $this->components->pill_navigation(
+		$pill_nav = $this->components->pill_navigation(
 			__( 'Detection and simulation panels', 'universal-geo-context' ),
 			array(
 				array(
@@ -187,6 +186,9 @@ final class DetectionPage implements Page {
 				),
 			)
 		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $pill_nav;
 	}
 
 	/**
@@ -210,30 +212,34 @@ final class DetectionPage implements Page {
 		$is_active         = $this->state->is_active();
 		$active_country    = $this->state->active_country();
 
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
-		echo $this->components->warning_panel(
+		$warning_panel = $this->components->warning_panel(
 			__( 'Developer and QA tool', 'universal-geo-context' ),
 			__( 'Country simulation overrides the visitor context for your browser session only. It does not change real geolocation, provider configuration, or shared geo caches.', 'universal-geo-context' )
 		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $warning_panel;
 
 		$badge = $this->components->status_badge(
 			$is_active ? __( 'Simulation active', 'universal-geo-context' ) : __( 'Simulation inactive', 'universal-geo-context' ),
 			$is_active ? 'warning' : 'disabled'
 		);
 
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
-		echo $this->components->settings_card_open(
+		$context_card = $this->components->settings_card_open(
 			__( 'Current context', 'universal-geo-context' ),
 			__( 'Real resolved country versus the effective country downstream plugins see.', 'universal-geo-context' ),
 			$badge
 		);
 
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $context_card;
+
 		$this->report->render_definition_list(
 			array(
-				'real_country'       => $this->context_summary( $real_context ),
-				'effective_country'  => $this->context_summary( $effective_context ),
-				'simulation_active'  => $is_active ? 'yes' : 'no',
-				'simulated_country'  => $is_active && null !== $active_country
+				'real_country'      => $this->context_summary( $real_context ),
+				'effective_country' => $this->context_summary( $effective_context ),
+				'simulation_active' => $is_active ? 'yes' : 'no',
+				'simulated_country' => $is_active && null !== $active_country
 					? $this->catalog->label( $active_country ) . ' (' . $active_country . ')'
 					: null,
 			)
@@ -243,10 +249,7 @@ final class DetectionPage implements Page {
 		echo $this->components->settings_card_close();
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
-		echo $this->components->settings_card_open(
-			__( 'Controls', 'universal-geo-context' ),
-			__( 'Start, change, or stop a simulated visitor country for this browser session.', 'universal-geo-context' )
-		);
+		echo $this->components->settings_card_open( __( 'Controls', 'universal-geo-context' ), __( 'Start, change, or stop a simulated visitor country for this browser session.', 'universal-geo-context' ) );
 
 		if ( $is_active ) {
 			$this->render_simulation_form(
@@ -321,14 +324,16 @@ final class DetectionPage implements Page {
 		wp_nonce_field( $nonce_action );
 		printf( '<input type="hidden" name="action" value="%s" />', esc_attr( $action ) );
 
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
-		echo $this->components->select_row(
+		$select_row = $this->components->select_row(
 			'simulation_country',
 			__( 'Country', 'universal-geo-context' ),
 			'',
 			$select,
 			array( 'id' => 'universal-geo-simulation-country' )
 		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $select_row;
 
 		submit_button( $button, 'primary', 'submit', false );
 		echo '</form>';

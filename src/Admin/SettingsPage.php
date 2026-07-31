@@ -27,13 +27,13 @@ final class SettingsPage implements Page {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param UpdateScheduler          $update_scheduler Reconciled after settings save.
-	 * @param DatabaseManager          $database_manager Managed database actions.
-	 * @param AdminNotices             $notices          PRG redirects.
-	 * @param AdminHeaderRenderer      $header           Shared page header.
-	 * @param AdminActionRenderer      $actions          Shared action controls.
-	 * @param AdminComponentRenderer   $components       Design-system components.
-	 * @param ReportRenderer           $report           Definition list renderer.
+	 * @param UpdateScheduler        $update_scheduler Reconciled after settings save.
+	 * @param DatabaseManager        $database_manager Managed database actions.
+	 * @param AdminNotices           $notices          PRG redirects.
+	 * @param AdminHeaderRenderer    $header           Shared page header.
+	 * @param AdminActionRenderer    $actions          Shared action controls.
+	 * @param AdminComponentRenderer $components       Design-system components.
+	 * @param ReportRenderer         $report           Definition list renderer.
 	 */
 	public function __construct(
 		private readonly UpdateScheduler $update_scheduler,

@@ -17,6 +17,8 @@ namespace UniversalGeo\Admin\ViewModel;
 final class SectionNavItemViewModel {
 
 	/**
+	 * Navigation item data constructor.
+	 *
 	 * @param string $slug       Page slug.
 	 * @param string $label      Visible label.
 	 * @param string $icon_class Dashicon class.

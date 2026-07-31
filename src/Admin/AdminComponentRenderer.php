@@ -310,7 +310,15 @@ final class AdminComponentRenderer {
 	): string {
 		$id        = $attrs['id'] ?? sanitize_key( str_replace( array( '[', ']' ), array( '-', '' ), $name ) );
 		$rows      = $attrs['rows'] ?? '4';
-		$attr_html = $this->attr_html( array_diff_key( $attrs, array( 'id' => true, 'rows' => true ) ) );
+		$attr_html = $this->attr_html(
+			array_diff_key(
+				$attrs,
+				array(
+					'id'   => true,
+					'rows' => true,
+				)
+			)
+		);
 
 		$description_html = '' !== $description
 			? sprintf( '<span class="ugc-ui-field-row__description">%s</span>', esc_html( $description ) )
