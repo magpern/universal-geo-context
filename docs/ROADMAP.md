@@ -1,12 +1,14 @@
 # Roadmap
 
-**Status: M1–M9 shipped through v1.4.0. Architecture frozen through M8 — see `docs/ARCHITECTURE_FREEZE.md`.**
+**Status: M1–M11 shipped through v1.6.0. Architecture frozen through M8 — see `docs/ARCHITECTURE_FREEZE.md`.**
 
 **Architecture governance**: See `docs/ARCHITECTURE_FREEZE.md` for the frozen contracts of the v1.x series (including the M8 simulation framework) and guidance on architectural evolution for future milestones.
 
+**Admin UX (v1.x)**: M10 (navigation polish) and M11 (Universal Admin Design System) complete the foundational admin infrastructure. Future milestones should concentrate on functionality — additional providers, testing capabilities, enterprise features, and the deferred items below — rather than further admin shell work unless a concrete gap appears.
+
 ## Next milestone
 
-Deferred items — see **Explicitly deferred to 1.5 or later** below. M9 (v1.4.0) is complete.
+No M12 admin-infrastructure milestone is planned. See **Explicitly deferred to 1.5 or later** below for functionality candidates.
 
 ## Milestone timeline
 
@@ -19,6 +21,8 @@ Deferred items — see **Explicitly deferred to 1.5 or later** below. M9 (v1.4.0
 - **v1.2.0 (M7)** — Admin navigation restructuring: replace the monolithic Settings-submenu `AdminScreen` with a top-level **Universal Geo Context** menu and six focused pages (Overview, Detection & Testing, Providers, Trusted Proxies, Diagnostics, Settings). Overview dashboard (six cards, no auto-probe); shared `ReportRenderer`; trusted-proxy settings moved to their own page; Detection & Testing and Providers placeholders; plugin row links; one-release legacy URL redirect from `options-general.php?page=universal-geo-context` (removed M8). No new geo-resolution behavior, public API changes, or settings schema migration. Shipped.
 - **v1.3.0 (M8)** — Country simulation framework: administrator-only, session-scoped country override via signed cookie and post-resolution `universal_geo_context` filter; Simulation tab UI; admin-bar indicator; legacy Settings URL redirect removed. No provider, cache, or public API shape changes. Shipped. **Architecture frozen in `docs/ARCHITECTURE_FREEZE.md` §21–§22.**
 - **v1.4.0 (M9)** — Detection Inspector: explanation layer, Detection tab (timeline, real vs effective context, provider/cache/proxy sections), Providers detail page, explicit refresh only probe; no detection, cache, simulation, or public API changes. Shipped.
+- **v1.5.0 (M10)** — Admin UX polish: shared in-plugin navigation on every page, page descriptions, Quick Actions on Overview, actionable dashboard cards, contextual page actions, presentation-only admin stylesheet. Shipped.
+- **v1.6.0 (M11)** — Universal Admin Design System adoption: branded shell, icon navigation, statistics grid, settings cards, provider cards, timeline, sticky save bars, scoped `ugc-ui-*` CSS/JS. Presentation-only — no runtime, API, settings schema, or resolver behaviour changes. Shipped. **M11 complete.**
 
 ## Explicitly deferred to 1.5 or later
 
