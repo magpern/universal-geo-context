@@ -193,6 +193,57 @@ if ( ! function_exists( 'current_user_can' ) ) {
 	}
 }
 
+if ( ! function_exists( 'is_user_logged_in' ) ) {
+	function is_user_logged_in() { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return $GLOBALS['universal_geo_test_is_logged_in'] ?? true;
+	}
+}
+
+if ( ! defined( 'COOKIEPATH' ) ) {
+	define( 'COOKIEPATH', '/' );
+}
+
+if ( ! defined( 'COOKIE_DOMAIN' ) ) {
+	define( 'COOKIE_DOMAIN', '' );
+}
+
+if ( ! defined( 'YEAR_IN_SECONDS' ) ) {
+	define( 'YEAR_IN_SECONDS', 365 * DAY_IN_SECONDS );
+}
+
+if ( ! function_exists( 'wp_salt' ) ) {
+	function wp_salt( $scheme = 'auth' ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.Found
+		return 'test-salt-' . $scheme;
+	}
+}
+
+if ( ! function_exists( 'is_ssl' ) ) {
+	function is_ssl() { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+		return $GLOBALS['universal_geo_test_is_ssl'] ?? false;
+	}
+}
+
+if ( ! function_exists( 'headers_sent' ) ) {
+	function headers_sent( &$file = null, &$line = null ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.Found
+		unset( $file, $line );
+
+		return $GLOBALS['universal_geo_test_headers_sent'] ?? false;
+	}
+}
+
+if ( ! function_exists( 'setcookie' ) ) {
+	function setcookie( $name, $value = '', $expires_or_options = 0, $path = '', $domain = '', $secure = false, $httponly = false ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		$GLOBALS['universal_geo_test_setcookie_calls'][] = func_get_args();
+		if ( is_array( $expires_or_options ) && array_key_exists( 'expires', $expires_or_options ) && $expires_or_options['expires'] < time() ) {
+			unset( $_COOKIE[ $name ] );
+		} else {
+			$_COOKIE[ $name ] = $value;
+		}
+
+		return true;
+	}
+}
+
 if ( ! function_exists( 'get_bloginfo' ) ) {
 	function get_bloginfo( $show = '' ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.Found
 		return $GLOBALS['universal_geo_test_wp_version'] ?? '0.0.0-test';

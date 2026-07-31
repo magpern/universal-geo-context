@@ -313,6 +313,15 @@ final class GeoValidator {
 	}
 
 	/**
+	 * Returns every supported ISO 3166-1 alpha-2 country code.
+	 *
+	 * @return string[]
+	 */
+	public static function country_codes(): array {
+		return array_keys( self::COUNTRY_CODES );
+	}
+
+	/**
 	 * Validates and normalizes a raw provider-reported region code.
 	 *
 	 * Trims whitespace, uppercases, strips a leading "{$country}-" prefix
