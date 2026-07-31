@@ -37,6 +37,8 @@ final class DetectionPage implements Page {
 	 * @param DetectionInspectorRenderer $renderer   Inspector UI renderer.
 	 * @param AdminHeaderRenderer        $header     Shared page header.
 	 * @param AdminActionRenderer        $actions    Shared action controls.
+	 * @param AdminComponentRenderer     $components Design-system components.
+	 * @param ReportRenderer             $report     Definition list renderer.
 	 */
 	public function __construct(
 		private readonly ContextResolver $resolver,
@@ -46,7 +48,9 @@ final class DetectionPage implements Page {
 		private readonly DetectionInspectorService $inspector,
 		private readonly DetectionInspectorRenderer $renderer,
 		private readonly AdminHeaderRenderer $header,
-		private readonly AdminActionRenderer $actions
+		private readonly AdminActionRenderer $actions,
+		private readonly AdminComponentRenderer $components,
+		private readonly ReportRenderer $report
 	) {
 	}
 
@@ -105,9 +109,11 @@ final class DetectionPage implements Page {
 			return;
 		}
 
-		$tab = $this->active_tab();
+		$tab   = $this->active_tab();
+		$shell = $this->header->shell();
 
 		echo '<div class="wrap">';
+		$shell->open();
 		$this->header->render(
 			$this->slug(),
 			$this->title(),
@@ -126,6 +132,8 @@ final class DetectionPage implements Page {
 				);
 			}
 		);
+
+		$shell->open_content( true );
 		$this->render_tab_nav( $tab );
 
 		if ( 'simulation' === $tab ) {
@@ -134,6 +142,8 @@ final class DetectionPage implements Page {
 			$this->render_detection_tab();
 		}
 
+		$shell->close_content();
+		$shell->close();
 		echo '</div>';
 	}
 
@@ -150,7 +160,7 @@ final class DetectionPage implements Page {
 	}
 
 	/**
-	 * Renders the Detection and Simulation tab navigation.
+	 * Renders the Detection and Simulation pill navigation.
 	 *
 	 * @param string $active 'live' or 'simulation'.
 	 *
@@ -159,20 +169,24 @@ final class DetectionPage implements Page {
 	private function render_tab_nav( string $active ): void {
 		$base = admin_url( 'admin.php?page=' . $this->slug() );
 
-		echo '<h2 class="nav-tab-wrapper">';
-		printf(
-			'<a href="%1$s" class="nav-tab %2$s">%3$s</a>',
-			esc_url( $base ),
-			esc_attr( 'live' === $active ? 'nav-tab-active' : '' ),
-			esc_html__( 'Detection', 'universal-geo-context' )
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->pill_navigation(
+			__( 'Detection and simulation panels', 'universal-geo-context' ),
+			array(
+				array(
+					'url'    => $base,
+					'label'  => __( 'Detection', 'universal-geo-context' ),
+					'icon'   => 'dashicons-search',
+					'active' => 'live' === $active,
+				),
+				array(
+					'url'    => add_query_arg( 'tab', 'simulation', $base ),
+					'label'  => __( 'Simulation', 'universal-geo-context' ),
+					'icon'   => 'dashicons-controls-play',
+					'active' => 'simulation' === $active,
+				),
+			)
 		);
-		printf(
-			'<a href="%1$s" class="nav-tab %2$s">%3$s</a>',
-			esc_url( add_query_arg( 'tab', 'simulation', $base ) ),
-			esc_attr( 'simulation' === $active ? 'nav-tab-active' : '' ),
-			esc_html__( 'Simulation', 'universal-geo-context' )
-		);
-		echo '</h2>';
 	}
 
 	/**
@@ -196,31 +210,43 @@ final class DetectionPage implements Page {
 		$is_active         = $this->state->is_active();
 		$active_country    = $this->state->active_country();
 
-		echo '<div class="card" style="max-width: 720px;">';
-
-		printf( '<p>%s</p>', esc_html__( 'Country simulation overrides the visitor context for your browser session only. It does not change real geolocation, provider configuration, or shared geo caches. Use it to test how downstream plugins respond to a different visitor country.', 'universal-geo-context' ) );
-		printf( '<p><strong>%s</strong></p>', esc_html__( 'This is a developer and QA tool — not a production mechanism for controlling customer experience.', 'universal-geo-context' ) );
-
-		echo '<h2>' . esc_html__( 'Current context', 'universal-geo-context' ) . '</h2>';
-		echo '<table class="widefat striped" style="max-width: 640px;"><tbody>';
-		$this->render_context_row( __( 'Real resolved country', 'universal-geo-context' ), $real_context );
-		$this->render_context_row( __( 'Effective country (what consumers see)', 'universal-geo-context' ), $effective_context );
-		printf(
-			'<tr><th scope="row">%1$s</th><td>%2$s</td></tr>',
-			esc_html__( 'Simulation active', 'universal-geo-context' ),
-			esc_html( $is_active ? __( 'Yes', 'universal-geo-context' ) : __( 'No', 'universal-geo-context' ) )
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->warning_panel(
+			__( 'Developer and QA tool', 'universal-geo-context' ),
+			__( 'Country simulation overrides the visitor context for your browser session only. It does not change real geolocation, provider configuration, or shared geo caches.', 'universal-geo-context' )
 		);
-		if ( $is_active && null !== $active_country ) {
-			printf(
-				'<tr><th scope="row">%1$s</th><td>%2$s (%3$s)</td></tr>',
-				esc_html__( 'Simulated country', 'universal-geo-context' ),
-				esc_html( $this->catalog->label( $active_country ) ),
-				esc_html( $active_country )
-			);
-		}
-		echo '</tbody></table>';
 
-		echo '<h2>' . esc_html__( 'Controls', 'universal-geo-context' ) . '</h2>';
+		$badge = $this->components->status_badge(
+			$is_active ? __( 'Simulation active', 'universal-geo-context' ) : __( 'Simulation inactive', 'universal-geo-context' ),
+			$is_active ? 'warning' : 'disabled'
+		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open(
+			__( 'Current context', 'universal-geo-context' ),
+			__( 'Real resolved country versus the effective country downstream plugins see.', 'universal-geo-context' ),
+			$badge
+		);
+
+		$this->report->render_definition_list(
+			array(
+				'real_country'       => $this->context_summary( $real_context ),
+				'effective_country'  => $this->context_summary( $effective_context ),
+				'simulation_active'  => $is_active ? 'yes' : 'no',
+				'simulated_country'  => $is_active && null !== $active_country
+					? $this->catalog->label( $active_country ) . ' (' . $active_country . ')'
+					: null,
+			)
+		);
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->settings_card_close();
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open(
+			__( 'Controls', 'universal-geo-context' ),
+			__( 'Start, change, or stop a simulated visitor country for this browser session.', 'universal-geo-context' )
+		);
 
 		if ( $is_active ) {
 			$this->render_simulation_form(
@@ -230,7 +256,7 @@ final class DetectionPage implements Page {
 				'universal_geo_simulation'
 			);
 
-			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top: 1em;">';
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="ugc-ui-inline-form">';
 			wp_nonce_field( 'universal_geo_simulation_stop' );
 			echo '<input type="hidden" name="action" value="universal_geo_simulation_stop" />';
 			submit_button( __( 'Stop simulation', 'universal-geo-context' ), 'secondary', 'submit', false );
@@ -244,30 +270,23 @@ final class DetectionPage implements Page {
 			);
 		}
 
-		echo '</div>';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->settings_card_close();
 	}
 
 	/**
-	 * Renders one context summary row.
+	 * Builds a short context summary string.
 	 *
-	 * @param string         $label   Row label.
 	 * @param VisitorContext $context Context to summarize.
-	 *
-	 * @return void
 	 */
-	private function render_context_row( string $label, VisitorContext $context ): void {
+	private function context_summary( VisitorContext $context ): string {
 		$country = $context->country_code ?? __( 'Unknown', 'universal-geo-context' );
-		$detail  = sprintf(
+
+		return sprintf(
 			'%1$s — %2$s (confidence %3$s)',
 			(string) $country,
 			$context->source,
 			(string) $context->confidence
-		);
-
-		printf(
-			'<tr><th scope="row">%1$s</th><td>%2$s</td></tr>',
-			esc_html( $label ),
-			esc_html( $detail )
 		);
 	}
 
@@ -282,17 +301,10 @@ final class DetectionPage implements Page {
 	 * @return void
 	 */
 	private function render_simulation_form( string $action, string $button, string $selected, string $nonce_action ): void {
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-		wp_nonce_field( $nonce_action );
-		printf( '<input type="hidden" name="action" value="%s" />', esc_attr( $action ) );
-
-		echo '<p>';
-		echo '<label for="universal-geo-simulation-country"><strong>' . esc_html__( 'Country', 'universal-geo-context' ) . '</strong></label><br />';
-		echo '<select name="simulation_country" id="universal-geo-simulation-country" required>';
-		echo '<option value="">' . esc_html__( 'Select a country…', 'universal-geo-context' ) . '</option>';
+		$options = '<option value="">' . esc_html__( 'Select a country…', 'universal-geo-context' ) . '</option>';
 
 		foreach ( $this->catalog->options() as $code => $label ) {
-			printf(
+			$options .= sprintf(
 				'<option value="%1$s" %2$s>%3$s (%1$s)</option>',
 				esc_attr( $code ),
 				selected( $selected, $code, false ),
@@ -300,8 +312,23 @@ final class DetectionPage implements Page {
 			);
 		}
 
-		echo '</select>';
-		echo '</p>';
+		$select = sprintf(
+			'<select name="simulation_country" id="universal-geo-simulation-country" required>%s</select>',
+			$options
+		);
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( $nonce_action );
+		printf( '<input type="hidden" name="action" value="%s" />', esc_attr( $action ) );
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->select_row(
+			'simulation_country',
+			__( 'Country', 'universal-geo-context' ),
+			'',
+			$select,
+			array( 'id' => 'universal-geo-simulation-country' )
+		);
 
 		submit_button( $button, 'primary', 'submit', false );
 		echo '</form>';

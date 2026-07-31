@@ -22,16 +22,18 @@ final class ProvidersPage implements Page {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param DetectionInspectorService $inspector Provider detail supplier.
-	 * @param ReportRenderer            $renderer  Definition-list renderer.
-	 * @param AdminHeaderRenderer       $header    Shared page header.
-	 * @param AdminActionRenderer       $actions   Shared action controls.
+	 * @param DetectionInspectorService $inspector  Provider detail supplier.
+	 * @param ReportRenderer            $renderer   Definition-list renderer.
+	 * @param AdminHeaderRenderer       $header     Shared page header.
+	 * @param AdminActionRenderer       $actions    Shared action controls.
+	 * @param AdminComponentRenderer    $components Design-system components.
 	 */
 	public function __construct(
 		private readonly DetectionInspectorService $inspector,
 		private readonly ReportRenderer $renderer,
 		private readonly AdminHeaderRenderer $header,
-		private readonly AdminActionRenderer $actions
+		private readonly AdminActionRenderer $actions,
+		private readonly AdminComponentRenderer $components
 	) {
 	}
 
@@ -83,8 +85,10 @@ final class ProvidersPage implements Page {
 
 		$refresh_summary = AdminProbeFreshFlag::summary();
 		$details         = $this->inspector->provider_details( $refresh_summary );
+		$shell           = $this->header->shell();
 
 		echo '<div class="wrap">';
+		$shell->open();
 		$this->header->render(
 			$this->slug(),
 			$this->title(),
@@ -100,39 +104,57 @@ final class ProvidersPage implements Page {
 			}
 		);
 
+		$shell->open_content( true );
+
 		if ( null !== $refresh_summary ) {
-			printf(
-				'<div class="notice notice-info inline"><p>%s</p></div>',
-				esc_html(
-					sprintf(
-						/* translators: 1: ok count, 2: total providers */
-						__( 'Last explicit refresh: %1$d of %2$d providers returned a country.', 'universal-geo-context' ),
-						(int) $refresh_summary['ok_count'],
-						(int) $refresh_summary['total']
-					)
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+			echo $this->components->info_panel(
+				__( 'Last explicit refresh', 'universal-geo-context' ),
+				sprintf(
+					/* translators: 1: ok count, 2: total providers */
+					__( '%1$d of %2$d providers returned a country.', 'universal-geo-context' ),
+					(int) $refresh_summary['ok_count'],
+					(int) $refresh_summary['total']
 				)
 			);
 		}
 
+		echo '<div class="ugc-ui-provider-list">';
+
 		foreach ( $details as $provider_id => $section ) {
-			echo '<div class="postbox" style="max-width:960px;margin-top:1em;"><div class="postbox-header"><h2 class="hndle">';
-			echo esc_html( ucfirst( (string) $provider_id ) );
-			echo '</h2></div><div class="inside">';
+			$available = ! empty( $section['available'] );
+			$badge     = $this->components->status_badge(
+				$available ? __( 'Available', 'universal-geo-context' ) : __( 'Unavailable', 'universal-geo-context' ),
+				$available ? 'available' : 'disabled'
+			);
 
+			ob_start();
 			$this->renderer->render_definition_list( $section );
+			$body = ob_get_clean();
 
+			$action_html = '';
 			$settings_url = $this->settings_url_for_provider( (string) $provider_id );
 			if ( null !== $settings_url ) {
-				printf(
-					'<p><a class="button button-secondary" href="%1$s">%2$s</a></p>',
-					esc_url( $settings_url ),
-					esc_html__( 'Open related settings', 'universal-geo-context' )
-				);
+				ob_start();
+				$this->actions->render_link_button( $settings_url, __( 'Open related settings', 'universal-geo-context' ) );
+				$action_html = ob_get_clean();
 			}
 
-			echo '</div></div>';
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+			echo $this->components->provider_card(
+				ucfirst( (string) $provider_id ),
+				__( 'Provider availability, configuration, and health summary.', 'universal-geo-context' ),
+				$available ? __( 'Available', 'universal-geo-context' ) : __( 'Unavailable', 'universal-geo-context' ),
+				$available ? 'available' : 'disabled',
+				$body,
+				$action_html
+			);
 		}
 
+		echo '</div>';
+
+		$shell->close_content();
+		$shell->close();
 		echo '</div>';
 	}
 
