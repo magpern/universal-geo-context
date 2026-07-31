@@ -235,16 +235,16 @@ final class Plugin {
 		if ( $register_admin ) {
 			$diagnostics->register();
 
-			$notices              = new AdminNotices();
-			$components           = new AdminComponentRenderer();
-			$definition_list      = new DefinitionListRenderer( $diagnostics );
-			$report_renderer      = new ReportRenderer( $definition_list );
-			$admin_actions        = new AdminActionRenderer();
-			$shell_factory        = new AdminPageShellViewModelFactory();
-			$admin_shell          = new AdminPageShell( new SectionNavigation() );
-			$admin_header         = new AdminHeaderRenderer( $admin_shell, $shell_factory );
-			$quick_actions        = new QuickActionsRenderer( $admin_actions, $components );
-			$timeline_renderer    = new TimelineRenderer( $components, new ExplanationFormatter() );
+			$notices           = new AdminNotices();
+			$components        = new AdminComponentRenderer();
+			$definition_list   = new DefinitionListRenderer( $diagnostics );
+			$report_renderer   = new ReportRenderer( $definition_list );
+			$admin_actions     = new AdminActionRenderer();
+			$shell_factory     = new AdminPageShellViewModelFactory();
+			$admin_shell       = new AdminPageShell( new SectionNavigation() );
+			$admin_header      = new AdminHeaderRenderer( $admin_shell, $shell_factory );
+			$quick_actions     = new QuickActionsRenderer( $admin_actions, $components );
+			$timeline_renderer = new TimelineRenderer( $components, new ExplanationFormatter() );
 
 			( new AdminAssets() )->register();
 

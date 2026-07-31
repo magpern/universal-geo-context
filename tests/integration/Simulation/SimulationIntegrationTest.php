@@ -111,8 +111,8 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 			new ProviderExplanationBuilder( $resolver ),
 			new ResolutionTimelineBuilder()
 		);
-		$definition = new DefinitionListRenderer( $diagnostics );
-		$renderer   = new DetectionInspectorRenderer(
+		$definition  = new DefinitionListRenderer( $diagnostics );
+		$renderer    = new DetectionInspectorRenderer(
 			new ReportRenderer( $definition ),
 			new ExplanationFormatter(),
 			$diagnostics,

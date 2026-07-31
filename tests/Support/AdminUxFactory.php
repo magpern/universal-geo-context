@@ -134,10 +134,10 @@ final class AdminUxFactory {
 			new ArchiveExtractor(),
 			new UpdateLock()
 		);
-		$request         = ServerRequestFactory::make();
-		$trusted_proxies = new TrustedProxies( array(), false );
-		$ip_resolver     = new ClientIpResolver( $request, $trusted_proxies );
-		$resolver        = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
+		$request          = ServerRequestFactory::make();
+		$trusted_proxies  = new TrustedProxies( array(), false );
+		$ip_resolver      = new ClientIpResolver( $request, $trusted_proxies );
+		$resolver         = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
 
 		return new DiagnosticsService(
 			$resolver,
