@@ -82,10 +82,10 @@ final class AdminPagesTest extends WP_UnitTestCase {
 	}
 
 	private function trusted_proxies_page(): TrustedProxiesPage {
-		$request         = ServerRequest::capture( $_SERVER ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$trusted_proxies = new TrustedProxies( array(), false );
-		$ip_resolver     = new ClientIpResolver( $request, $trusted_proxies );
-		$resolver        = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
+		$request          = ServerRequest::capture( $_SERVER ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$trusted_proxies  = new TrustedProxies( array(), false );
+		$ip_resolver      = new ClientIpResolver( $request, $trusted_proxies );
+		$resolver         = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
 		$database_manager = new DatabaseManager(
 			sys_get_temp_dir() . '/ugeo-admin-trusted-test-unused',
 			'',

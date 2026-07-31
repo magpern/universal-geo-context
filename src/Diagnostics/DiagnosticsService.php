@@ -168,7 +168,7 @@ final class DiagnosticsService {
 	public function trusted_proxies_page_sections(): array {
 		return array(
 			'trusted_proxies' => $this->trusted_proxies_section(),
-			'cloudflare'        => $this->cloudflare_section(),
+			'cloudflare'      => $this->cloudflare_section(),
 		);
 	}
 

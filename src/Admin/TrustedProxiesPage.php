@@ -169,7 +169,7 @@ final class TrustedProxiesPage implements Page {
 		$raw      = $previous;
 
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via Settings::sanitize().
-		$raw['trusted_proxies']  = isset( $_POST['trusted_proxies'] )
+		$raw['trusted_proxies'] = isset( $_POST['trusted_proxies'] )
 			? $this->parse_trusted_proxies_textarea( wp_unslash( $_POST['trusted_proxies'] ) ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via Settings::sanitize().
 			: array();
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via Settings::sanitize(); nonce verified above.
