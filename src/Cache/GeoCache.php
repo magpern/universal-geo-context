@@ -147,6 +147,35 @@ final class GeoCache {
 	}
 
 	/**
+	 * Read-only cache observability for admin diagnostics — never writes.
+	 *
+	 * @param string $ip Already-normalized client IP.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function describe( string $ip ): array {
+		$operational = $this->is_active();
+		$hit         = false;
+
+		if ( $operational ) {
+			$hit = null !== $this->get( $ip );
+		}
+
+		$epoch = get_option( self::EPOCH_OPTION, self::DEFAULT_EPOCH );
+
+		return array(
+			'derived_cache_enabled' => $this->enabled,
+			'object_cache_active'   => wp_using_ext_object_cache(),
+			'cache_operational'     => $operational,
+			'current_request_hit'   => $hit,
+			'cache_epoch'           => is_int( $epoch ) ? $epoch : self::DEFAULT_EPOCH,
+			'ttl_seconds'           => $this->ttl_seconds,
+			'ttl_remaining'         => null,
+			'entry_age'             => null,
+		);
+	}
+
+	/**
 	 * Whether this instance should actually touch the object cache.
 	 *
 	 * Requires both the administrator's setting and a real persistent

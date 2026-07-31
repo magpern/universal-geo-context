@@ -222,6 +222,46 @@ final class ContextResolver {
 	}
 
 	/**
+	 * Returns provider ids in injected resolution order (read-only introspection).
+	 *
+	 * @return string[]
+	 */
+	public function provider_chain(): array {
+		return array_map(
+			static fn( GeoProviderInterface $provider ): string => $provider->get_id(),
+			$this->providers
+		);
+	}
+
+	/**
+	 * Returns whether a provider in the chain is currently available.
+	 *
+	 * @param string $provider_id Provider identifier.
+	 *
+	 * @return bool
+	 */
+	public function is_provider_available( string $provider_id ): bool {
+		foreach ( $this->providers as $provider ) {
+			if ( $provider->get_id() === $provider_id ) {
+				return $provider->is_available();
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Returns the central confidence table entry for one provider id.
+	 *
+	 * @param string $provider_id Provider identifier.
+	 *
+	 * @return float
+	 */
+	public function confidence_for_provider( string $provider_id ): float {
+		return self::CONFIDENCE[ $provider_id ] ?? self::UNLISTED_PROVIDER_CONFIDENCE;
+	}
+
+	/**
 	 * Iterates the injected providers in order, short-circuiting at the
 	 * first candidate whose country validates.
 	 *

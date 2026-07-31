@@ -173,6 +173,28 @@ final class DiagnosticsService {
 	}
 
 	/**
+	 * Detection Inspector slices — no live provider probe on page load.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function inspector_sections(): array {
+		return array(
+			'client_address'     => $this->client_address_section(),
+			'trusted_proxies'    => $this->trusted_proxies_section(),
+			'forwarding_headers' => $this->ip_resolver->explain(),
+			'cloudflare'         => $this->cloudflare_section(),
+			'woocommerce'        => $this->woocommerce_section(),
+			'maxmind'            => $this->maxmind_section(),
+			'remote'             => $this->remote_section(),
+			'maxmind_managed'    => $this->maxmind_managed_section(),
+			'cache'              => $this->cache_section(),
+			'environment'        => $this->environment_section(),
+			'provider_health'    => $this->provider_health_store->read(),
+			'default_country'    => $this->settings['default_country'] ?? null,
+		);
+	}
+
+	/**
 	 * Worst Site Health status among the four plugin tests (M7 Overview badge).
 	 *
 	 * Uses the existing verdict methods as the single source of truth —
@@ -396,6 +418,20 @@ final class DiagnosticsService {
 			'confidence'                 => __( 'Confidence', 'universal-geo-context' ),
 			'is_cached'                  => __( 'From cache', 'universal-geo-context' ),
 			'source'                     => __( 'Source', 'universal-geo-context' ),
+			'simulation_active'          => __( 'Simulation active', 'universal-geo-context' ),
+			'cache_operational'          => __( 'Cache operational', 'universal-geo-context' ),
+			'current_request_hit'        => __( 'Cache entry present for IP', 'universal-geo-context' ),
+			'this_request_from_cache'      => __( 'This request used cache', 'universal-geo-context' ),
+			'cache_epoch'                => __( 'Cache epoch', 'universal-geo-context' ),
+			'ttl_seconds'                => __( 'Configured TTL (seconds)', 'universal-geo-context' ),
+			'ttl_remaining'              => __( 'TTL remaining (seconds)', 'universal-geo-context' ),
+			'entry_age'                  => __( 'Entry age (seconds)', 'universal-geo-context' ),
+			'provider_id'                => __( 'Provider id', 'universal-geo-context' ),
+			'probe_reason'               => __( 'Last probe result', 'universal-geo-context' ),
+			'probe_country'              => __( 'Last probe country', 'universal-geo-context' ),
+			'last_failure'               => __( 'Last failure', 'universal-geo-context' ),
+			'failure_count'              => __( 'Failure count', 'universal-geo-context' ),
+			'default_country'            => __( 'Default country', 'universal-geo-context' ),
 		);
 	}
 
