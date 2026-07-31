@@ -18,6 +18,8 @@ namespace UniversalGeo\Admin;
 final class Menu {
 
 	/**
+	 * Stores the injected page instances.
+	 *
 	 * @param OverviewPage       $overview        Overview landing page.
 	 * @param DetectionPage      $detection       Detection & Testing page.
 	 * @param ProvidersPage      $providers       Providers page.

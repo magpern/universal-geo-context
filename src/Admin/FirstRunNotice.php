@@ -26,6 +26,8 @@ final class FirstRunNotice {
 	public const NOTICE_DISMISSED_META = 'universal_geo_first_run_notice_dismissed';
 
 	/**
+	 * Creates the notice with diagnostics access.
+	 *
 	 * @param DiagnosticsService $diagnostics Site Health verdict source.
 	 */
 	public function __construct(
@@ -109,6 +111,8 @@ final class FirstRunNotice {
 	}
 
 	/**
+	 * Returns whether the first-run notice should display.
+	 *
 	 * @return bool
 	 */
 	private function should_show_first_run_notice(): bool {

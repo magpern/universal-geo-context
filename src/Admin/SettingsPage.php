@@ -25,6 +25,8 @@ use UniversalGeo\Settings;
 final class SettingsPage implements Page {
 
 	/**
+	 * Stores the injected dependencies.
+	 *
 	 * @param UpdateScheduler $update_scheduler Reconciled after settings save.
 	 * @param DatabaseManager $database_manager Managed database actions.
 	 * @param AdminNotices    $notices          PRG redirects.
@@ -295,6 +297,8 @@ final class SettingsPage implements Page {
 	}
 
 	/**
+	 * Redirects back with a managed-database action notice.
+	 *
 	 * @param DatabaseUpdateResult $result        Completed action result.
 	 * @param string               $action_prefix Notice key prefix.
 	 *
@@ -311,6 +315,8 @@ final class SettingsPage implements Page {
 	}
 
 	/**
+	 * Resolves a credential field from POST without clearing stored secrets.
+	 *
 	 * @param string $post_key           POST key for credential.
 	 * @param string $previous_value     Stored value.
 	 * @param string $clear_checkbox_key Clear checkbox POST key.
@@ -338,6 +344,8 @@ final class SettingsPage implements Page {
 	}
 
 	/**
+	 * Returns whether MaxMind credentials are locked by wp-config constants.
+	 *
 	 * @return bool
 	 */
 	private function maxmind_credentials_locked_by_constants(): bool {
@@ -351,6 +359,8 @@ final class SettingsPage implements Page {
 	}
 
 	/**
+	 * Returns whether a MaxMind database path points to a readable file.
+	 *
 	 * @param string $path Sanitized absolute path.
 	 *
 	 * @return bool
@@ -372,6 +382,8 @@ final class SettingsPage implements Page {
 	}
 
 	/**
+	 * Renders the MaxMind account credentials section.
+	 *
 	 * @param array<string, mixed> $settings Sanitized settings.
 	 *
 	 * @return void
@@ -433,6 +445,8 @@ final class SettingsPage implements Page {
 	}
 
 	/**
+	 * Renders the remote MaxMind provider settings section.
+	 *
 	 * @param array<string, mixed> $settings Sanitized settings.
 	 *
 	 * @return void
@@ -479,6 +493,8 @@ final class SettingsPage implements Page {
 	}
 
 	/**
+	 * Renders the managed MaxMind database settings section.
+	 *
 	 * @param array<string, mixed> $settings Sanitized settings.
 	 *
 	 * @return void
@@ -580,6 +596,8 @@ final class SettingsPage implements Page {
 	}
 
 	/**
+	 * Renders one managed-database admin_post action button.
+	 *
 	 * @param string $action  admin_post action name.
 	 * @param string $label   Button label.
 	 * @param bool   $confirm Whether to require JS confirm.

@@ -9,16 +9,16 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-30T21:57:19+00:00\n"
+"POT-Creation-Date: 2026-07-31T06:41:09+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: universal-geo-context\n"
 
 #. Plugin Name of the plugin
 #: universal-geo-context.php:3
-#: src/Admin/Menu.php:59
-#: src/Admin/Menu.php:60
-#: src/Admin/OverviewPage.php:62
+#: src/Admin/Menu.php:61
+#: src/Admin/Menu.php:62
+#: src/Admin/OverviewPage.php:64
 #: src/Diagnostics/DiagnosticsService.php:231
 #: src/Plugin.php:257
 msgid "Universal Geo Context"
@@ -112,19 +112,19 @@ msgstr ""
 msgid "Detection & Testing"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:104
+#: src/Admin/DetectionPage.php:108
 msgid "Live Detection"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:110
+#: src/Admin/DetectionPage.php:114
 msgid "Simulation"
 msgstr ""
 
-#: src/Admin/DetectionPage.php:123
+#: src/Admin/DetectionPage.php:127
 msgid "The Live Detection inspector is planned for v1.4.0. It will let you probe an arbitrary IP address through the provider chain without affecting real visitor resolution."
 msgstr ""
 
-#: src/Admin/DetectionPage.php:138
+#: src/Admin/DetectionPage.php:142
 msgid "Country simulation for testing downstream plugins is planned for v1.3.0. It will let administrators verify consumer plugins against arbitrary countries without VPNs or proxy manipulation."
 msgstr ""
 
@@ -138,7 +138,7 @@ msgid "Client address"
 msgstr ""
 
 #: src/Admin/DiagnosticsPage.php:88
-#: src/Admin/TrustedProxiesPage.php:137
+#: src/Admin/TrustedProxiesPage.php:139
 msgid "Trusted proxies"
 msgstr ""
 
@@ -147,7 +147,7 @@ msgid "Forwarding headers"
 msgstr ""
 
 #: src/Admin/DiagnosticsPage.php:96
-#: src/Admin/TrustedProxiesPage.php:115
+#: src/Admin/TrustedProxiesPage.php:117
 msgid "Cloudflare"
 msgstr ""
 
@@ -172,7 +172,7 @@ msgid "The remote provider is enabled — viewing this page performs one live re
 msgstr ""
 
 #: src/Admin/DiagnosticsPage.php:120
-#: src/Admin/OverviewPage.php:119
+#: src/Admin/OverviewPage.php:121
 #: src/Admin/ProvidersPage.php:35
 #: src/Admin/ProvidersPage.php:44
 msgid "Providers"
@@ -183,89 +183,89 @@ msgid "Provider health"
 msgstr ""
 
 #: src/Admin/DiagnosticsPage.php:131
-#: src/Admin/OverviewPage.php:170
+#: src/Admin/OverviewPage.php:172
 msgid "Cache"
 msgstr ""
 
 #: src/Admin/DiagnosticsPage.php:134
-#: src/Admin/OverviewPage.php:177
+#: src/Admin/OverviewPage.php:179
 msgid "Environment"
 msgstr ""
 
-#: src/Admin/FirstRunNotice.php:62
-#: src/Admin/OverviewPage.php:193
-#: src/Admin/SettingsPage.php:157
-#: src/Admin/SettingsPage.php:236
-#: src/Admin/SettingsPage.php:253
-#: src/Admin/SettingsPage.php:270
-#: src/Admin/SettingsPage.php:287
-#: src/Admin/TrustedProxiesPage.php:161
-#: src/Admin/TrustedProxiesPage.php:189
-#: src/Admin/TrustedProxiesPage.php:220
+#: src/Admin/FirstRunNotice.php:64
+#: src/Admin/OverviewPage.php:195
+#: src/Admin/SettingsPage.php:159
+#: src/Admin/SettingsPage.php:238
+#: src/Admin/SettingsPage.php:255
+#: src/Admin/SettingsPage.php:272
+#: src/Admin/SettingsPage.php:289
+#: src/Admin/TrustedProxiesPage.php:163
+#: src/Admin/TrustedProxiesPage.php:191
+#: src/Admin/TrustedProxiesPage.php:222
 msgid "You do not have permission to do this."
 msgstr ""
 
-#: src/Admin/FirstRunNotice.php:100
+#: src/Admin/FirstRunNotice.php:102
 msgid "Universal Geo Context detected forwarding headers but no trusted proxies are configured — geographic results may be wrong for every visitor."
 msgstr ""
 
-#: src/Admin/FirstRunNotice.php:105
+#: src/Admin/FirstRunNotice.php:107
 msgid "Review Diagnostics"
 msgstr ""
 
-#: src/Admin/FirstRunNotice.php:107
+#: src/Admin/FirstRunNotice.php:109
 msgid "Dismiss"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:71
+#: src/Admin/OverviewPage.php:73
 msgid "Overview"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:104
+#: src/Admin/OverviewPage.php:106
 msgid "Current Resolution"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:124
+#: src/Admin/OverviewPage.php:126
 msgid "Last refresh:"
 msgstr ""
 
 #. translators: 1: number of providers that returned ok, 2: total providers probed
-#: src/Admin/OverviewPage.php:128
+#: src/Admin/OverviewPage.php:130
 #, php-format
 msgid "%1$d of %2$d providers returned a country on the last explicit refresh."
 msgstr ""
 
-#: src/Admin/OverviewPage.php:135
+#: src/Admin/OverviewPage.php:137
 msgid "No explicit refresh has been run yet. Last-known failure records appear below."
 msgstr ""
 
-#: src/Admin/OverviewPage.php:139
+#: src/Admin/OverviewPage.php:141
 msgid "No provider failure records on file."
 msgstr ""
 
-#: src/Admin/OverviewPage.php:150
+#: src/Admin/OverviewPage.php:152
 msgid "Refresh now"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:156
+#: src/Admin/OverviewPage.php:158
 msgid "Remote Provider"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:163
-#: src/Admin/TrustedProxiesPage.php:66
-#: src/Admin/TrustedProxiesPage.php:75
+#: src/Admin/OverviewPage.php:165
+#: src/Admin/TrustedProxiesPage.php:68
+#: src/Admin/TrustedProxiesPage.php:77
 msgid "Trusted Proxies"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:270
+#: src/Admin/OverviewPage.php:272
 msgid "Overall health: critical issues detected"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:271
+#: src/Admin/OverviewPage.php:273
 msgid "Overall health: recommended improvements available"
 msgstr ""
 
-#: src/Admin/OverviewPage.php:272
+#: src/Admin/OverviewPage.php:274
 msgid "Overall health: good"
 msgstr ""
 
@@ -289,8 +289,8 @@ msgid "n/a"
 msgstr ""
 
 #: src/Admin/RowLinks.php:41
-#: src/Admin/SettingsPage.php:67
-#: src/Admin/SettingsPage.php:76
+#: src/Admin/SettingsPage.php:69
+#: src/Admin/SettingsPage.php:78
 msgid "Settings"
 msgstr ""
 
@@ -302,244 +302,244 @@ msgstr ""
 msgid "Documentation"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:112
+#: src/Admin/SettingsPage.php:114
 msgid "Default country"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:114
+#: src/Admin/SettingsPage.php:116
 msgid "A real two-letter ISO 3166-1 country code (e.g. SE). Empty = no fallback. An unrecognized code is rejected and the previous value is kept."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:119
+#: src/Admin/SettingsPage.php:121
 msgid "Enable derived-context cache"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:121
+#: src/Admin/SettingsPage.php:123
 msgid "Requires a persistent object cache; otherwise a safe no-op."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:127
+#: src/Admin/SettingsPage.php:129
 #: src/Diagnostics/DiagnosticsService.php:391
 msgid "Cache TTL (seconds)"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:135
+#: src/Admin/SettingsPage.php:137
 msgid "MaxMind database path"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:137
+#: src/Admin/SettingsPage.php:139
 msgid "Absolute path to a .mmdb file under the WordPress content directory. Empty = auto-detect via WooCommerce."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:382
+#: src/Admin/SettingsPage.php:394
 msgid "MaxMind account"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:386
+#: src/Admin/SettingsPage.php:398
 msgid "One shared credential pair, used by both the remote provider below and managed database downloads. A MaxMind account has one account ID/license key regardless of which MaxMind product it authenticates against."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:400
+#: src/Admin/SettingsPage.php:412
 msgid "Account ID"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:401
-#: src/Admin/SettingsPage.php:415
+#: src/Admin/SettingsPage.php:413
+#: src/Admin/SettingsPage.php:427
 msgid "Currently configured (hidden)"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:401
-#: src/Admin/SettingsPage.php:415
+#: src/Admin/SettingsPage.php:413
+#: src/Admin/SettingsPage.php:427
 msgid "Not configured"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:405
-#: src/Admin/SettingsPage.php:419
+#: src/Admin/SettingsPage.php:417
+#: src/Admin/SettingsPage.php:431
 msgid "Supplied via a wp-config.php constant and cannot be edited here."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:406
-#: src/Admin/SettingsPage.php:420
+#: src/Admin/SettingsPage.php:418
+#: src/Admin/SettingsPage.php:432
 msgid "Leave blank to keep the stored value unchanged."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:414
+#: src/Admin/SettingsPage.php:426
 msgid "License key"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:427
+#: src/Admin/SettingsPage.php:439
 msgid "Clear stored credentials"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:428
+#: src/Admin/SettingsPage.php:440
 msgid "Blanks both fields above on save, regardless of what (if anything) is also typed."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:441
+#: src/Admin/SettingsPage.php:455
 msgid "Remote provider (MaxMind GeoLite2 Country Web Service)"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:445
+#: src/Admin/SettingsPage.php:459
 msgid "Disabled by default. When enabled, this plugin sends visitor IP addresses to MaxMind, Inc. at geolite.info to derive a country — the one exception to this plugin never letting an IP address leave the server. Enabling requires both the MaxMind account credentials above and the acknowledgement below, in the same submission."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:455
+#: src/Admin/SettingsPage.php:469
 msgid "Transfer acknowledgement"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:457
+#: src/Admin/SettingsPage.php:471
 msgid "I acknowledge that enabling the remote provider transfers visitor IP addresses to MaxMind, Inc."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:463
+#: src/Admin/SettingsPage.php:477
 msgid "Enable remote provider"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:465
+#: src/Admin/SettingsPage.php:479
 msgid "Use MaxMind GeoLite2 Country Web Service as a fallback provider."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:466
+#: src/Admin/SettingsPage.php:480
 msgid "Requires the acknowledgement above in the same save, and the MaxMind account credentials above."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:473
+#: src/Admin/SettingsPage.php:487
 msgid "Request timeout (seconds)"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:475
+#: src/Admin/SettingsPage.php:489
 msgid "Bounds how long a single remote lookup may hold a page view open. 1–5 seconds; default 2."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:487
+#: src/Admin/SettingsPage.php:503
 msgid "Managed database (automatic GeoLite2 Country downloads)"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:491
+#: src/Admin/SettingsPage.php:507
 msgid "Disabled by default. When enabled, this plugin downloads and keeps the GeoLite2 Country database up to date automatically, using the MaxMind account credentials above."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:501
+#: src/Admin/SettingsPage.php:517
 msgid "Enable managed database"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:503
+#: src/Admin/SettingsPage.php:519
 msgid "Let this plugin download and install the GeoLite2 Country database itself."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:509
+#: src/Admin/SettingsPage.php:525
 msgid "Enable automatic updates"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:511
+#: src/Admin/SettingsPage.php:527
 msgid "Keep the managed database current on a schedule (WP-Cron)."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:512
+#: src/Admin/SettingsPage.php:528
 msgid "Requires \"Enable managed database\" above, in the same save."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:520
+#: src/Admin/SettingsPage.php:536
 #: src/Diagnostics/DiagnosticsService.php:377
 msgid "Update frequency"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:522
+#: src/Admin/SettingsPage.php:538
 msgid "Weekly"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:524
+#: src/Admin/SettingsPage.php:540
 msgid "Twice weekly"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:525
+#: src/Admin/SettingsPage.php:541
 msgid "GeoLite2 Country is published at most twice a week."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:530
+#: src/Admin/SettingsPage.php:546
 #: src/Diagnostics/DiagnosticsService.php:378
 msgid "Retain previous version"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:532
+#: src/Admin/SettingsPage.php:548
 msgid "Keep one prior generation on disk after a successful update, restorable below."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:553
+#: src/Admin/SettingsPage.php:569
 #: src/Diagnostics/DiagnosticsService.php:375
 msgid "Installed"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:554
+#: src/Admin/SettingsPage.php:570
 msgid "Yes"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:554
+#: src/Admin/SettingsPage.php:570
 msgid "No"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:559
+#: src/Admin/SettingsPage.php:575
 msgid "Last attempt"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:560
+#: src/Admin/SettingsPage.php:576
 msgid "Never"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:565
+#: src/Admin/SettingsPage.php:581
 msgid "Last result"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:566
+#: src/Admin/SettingsPage.php:582
 msgid "None"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:572
+#: src/Admin/SettingsPage.php:588
 msgid "Download now"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:574
+#: src/Admin/SettingsPage.php:590
 msgid "Check database"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:576
+#: src/Admin/SettingsPage.php:592
 msgid "Remove managed database"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:578
+#: src/Admin/SettingsPage.php:594
 msgid "Restore previous version"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:600
+#: src/Admin/SettingsPage.php:618
 msgid "Are you sure?"
 msgstr ""
 
-#: src/Admin/TrustedProxiesPage.php:103
+#: src/Admin/TrustedProxiesPage.php:105
 msgid "Current status"
 msgstr ""
 
-#: src/Admin/TrustedProxiesPage.php:111
+#: src/Admin/TrustedProxiesPage.php:113
 msgid "Trust this peer"
 msgstr ""
 
-#: src/Admin/TrustedProxiesPage.php:123
+#: src/Admin/TrustedProxiesPage.php:125
 msgid "Enable the Cloudflare preset"
 msgstr ""
 
-#: src/Admin/TrustedProxiesPage.php:127
+#: src/Admin/TrustedProxiesPage.php:129
 msgid "Configuration"
 msgstr ""
 
-#: src/Admin/TrustedProxiesPage.php:139
+#: src/Admin/TrustedProxiesPage.php:141
 msgid "One CIDR or IP per line. Empty = trust no forwarding header."
 msgstr ""
 
-#: src/Admin/TrustedProxiesPage.php:144
+#: src/Admin/TrustedProxiesPage.php:146
 #: src/Diagnostics/DiagnosticsService.php:343
 msgid "Trust Cloudflare"
 msgstr ""
 
-#: src/Admin/TrustedProxiesPage.php:146
+#: src/Admin/TrustedProxiesPage.php:148
 msgid "Trust the CF-Connecting-IP / CF-IPCountry headers once the peer is trusted."
 msgstr ""
 

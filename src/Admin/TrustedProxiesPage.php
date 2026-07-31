@@ -24,6 +24,8 @@ use UniversalGeo\Settings;
 final class TrustedProxiesPage implements Page {
 
 	/**
+	 * Stores the injected dependencies.
+	 *
 	 * @param DiagnosticsService $diagnostics Masked report slices for status display.
 	 * @param ServerRequest      $request     Raw peer for "Trust this peer".
 	 * @param ReportRenderer     $renderer    Definition-list renderer.
@@ -168,7 +170,7 @@ final class TrustedProxiesPage implements Page {
 
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via Settings::sanitize().
 		$raw['trusted_proxies']  = isset( $_POST['trusted_proxies'] )
-			? $this->parse_trusted_proxies_textarea( wp_unslash( $_POST['trusted_proxies'] ) )
+			? $this->parse_trusted_proxies_textarea( wp_unslash( $_POST['trusted_proxies'] ) ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via Settings::sanitize().
 			: array();
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via Settings::sanitize(); nonce verified above.
 		$raw['trust_cloudflare'] = ! empty( $_POST['trust_cloudflare'] );
@@ -232,6 +234,8 @@ final class TrustedProxiesPage implements Page {
 	}
 
 	/**
+	 * Parses trusted-proxy textarea lines into a list.
+	 *
 	 * @param string $raw Raw textarea submission.
 	 *
 	 * @return string[]
