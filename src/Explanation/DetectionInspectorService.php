@@ -64,8 +64,8 @@ final class DetectionInspectorService {
 		$simulation_active = $this->simulation_state->is_active();
 		$simulated_country = $this->simulation_state->active_country();
 
-		$resolved_ip = $this->ip_resolver->resolve();
-		$cache_slice = array_merge(
+		$resolved_ip                            = $this->ip_resolver->resolve();
+		$cache_slice                            = array_merge(
 			$sections['cache'],
 			null !== $resolved_ip
 				? $this->cache->describe( $resolved_ip->ip )
@@ -81,7 +81,7 @@ final class DetectionInspectorService {
 
 		$has_live_probe = null !== $explicit_refresh_summary;
 		$probe_summary  = $explicit_refresh_summary;
-		$providers        = $this->provider_builder->inferred(
+		$providers      = $this->provider_builder->inferred(
 			$real_context,
 			$sections['provider_health']
 		);

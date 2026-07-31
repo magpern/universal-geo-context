@@ -421,7 +421,7 @@ final class DiagnosticsService {
 			'simulation_active'          => __( 'Simulation active', 'universal-geo-context' ),
 			'cache_operational'          => __( 'Cache operational', 'universal-geo-context' ),
 			'current_request_hit'        => __( 'Cache entry present for IP', 'universal-geo-context' ),
-			'this_request_from_cache'      => __( 'This request used cache', 'universal-geo-context' ),
+			'this_request_from_cache'    => __( 'This request used cache', 'universal-geo-context' ),
 			'cache_epoch'                => __( 'Cache epoch', 'universal-geo-context' ),
 			'ttl_seconds'                => __( 'Configured TTL (seconds)', 'universal-geo-context' ),
 			'ttl_remaining'              => __( 'TTL remaining (seconds)', 'universal-geo-context' ),

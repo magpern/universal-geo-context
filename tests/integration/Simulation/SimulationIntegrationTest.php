@@ -78,14 +78,14 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 	}
 
 	private function detection_page( ?SimulationCookie $cookie = null ): DetectionPage {
-		$request  = ServerRequest::capture( $_SERVER ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$trusted  = new TrustedProxies( array(), false );
-		$resolver = new ContextResolver(
+		$request     = ServerRequest::capture( $_SERVER ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$trusted     = new TrustedProxies( array(), false );
+		$resolver    = new ContextResolver(
 			new ClientIpResolver( $request, $trusted ),
 			array(),
 			new GeoCache( false, 900, 'sig' )
 		);
-		$settings = get_option( Settings::OPTION_NAME, Settings::defaults() );
+		$settings    = get_option( Settings::OPTION_NAME, Settings::defaults() );
 		$diagnostics = new DiagnosticsService(
 			$resolver,
 			new ClientIpResolver( $request, $trusted ),
@@ -99,7 +99,7 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 			new DatabaseManager( sys_get_temp_dir(), '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ),
 			'none'
 		);
-		$inspector = new DetectionInspectorService(
+		$inspector   = new DetectionInspectorService(
 			$resolver,
 			new ClientIpResolver( $request, $trusted ),
 			new GeoCache( false, 900, 'sig' ),
@@ -108,7 +108,7 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 			new ProviderExplanationBuilder( $resolver ),
 			new ResolutionTimelineBuilder()
 		);
-		$renderer = new DetectionInspectorRenderer(
+		$renderer    = new DetectionInspectorRenderer(
 			new ReportRenderer( $diagnostics ),
 			new ExplanationFormatter(),
 			$diagnostics

@@ -309,10 +309,10 @@ final class AdminComponentsTest extends TestCase {
 		$this->assertNull( AdminProbeFreshFlag::summary() );
 
 		$_GET = array(
-			'universal_geo_probe_fresh'    => '1',
-			'universal_geo_msg'            => 'providers_refreshed',
-			'universal_geo_probe_ok'       => '2',
-			'universal_geo_probe_total'    => '5',
+			'universal_geo_probe_fresh' => '1',
+			'universal_geo_msg'         => 'providers_refreshed',
+			'universal_geo_probe_ok'    => '2',
+			'universal_geo_probe_total' => '5',
 		);
 		$this->assertSame(
 			array(

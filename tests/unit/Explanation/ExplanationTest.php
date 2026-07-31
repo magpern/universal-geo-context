@@ -125,14 +125,14 @@ final class ExplanationTest extends TestCase {
 	}
 
 	public function test_explain_after_explicit_refresh_does_not_probe_all_providers(): void {
-		$first  = new TrackingGeoProvider( 'a', true, new \UniversalGeo\Model\GeoCandidate( 'SE', null ) );
-		$second = new TrackingGeoProvider( 'b', true, new \UniversalGeo\Model\GeoCandidate( 'DE', null ) );
+		$first    = new TrackingGeoProvider( 'a', true, new \UniversalGeo\Model\GeoCandidate( 'SE', null ) );
+		$second   = new TrackingGeoProvider( 'b', true, new \UniversalGeo\Model\GeoCandidate( 'DE', null ) );
 		$resolver = new ContextResolver(
 			new ClientIpResolver( ServerRequestFactory::make(), new TrustedProxies( array(), false ) ),
 			array( $first, $second ),
 			new GeoCache( false, 900, 'sig' )
 		);
-		$service = $this->inspector_service_for_resolver( $resolver );
+		$service  = $this->inspector_service_for_resolver( $resolver );
 
 		$result = $service->explain(
 			array(
@@ -158,8 +158,8 @@ final class ExplanationTest extends TestCase {
 			$real,
 			false,
 			array(
-				'cache_operational'      => true,
-				'current_request_hit'    => true,
+				'cache_operational'       => true,
+				'current_request_hit'     => true,
 				'this_request_from_cache' => true,
 			)
 		);
@@ -217,8 +217,8 @@ final class ExplanationTest extends TestCase {
 			new DatabaseManager( sys_get_temp_dir(), '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ),
 			'none'
 		);
-		$cookie     = new SimulationCookie();
-		$simulation = new SimulationState( $cookie, new SimulationAuthorization() );
+		$cookie      = new SimulationCookie();
+		$simulation  = new SimulationState( $cookie, new SimulationAuthorization() );
 
 		return new DetectionInspectorService(
 			$resolver,
