@@ -100,6 +100,11 @@ final class CompositionRootTest extends TestCase {
 		'SimulationAuthorization',
 		'CountryCatalog',
 		'SimulationAdminBar',
+		'DetectionInspectorService',
+		'ProviderExplanationBuilder',
+		'ResolutionTimelineBuilder',
+		'ExplanationFormatter',
+		'DetectionInspectorRenderer',
 	);
 
 	/**

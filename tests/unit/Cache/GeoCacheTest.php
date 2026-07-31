@@ -70,7 +70,7 @@ final class GeoCacheTest extends TestCase {
 		);
 
 		sort( $names );
-		$this->assertSame( array( 'bump_epoch', 'get', 'set', 'uninstall' ), $names );
+		$this->assertSame( array( 'bump_epoch', 'describe', 'get', 'set', 'uninstall' ), $names );
 	}
 
 	// ---- uninstall() (M4) ------------------------------------------------------

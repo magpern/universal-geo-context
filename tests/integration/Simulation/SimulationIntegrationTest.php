@@ -11,9 +11,22 @@ namespace UniversalGeo\Tests\Integration\Simulation;
 
 use UniversalGeo\Admin\AdminNotices;
 use UniversalGeo\Admin\AdminPageSlugs;
+use UniversalGeo\Admin\DetectionInspectorRenderer;
 use UniversalGeo\Admin\DetectionPage;
+use UniversalGeo\Admin\ReportRenderer;
 use UniversalGeo\Admin\SimulationAdminBar;
 use UniversalGeo\Cache\GeoCache;
+use UniversalGeo\Diagnostics\DiagnosticsService;
+use UniversalGeo\Diagnostics\ProviderHealthStore;
+use UniversalGeo\Explanation\DetectionInspectorService;
+use UniversalGeo\Explanation\ExplanationFormatter;
+use UniversalGeo\Explanation\ProviderExplanationBuilder;
+use UniversalGeo\Explanation\ResolutionTimelineBuilder;
+use UniversalGeo\MaxMind\ArchiveExtractor;
+use UniversalGeo\MaxMind\DatabaseManager;
+use UniversalGeo\MaxMind\UpdateLock;
+use UniversalGeo\Providers\MaxMindProvider;
+use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Simulation\CountryCatalog;
 use UniversalGeo\Simulation\SimulationAuthorization;
 use UniversalGeo\Simulation\SimulationController;
@@ -24,6 +37,7 @@ use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Http\TrustedProxies;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Settings;
+use UniversalGeo\Tests\Support\FakeHttpTransport;
 use WP_UnitTestCase;
 
 /**
@@ -65,10 +79,39 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 
 	private function detection_page( ?SimulationCookie $cookie = null ): DetectionPage {
 		$request  = ServerRequest::capture( $_SERVER ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$trusted  = new TrustedProxies( array(), false );
 		$resolver = new ContextResolver(
-			new ClientIpResolver( $request, new TrustedProxies( array(), false ) ),
+			new ClientIpResolver( $request, $trusted ),
 			array(),
 			new GeoCache( false, 900, 'sig' )
+		);
+		$settings = get_option( Settings::OPTION_NAME, Settings::defaults() );
+		$diagnostics = new DiagnosticsService(
+			$resolver,
+			new ClientIpResolver( $request, $trusted ),
+			$request,
+			$trusted,
+			is_array( $settings ) ? $settings : Settings::defaults(),
+			new ProviderHealthStore(),
+			new MaxMindProvider( '' ),
+			new CircuitBreaker(),
+			'none',
+			new DatabaseManager( sys_get_temp_dir(), '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ),
+			'none'
+		);
+		$inspector = new DetectionInspectorService(
+			$resolver,
+			new ClientIpResolver( $request, $trusted ),
+			new GeoCache( false, 900, 'sig' ),
+			$diagnostics,
+			$this->state( $cookie ?? $this->cookie() ),
+			new ProviderExplanationBuilder( $resolver ),
+			new ResolutionTimelineBuilder()
+		);
+		$renderer = new DetectionInspectorRenderer(
+			new ReportRenderer( $diagnostics ),
+			new ExplanationFormatter(),
+			$diagnostics
 		);
 
 		$cookie = $cookie ?? $this->cookie();
@@ -77,7 +120,9 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 			$resolver,
 			$this->state( $cookie ),
 			new CountryCatalog(),
-			$this->controller( $cookie )
+			$this->controller( $cookie ),
+			$inspector,
+			$renderer
 		);
 	}
 
@@ -211,7 +256,7 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Simulation', $html );
 		$this->assertStringContainsString( 'name="simulation_country"', $html );
 		$this->assertStringContainsString( 'universal_geo_simulation_start', $html );
-		$this->assertStringContainsString( 'Live Detection', $html );
+		$this->assertStringContainsString( 'Detection', $html );
 	}
 
 	public function test_simulation_tab_renders_change_and_stop_when_active(): void {

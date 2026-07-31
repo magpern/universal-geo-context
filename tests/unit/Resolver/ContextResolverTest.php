@@ -84,7 +84,17 @@ final class ContextResolverTest extends TestCase {
 		);
 
 		sort( $names );
-		$this->assertSame( array( 'probe', 'reset', 'resolve' ), $names );
+		$this->assertSame(
+			array(
+				'confidence_for_provider',
+				'is_provider_available',
+				'probe',
+				'provider_chain',
+				'reset',
+				'resolve',
+			),
+			$names
+		);
 	}
 
 	public function test_empty_provider_array_is_accepted(): void {
