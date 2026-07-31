@@ -10,7 +10,7 @@ declare( strict_types=1 );
 namespace UniversalGeo\Admin;
 
 /**
- * Registers the plugin menu, submenu pages, and one-release legacy URL compatibility.
+ * Registers the plugin menu and submenu pages.
  *
  * @internal
  * @final
@@ -44,9 +44,9 @@ final class Menu {
 	 */
 	public function register(): void {
 		add_action( 'admin_menu', array( $this, 'register_menu_pages' ) );
-		add_action( 'admin_init', array( $this, 'maybe_redirect_legacy_page_url' ) );
 
 		$this->overview->register_handlers();
+		$this->detection->register_handlers();
 		$this->trusted_proxies->register_handlers();
 		$this->settings->register_handlers();
 	}
@@ -90,41 +90,6 @@ final class Menu {
 				array( $page, 'render' )
 			);
 		}
-	}
-
-	/**
-	 * Redirects the v1.1.0 Settings-submenu URL for one release (removed M8).
-	 *
-	 * @return void
-	 */
-	public function maybe_redirect_legacy_page_url(): void {
-		global $pagenow;
-
-		if ( ! is_admin() || 'options-general.php' !== $pagenow ) {
-			return;
-		}
-
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only legacy bookmark detection.
-		if ( ! isset( $_GET['page'] ) ) {
-			return;
-		}
-
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$page = sanitize_key( wp_unslash( $_GET['page'] ) );
-
-		if ( AdminPageSlugs::LEGACY_OPTIONS_PAGE !== $page ) {
-			return;
-		}
-
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
-
-		$target = 'diagnostics' === $tab
-			? admin_url( 'admin.php?page=' . AdminPageSlugs::DIAGNOSTICS )
-			: admin_url( 'admin.php?page=' . AdminPageSlugs::OVERVIEW );
-
-		wp_safe_redirect( $target );
-		exit;
 	}
 
 	/**

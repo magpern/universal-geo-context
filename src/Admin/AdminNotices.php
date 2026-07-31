@@ -136,6 +136,10 @@ final class AdminNotices {
 			'maxmind_remove_failed'                  => __( 'The managed database could not be removed. See the status below for details.', 'universal-geo-context' ),
 			'maxmind_restore_ok'                     => __( 'The previous database version was restored.', 'universal-geo-context' ),
 			'maxmind_restore_failed'                 => __( 'The previous version could not be restored. See the status below for details.', 'universal-geo-context' ),
+			'simulation_started'                     => __( 'Country simulation started for your browser session.', 'universal-geo-context' ),
+			'simulation_changed'                     => __( 'Simulated country updated for your browser session.', 'universal-geo-context' ),
+			'simulation_stopped'                     => __( 'Country simulation stopped.', 'universal-geo-context' ),
+			'simulation_invalid_country'             => __( 'Simulation could not be updated because the selected country is not valid.', 'universal-geo-context' ),
 		);
 
 		return $messages[ $message_key ] ?? '';

@@ -1,6 +1,6 @@
 <?php
 /**
- * Detection & Testing admin page (placeholder content in M7).
+ * Detection & Testing admin page.
  *
  * @package UniversalGeoContext
  */
@@ -9,13 +9,46 @@ declare( strict_types=1 );
 
 namespace UniversalGeo\Admin;
 
+use UniversalGeo\Model\VisitorContext;
+use UniversalGeo\Plugin;
+use UniversalGeo\Resolver\ContextResolver;
+use UniversalGeo\Simulation\CountryCatalog;
+use UniversalGeo\Simulation\SimulationAuthorization;
+use UniversalGeo\Simulation\SimulationController;
+use UniversalGeo\Simulation\SimulationState;
+
 /**
- * Tab shell stabilizing navigation until M8 (Simulation) and M9 (Live Detection).
+ * Live Detection placeholder (M9) and country simulation controls (M8).
  *
  * @internal
  * @final
  */
 final class DetectionPage implements Page {
+
+	/**
+	 * Stores the injected dependencies.
+	 *
+	 * @param ContextResolver      $resolver   Supplies the real resolved context.
+	 * @param SimulationState      $state      Active simulation state.
+	 * @param CountryCatalog       $catalog    Country selector options.
+	 * @param SimulationController $controller POST handlers for simulation.
+	 */
+	public function __construct(
+		private readonly ContextResolver $resolver,
+		private readonly SimulationState $state,
+		private readonly CountryCatalog $catalog,
+		private readonly SimulationController $controller
+	) {
+	}
+
+	/**
+	 * Registers simulation admin_post handlers.
+	 *
+	 * @return void
+	 */
+	public function register_handlers(): void {
+		$this->controller->register_handlers();
+	}
 
 	/**
 	 * Returns the page slug.
@@ -50,7 +83,7 @@ final class DetectionPage implements Page {
 	 * @return string
 	 */
 	public function capability(): string {
-		return 'manage_options';
+		return SimulationAuthorization::CAPABILITY;
 	}
 
 	/**
@@ -70,7 +103,7 @@ final class DetectionPage implements Page {
 		$this->render_tab_nav( $tab );
 
 		if ( 'simulation' === $tab ) {
-			$this->render_simulation_placeholder();
+			$this->render_simulation_tab();
 		} else {
 			$this->render_live_detection_placeholder();
 		}
@@ -117,7 +150,7 @@ final class DetectionPage implements Page {
 	}
 
 	/**
-	 * Private function render live detection placeholder(.
+	 * Renders the Live Detection placeholder for M9.
 	 *
 	 * @return void
 	 */
@@ -132,17 +165,125 @@ final class DetectionPage implements Page {
 	}
 
 	/**
-	 * Private function render simulation placeholder(.
+	 * Renders the country simulation tab.
 	 *
 	 * @return void
 	 */
-	private function render_simulation_placeholder(): void {
+	private function render_simulation_tab(): void {
+		$real_context      = $this->resolver->resolve();
+		$effective_context = Plugin::instance()->context();
+		$is_active         = $this->state->is_active();
+		$active_country    = $this->state->active_country();
+		$options           = $this->catalog->options();
+
+		echo '<div class="card" style="max-width: 720px;">';
+
+		printf( '<p>%s</p>', esc_html__( 'Country simulation overrides the visitor context for your browser session only. It does not change real geolocation, provider configuration, or shared geo caches. Use it to test how downstream plugins respond to a different visitor country.', 'universal-geo-context' ) );
+		printf( '<p><strong>%s</strong></p>', esc_html__( 'This is a developer and QA tool — not a production mechanism for controlling customer experience.', 'universal-geo-context' ) );
+
+		echo '<h2>' . esc_html__( 'Current context', 'universal-geo-context' ) . '</h2>';
+		echo '<table class="widefat striped" style="max-width: 640px;"><tbody>';
+		$this->render_context_row( __( 'Real resolved country', 'universal-geo-context' ), $real_context );
+		$this->render_context_row( __( 'Effective country (what consumers see)', 'universal-geo-context' ), $effective_context );
 		printf(
-			'<div class="card"><p>%s</p></div>',
-			esc_html__(
-				'Country simulation for testing downstream plugins is planned for v1.3.0. It will let administrators verify consumer plugins against arbitrary countries without VPNs or proxy manipulation.',
-				'universal-geo-context'
-			)
+			'<tr><th scope="row">%1$s</th><td>%2$s</td></tr>',
+			esc_html__( 'Simulation active', 'universal-geo-context' ),
+			esc_html( $is_active ? __( 'Yes', 'universal-geo-context' ) : __( 'No', 'universal-geo-context' ) )
 		);
+		if ( $is_active && null !== $active_country ) {
+			printf(
+				'<tr><th scope="row">%1$s</th><td>%2$s (%3$s)</td></tr>',
+				esc_html__( 'Simulated country', 'universal-geo-context' ),
+				esc_html( $this->catalog->label( $active_country ) ),
+				esc_html( $active_country )
+			);
+		}
+		echo '</tbody></table>';
+
+		echo '<h2>' . esc_html__( 'Controls', 'universal-geo-context' ) . '</h2>';
+
+		if ( $is_active ) {
+			$this->render_simulation_form(
+				'universal_geo_simulation_change',
+				__( 'Change simulated country', 'universal-geo-context' ),
+				$active_country ?? '',
+				'universal_geo_simulation'
+			);
+
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top: 1em;">';
+			wp_nonce_field( 'universal_geo_simulation_stop' );
+			echo '<input type="hidden" name="action" value="universal_geo_simulation_stop" />';
+			submit_button( __( 'Stop simulation', 'universal-geo-context' ), 'secondary', 'submit', false );
+			echo '</form>';
+		} else {
+			$this->render_simulation_form(
+				'universal_geo_simulation_start',
+				__( 'Start simulation', 'universal-geo-context' ),
+				'',
+				'universal_geo_simulation'
+			);
+		}
+
+		echo '</div>';
+	}
+
+	/**
+	 * Renders one context summary row.
+	 *
+	 * @param string         $label   Row label.
+	 * @param VisitorContext $context Context to summarize.
+	 *
+	 * @return void
+	 */
+	private function render_context_row( string $label, VisitorContext $context ): void {
+		$country = $context->country_code ?? __( 'Unknown', 'universal-geo-context' );
+		$detail  = sprintf(
+			'%1$s — %2$s (confidence %3$s)',
+			(string) $country,
+			$context->source,
+			(string) $context->confidence
+		);
+
+		printf(
+			'<tr><th scope="row">%1$s</th><td>%2$s</td></tr>',
+			esc_html( $label ),
+			esc_html( $detail )
+		);
+	}
+
+	/**
+	 * Renders a country selector POST form.
+	 *
+	 * @param string $action      admin_post action name.
+	 * @param string $button      Submit button label.
+	 * @param string $selected    Pre-selected country code.
+	 * @param string $nonce_action Nonce action name.
+	 *
+	 * @return void
+	 */
+	private function render_simulation_form( string $action, string $button, string $selected, string $nonce_action ): void {
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( $nonce_action );
+		printf( '<input type="hidden" name="action" value="%s" />', esc_attr( $action ) );
+
+		echo '<p>';
+		echo '<label for="universal-geo-simulation-country"><strong>' . esc_html__( 'Country', 'universal-geo-context' ) . '</strong></label><br />';
+		echo '<select name="simulation_country" id="universal-geo-simulation-country" required>';
+		echo '<option value="">' . esc_html__( 'Select a country…', 'universal-geo-context' ) . '</option>';
+
+		foreach ( $this->catalog->options() as $code => $label ) {
+			printf(
+				'<option value="%1$s" %2$s>%3$s (%1$s)</option>',
+				esc_attr( $code ),
+				selected( $selected, $code, false ),
+				esc_html( $label )
+			);
+		}
+
+		echo '</select>';
+		echo '</p>';
+
+		submit_button( $button, 'primary', 'submit', false );
+		echo '</form>';
 	}
 }

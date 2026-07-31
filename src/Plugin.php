@@ -18,6 +18,7 @@ use UniversalGeo\Admin\OverviewPage;
 use UniversalGeo\Admin\ProvidersPage;
 use UniversalGeo\Admin\ReportRenderer;
 use UniversalGeo\Admin\RowLinks;
+use UniversalGeo\Admin\SimulationAdminBar;
 use UniversalGeo\Admin\SettingsPage;
 use UniversalGeo\Admin\TrustedProxiesPage;
 use UniversalGeo\Cache\GeoCache;
@@ -44,6 +45,13 @@ use UniversalGeo\Providers\Remote\WordPressHttpTransport;
 use UniversalGeo\Providers\WooCommerceProvider;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Resolver\GeoValidator;
+use UniversalGeo\Settings;
+use UniversalGeo\Simulation\CountryCatalog;
+use UniversalGeo\Simulation\SimulationAuthorization;
+use UniversalGeo\Simulation\SimulationContextFilter;
+use UniversalGeo\Simulation\SimulationController;
+use UniversalGeo\Simulation\SimulationCookie;
+use UniversalGeo\Simulation\SimulationState;
 
 /**
  * Plugin bootstrap and composition root.
@@ -175,6 +183,13 @@ final class Plugin {
 		$graph          = $this->build_graph();
 		$this->resolver = $graph['resolver'];
 
+		$simulation_cookie = new SimulationCookie();
+		$simulation_state  = new SimulationState( $simulation_cookie, new SimulationAuthorization() );
+		$country_catalog   = new CountryCatalog();
+
+		( new SimulationContextFilter( $simulation_state ) )->register();
+		( new SimulationAdminBar( $simulation_state, $country_catalog ) )->register();
+
 		// Unconditional (M6): cron requests are neither is_admin() nor
 		// WP-CLI, so cron registration cannot live inside either gated
 		// branch below.
@@ -215,7 +230,12 @@ final class Plugin {
 				$notices
 			);
 
-			$detection_page = new DetectionPage();
+			$detection_page = new DetectionPage(
+				$graph['resolver'],
+				$simulation_state,
+				$country_catalog,
+				new SimulationController( $simulation_cookie, $simulation_state, $notices )
+			);
 			$providers_page = new ProvidersPage();
 
 			$trusted_proxies_page = new TrustedProxiesPage(
