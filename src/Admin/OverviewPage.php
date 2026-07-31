@@ -22,6 +22,8 @@ use UniversalGeo\Resolver\ContextResolver;
 final class OverviewPage implements Page {
 
 	/**
+	 * Stores the injected dependencies.
+	 *
 	 * @param DiagnosticsService $diagnostics Supplies overview slices and Site Health verdicts.
 	 * @param ContextResolver    $resolver    Used only for explicit Refresh now probe action.
 	 * @param ReportRenderer     $renderer    Renders definition lists inside cards.

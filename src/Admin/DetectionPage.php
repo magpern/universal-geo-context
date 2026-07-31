@@ -79,6 +79,8 @@ final class DetectionPage implements Page {
 	}
 
 	/**
+	 * Returns the active tab from the query string.
+	 *
 	 * @return string
 	 */
 	private function active_tab(): string {
@@ -89,6 +91,8 @@ final class DetectionPage implements Page {
 	}
 
 	/**
+	 * Renders the Live Detection and Simulation tab navigation.
+	 *
 	 * @param string $active 'live' or 'simulation'.
 	 *
 	 * @return void
