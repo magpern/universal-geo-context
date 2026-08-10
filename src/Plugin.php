@@ -37,6 +37,7 @@ use UniversalGeo\Cli\Command as CliCommand;
 use UniversalGeo\Cli\DatabaseCommand;
 use UniversalGeo\Contracts\GeoProviderInterface;
 use UniversalGeo\Diagnostics\DiagnosticsService;
+use UniversalGeo\Diagnostics\OperationalStatusService;
 use UniversalGeo\Diagnostics\ProviderHealthStore;
 use UniversalGeo\Explanation\DetectionInspectorService;
 use UniversalGeo\Explanation\ExplanationFormatter;
@@ -228,6 +229,24 @@ final class Plugin {
 				$graph['circuit_breaker'],
 				$graph['remote_credential_source'],
 				$graph['database_manager'],
+				$graph['maxmind_path_source'],
+				$graph['cache'],
+				$graph['update_scheduler'],
+				$simulation_state
+			);
+
+			$operational_status = new OperationalStatusService(
+				$graph['resolver'],
+				$graph['server_request'],
+				$graph['trusted_proxies'],
+				$graph['settings'],
+				$graph['provider_health_store'],
+				$graph['maxmind_provider'],
+				$graph['circuit_breaker'],
+				$graph['remote_credential_source'],
+				$graph['database_manager'],
+				$graph['update_scheduler'],
+				$simulation_state,
 				$graph['maxmind_path_source']
 			);
 		}
@@ -276,7 +295,8 @@ final class Plugin {
 				$quick_actions,
 				$admin_actions,
 				$components,
-				$simulation_state
+				$simulation_state,
+				$operational_status
 			);
 
 			$detection_page = new DetectionPage(
@@ -314,7 +334,8 @@ final class Plugin {
 				$report_renderer,
 				$admin_header,
 				$admin_actions,
-				$components
+				$components,
+				$operational_status
 			);
 
 			$settings_page = new SettingsPage(
@@ -357,7 +378,7 @@ final class Plugin {
 		}
 
 		if ( $register_cli ) {
-			( new CliCommand( $graph['resolver'], $diagnostics ) )->register();
+			( new CliCommand( $graph['resolver'], $diagnostics, $operational_status, $graph['trusted_proxies'] ) )->register();
 			( new DatabaseCommand( $graph['database_manager'] ) )->register();
 		}
 	}

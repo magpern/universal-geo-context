@@ -12,7 +12,9 @@ namespace UniversalGeo\Cli;
 use InvalidArgumentException;
 use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Diagnostics\DiagnosticsService;
+use UniversalGeo\Diagnostics\OperationalStatusService;
 use UniversalGeo\Http\IpUtils;
+use UniversalGeo\Http\TrustedProxies;
 use UniversalGeo\Plugin;
 use UniversalGeo\Resolver\ContextResolver;
 
@@ -59,17 +61,21 @@ final class Command {
 	 * `DiagnosticsService` instances `Plugin::init()` already builds for the
 	 * current request, never a second, independent resolution.
 	 *
-	 * @param ContextResolver    $resolver    Supplies probe() for `context --ip=`.
-	 * @param DiagnosticsService $diagnostics Supplies report() for `diagnostics` — the exact same report the admin Diagnostics tab renders.
+	 * @param ContextResolver          $resolver            Supplies probe() for `context --ip=` / `providers`.
+	 * @param DiagnosticsService       $diagnostics         Supplies report() for `diagnostics` / status composition.
+	 * @param OperationalStatusService $operational_status  Passiveiness evaluation for `status` (passive).
+	 * @param TrustedProxies           $trusted_proxies     Local membership tests for `trusted-proxies`.
 	 */
 	public function __construct(
 		private readonly ContextResolver $resolver,
-		private readonly DiagnosticsService $diagnostics
+		private readonly DiagnosticsService $diagnostics,
+		private readonly OperationalStatusService $operational_status,
+		private readonly TrustedProxies $trusted_proxies
 	) {
 	}
 
 	/**
-	 * Registers the three commands. A no-op when WP-CLI has not actually
+	 * Registers the commands. A no-op when WP-CLI has not actually
 	 * run (`WP_CLI::add_command()`'s own guard) — safe to call unconditionally.
 	 *
 	 * @return void
@@ -78,6 +84,9 @@ final class Command {
 		\WP_CLI::add_command( 'universal-geo context', array( $this, 'context' ) );
 		\WP_CLI::add_command( 'universal-geo diagnostics', array( $this, 'diagnostics' ) );
 		\WP_CLI::add_command( 'universal-geo cache flush', array( $this, 'cache_flush' ) );
+		\WP_CLI::add_command( 'universal-geo status', array( $this, 'status' ) );
+		\WP_CLI::add_command( 'universal-geo providers', array( $this, 'providers' ) );
+		\WP_CLI::add_command( 'universal-geo trusted-proxies', array( $this, 'trusted_proxies' ) );
 	}
 
 	/**
@@ -193,6 +202,249 @@ final class Command {
 		GeoCache::bump_epoch();
 
 		\WP_CLI::success( __( 'The derived-context cache has been flushed.', 'universal-geo-context' ) );
+	}
+
+	/**
+	 * Prints a compact operational status summary. Passive — never probes providers.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : Render output in this format.
+	 * ---
+	 * default: table
+	 * options:
+	 *   - table
+	 *   - json
+	 *   - yaml
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp universal-geo status
+	 *     wp universal-geo status --format=json
+	 *
+	 * @param string[]              $args       Positional arguments (unused).
+	 * @param array<string, string> $assoc_args Named arguments.
+	 *
+	 * @return void
+	 */
+	public function status( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		try {
+			$format = $this->resolve_format( $assoc_args );
+		} catch ( InvalidArgumentException $e ) {
+			\WP_CLI::error( $e->getMessage() );
+			return;
+		}
+
+		$this->render( $this->build_status_rows(), $format );
+	}
+
+	/**
+	 * Live provider probe for every provider in the chain. May contact remote
+	 * providers when they are enabled.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : Render output in this format.
+	 * ---
+	 * default: table
+	 * options:
+	 *   - table
+	 *   - json
+	 *   - yaml
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp universal-geo providers
+	 *     wp universal-geo providers --format=json
+	 *
+	 * @param string[]              $args       Positional arguments (unused).
+	 * @param array<string, string> $assoc_args Named arguments.
+	 *
+	 * @return void
+	 */
+	public function providers( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		try {
+			$format = $this->resolve_format( $assoc_args );
+		} catch ( InvalidArgumentException $e ) {
+			\WP_CLI::error( $e->getMessage() );
+			return;
+		}
+
+		$rows = $this->resolver->probe();
+		$this->render( array_values( $rows ), $format );
+	}
+
+	/**
+	 * Trusted-proxy configuration summary and optional local membership test.
+	 * Never echoes the tested IP back.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--test=<ip>]
+	 * : Test whether this IP matches the configured trusted proxy set (local CIDR membership only).
+	 *
+	 * [--format=<format>]
+	 * : Render output in this format.
+	 * ---
+	 * default: table
+	 * options:
+	 *   - table
+	 *   - json
+	 *   - yaml
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp universal-geo trusted-proxies
+	 *     wp universal-geo trusted-proxies --test=172.18.0.5
+	 *
+	 * @param string[]              $args       Positional arguments (unused).
+	 * @param array<string, string> $assoc_args Named arguments.
+	 *
+	 * @return void
+	 */
+	public function trusted_proxies( array $args, array $assoc_args ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		try {
+			$format = $this->resolve_format( $assoc_args );
+			$rows   = $this->build_trusted_proxies_rows( $assoc_args );
+		} catch ( InvalidArgumentException $e ) {
+			\WP_CLI::error( $e->getMessage() );
+			return;
+		}
+
+		$this->render( $rows, $format );
+	}
+
+	/**
+	 * Builds flat status rows from OperationalStatus + passive diagnostics slices.
+	 *
+	 * @return array<int, array{field: string, value: string}>
+	 */
+	public function build_status_rows(): array {
+		$readiness = $this->operational_status->evaluate();
+		$report    = $this->diagnostics->overview_sections();
+		$context   = Plugin::instance()->context();
+		$managed   = $this->diagnostics->inspector_sections()['maxmind_managed'] ?? array();
+
+		$rows = array(
+			array(
+				'field' => 'plugin_version',
+				'value' => defined( 'UNIVERSAL_GEO_VERSION' ) ? (string) UNIVERSAL_GEO_VERSION : '',
+			),
+			array(
+				'field' => 'state',
+				'value' => $readiness->state,
+			),
+			array(
+				'field' => 'consumer_usable',
+				'value' => $readiness->consumer_usable ? 'yes' : 'no',
+			),
+			array(
+				'field' => 'simulation_active',
+				'value' => $readiness->simulation_active ? 'yes' : 'no',
+			),
+			array(
+				'field' => 'summary',
+				'value' => $readiness->summary,
+			),
+			array(
+				'field' => 'country_code',
+				'value' => (string) ( $context->country_code ?? '' ),
+			),
+			array(
+				'field' => 'source',
+				'value' => $context->source,
+			),
+			array(
+				'field' => 'provider_chain',
+				'value' => implode( ',', $this->resolver->provider_chain() ),
+			),
+			array(
+				'field' => 'cache_enabled',
+				'value' => ! empty( $report['cache']['derived_cache_enabled'] ) ? 'yes' : 'no',
+			),
+			array(
+				'field' => 'cache_operational',
+				'value' => ! empty( $report['cache']['cache_operational'] ) ? 'yes' : 'no',
+			),
+			array(
+				'field' => 'trusted_proxy_count',
+				'value' => (string) ( $report['trusted_proxies']['configured_count'] ?? 0 ),
+			),
+			array(
+				'field' => 'managed_installed',
+				'value' => ! empty( $managed['installed'] ) ? 'yes' : 'no',
+			),
+			array(
+				'field' => 'scheduler_registered',
+				'value' => ! empty( $managed['scheduler_registered'] ) ? 'yes' : 'no',
+			),
+			array(
+				'field' => 'next_scheduled_at',
+				'value' => null !== ( $managed['next_scheduled_at'] ?? null ) ? (string) $managed['next_scheduled_at'] : '',
+			),
+		);
+
+		foreach ( $readiness->issues as $issue ) {
+			$rows[] = array(
+				'field' => 'issue:' . $issue->code,
+				'value' => $issue->severity . ' — ' . $issue->message . ' → ' . $issue->remediation,
+			);
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Builds trusted-proxies CLI rows.
+	 *
+	 * @param array<string, string> $assoc_args Named arguments.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 *
+	 * @throws InvalidArgumentException When --test is invalid.
+	 */
+	public function build_trusted_proxies_rows( array $assoc_args ): array {
+		$rows = array(
+			array(
+				'field' => 'configured_count',
+				'value' => (string) $this->trusted_proxies->configured_count(),
+			),
+			array(
+				'field' => 'cloudflare_preset',
+				'value' => $this->trusted_proxies->trusts_cloudflare() ? 'yes' : 'no',
+			),
+		);
+
+		if ( ! isset( $assoc_args['test'] ) || '' === $assoc_args['test'] ) {
+			return $rows;
+		}
+
+		$ip = IpUtils::normalize( (string) $assoc_args['test'] );
+
+		if ( null === $ip ) {
+			throw new InvalidArgumentException(
+				sprintf( 'Invalid --test value "%s": not a syntactically valid IPv4 or IPv6 address.', (string) $assoc_args['test'] )
+			);
+		}
+
+		$matched = $this->trusted_proxies->contains( $ip );
+		$entry   = $matched ? $this->trusted_proxies->matched_entry( $ip ) : null;
+
+		$rows[] = array(
+			'field' => 'matched',
+			'value' => $matched ? 'yes' : 'no',
+		);
+		$rows[] = array(
+			'field' => 'matching_entry',
+			'value' => null !== $entry ? (string) $entry : '',
+		);
+
+		return $rows;
 	}
 
 	/**

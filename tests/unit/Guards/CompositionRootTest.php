@@ -115,6 +115,7 @@ final class CompositionRootTest extends TestCase {
 		'TimelineRenderer',
 		'QuickActionsRenderer',
 		'AdminAssets',
+		'OperationalStatusService',
 	);
 
 	/**
