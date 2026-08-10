@@ -136,6 +136,8 @@ final class SettingsPage implements Page {
 		echo $this->components->sticky_save_bar( 'settings' );
 		echo '</form>';
 
+		$this->render_managed_database_actions();
+
 		$shell->close_content();
 		$shell->close();
 		$shell->close_wrap();
@@ -619,6 +621,22 @@ final class SettingsPage implements Page {
 		);
 
 		$this->render_managed_database_status();
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
+		echo $this->components->settings_card_close();
+	}
+
+	/**
+	 * Renders managed-database admin-post action forms outside the settings save form.
+	 *
+	 * @return void
+	 */
+	private function render_managed_database_actions(): void {
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->settings_card_open(
+			__( 'Managed database actions', 'universal-geo-context' ),
+			__( 'Download, validate, remove, or restore the managed GeoLite2 Country database. These actions are separate from saving settings.', 'universal-geo-context' )
+		);
 
 		ob_start();
 		$this->render_managed_database_action_button( 'universal_geo_maxmind_database_download', __( 'Download now', 'universal-geo-context' ), false );

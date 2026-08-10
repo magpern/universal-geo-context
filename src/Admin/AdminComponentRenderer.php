@@ -9,6 +9,8 @@ declare( strict_types=1 );
 
 namespace UniversalGeo\Admin;
 
+use UniversalGeo\Diagnostics\OperationalStatus;
+
 /**
  * Renders reusable admin design-system components for Universal Geo Context.
  *
@@ -569,6 +571,39 @@ final class AdminComponentRenderer {
 	 */
 	public function field_group_close(): string {
 		return '</div>';
+	}
+
+	/**
+	 * Renders a readiness summary panel linking to diagnostics.
+	 *
+	 * @param OperationalStatus $status Readiness snapshot.
+	 * @param string            $url    Diagnostics page URL.
+	 */
+	public function readiness_summary_panel( OperationalStatus $status, string $url ): string {
+		$variants = array(
+			OperationalStatus::STATE_READY           => array( 'active', __( 'Ready', 'universal-geo-context' ) ),
+			OperationalStatus::STATE_DEGRADED        => array( 'warning', __( 'Degraded', 'universal-geo-context' ) ),
+			OperationalStatus::STATE_ACTION_REQUIRED => array( 'warning', __( 'Action required', 'universal-geo-context' ) ),
+			OperationalStatus::STATE_UNAVAILABLE     => array( 'error', __( 'Unavailable', 'universal-geo-context' ) ),
+		);
+
+		$pair  = $variants[ $status->state ] ?? $variants[ OperationalStatus::STATE_READY ];
+		$badge = $this->status_badge( $pair[1], $pair[0] );
+		$hint  = $status->consumer_usable
+			? __( 'Consumers can rely on geographic context', 'universal-geo-context' )
+			: __( 'Fix configuration before trusting visitor location', 'universal-geo-context' );
+
+		if ( $status->simulation_active ) {
+			$hint .= ' — ' . __( 'simulation active', 'universal-geo-context' );
+		}
+
+		return sprintf(
+			'<a class="ugc-ui-health-summary" href="%1$s"><span class="ugc-ui-health-summary__label">%2$s</span>%3$s<span class="ugc-ui-health-summary__hint">%4$s</span></a>',
+			esc_url( $url ),
+			esc_html__( 'Visitor Location', 'universal-geo-context' ),
+			$badge,
+			esc_html( $hint )
+		);
 	}
 
 	/**

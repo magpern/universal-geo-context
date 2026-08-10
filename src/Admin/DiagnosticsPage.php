@@ -10,6 +10,8 @@ declare( strict_types=1 );
 namespace UniversalGeo\Admin;
 
 use UniversalGeo\Diagnostics\DiagnosticsService;
+use UniversalGeo\Diagnostics\OperationalStatus;
+use UniversalGeo\Diagnostics\OperationalStatusService;
 
 /**
  * Full diagnostics report with design-system presentation.
@@ -22,18 +24,20 @@ final class DiagnosticsPage implements Page {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param DiagnosticsService     $diagnostics Full report supplier.
-	 * @param ReportRenderer         $renderer    Definition-list renderer.
-	 * @param AdminHeaderRenderer    $header      Shared page header.
-	 * @param AdminActionRenderer    $actions     Shared action controls.
-	 * @param AdminComponentRenderer $components  Design-system components.
+	 * @param DiagnosticsService       $diagnostics        Full report supplier.
+	 * @param ReportRenderer           $renderer           Definition-list renderer.
+	 * @param AdminHeaderRenderer      $header             Shared page header.
+	 * @param AdminActionRenderer      $actions            Shared action controls.
+	 * @param AdminComponentRenderer   $components         Design-system components.
+	 * @param OperationalStatusService $operational_status Readiness evaluation (passive).
 	 */
 	public function __construct(
 		private readonly DiagnosticsService $diagnostics,
 		private readonly ReportRenderer $renderer,
 		private readonly AdminHeaderRenderer $header,
 		private readonly AdminActionRenderer $actions,
-		private readonly AdminComponentRenderer $components
+		private readonly AdminComponentRenderer $components,
+		private readonly OperationalStatusService $operational_status
 	) {
 	}
 
@@ -86,6 +90,7 @@ final class DiagnosticsPage implements Page {
 		$report      = $this->diagnostics->report();
 		$report_text = $this->build_copy_text( $report );
 		$status      = $this->diagnostics->worst_site_health_status();
+		$readiness   = $this->operational_status->evaluate();
 		$shell       = $this->header->shell();
 
 		$shell->open_wrap();
@@ -104,7 +109,12 @@ final class DiagnosticsPage implements Page {
 		$shell->open_content( true );
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->readiness_summary_panel( $readiness, AdminPageRegistry::page_url( AdminPageSlugs::DIAGNOSTICS ) );
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
 		echo $this->components->health_summary_panel( $status, AdminPageRegistry::page_url( AdminPageSlugs::DIAGNOSTICS ) );
+
+		$this->render_readiness_card( $readiness );
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
 		echo $this->components->copy_report_panel( 'ugc-diagnostics-copy-report', $report_text );
@@ -167,6 +177,7 @@ final class DiagnosticsPage implements Page {
 		echo $this->components->feature_section_open( __( 'Runtime', 'universal-geo-context' ), __( 'Cache and environment details.', 'universal-geo-context' ) );
 
 		$this->render_section_card( __( 'Cache', 'universal-geo-context' ), $report['cache'] );
+		$this->render_section_card( __( 'Simulation', 'universal-geo-context' ), $report['simulation'] );
 		$this->render_section_card( __( 'Environment', 'universal-geo-context' ), $report['environment'] );
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
@@ -175,6 +186,31 @@ final class DiagnosticsPage implements Page {
 		$shell->close_content();
 		$shell->close();
 		$shell->close_wrap();
+	}
+
+	/**
+	 * Renders the operational readiness summary card.
+	 *
+	 * @param OperationalStatus $readiness Readiness snapshot.
+	 *
+	 * @return void
+	 */
+	private function render_readiness_card( OperationalStatus $readiness ): void {
+		$values = array(
+			'state'             => $readiness->state,
+			'consumer_usable'   => $readiness->consumer_usable,
+			'simulation_active' => $readiness->simulation_active,
+			'summary'           => $readiness->summary,
+		);
+
+		foreach ( $readiness->issues as $index => $issue ) {
+			$values[ 'issue_' . $index . '_code' ]        = $issue->code;
+			$values[ 'issue_' . $index . '_severity' ]    = $issue->severity;
+			$values[ 'issue_' . $index . '_message' ]     = $issue->message;
+			$values[ 'issue_' . $index . '_remediation' ] = $issue->remediation;
+		}
+
+		$this->render_section_card( __( 'Operational readiness', 'universal-geo-context' ), $values );
 	}
 
 	/**
