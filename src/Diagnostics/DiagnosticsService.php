@@ -9,16 +9,19 @@ declare( strict_types=1 );
 
 namespace UniversalGeo\Diagnostics;
 
+use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Http\ClientIpResolver;
 use UniversalGeo\Http\IpUtils;
 use UniversalGeo\Http\ServerRequest;
 use UniversalGeo\Http\TrustedProxies;
 use UniversalGeo\MaxMind\DatabaseManager;
+use UniversalGeo\MaxMind\UpdateScheduler;
 use UniversalGeo\Plugin;
 use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Providers\Remote\ReferenceRemoteProvider;
 use UniversalGeo\Resolver\ContextResolver;
+use UniversalGeo\Simulation\SimulationState;
 
 /**
  * One class, one structured report, consumed by the admin Diagnostics tab
@@ -65,6 +68,16 @@ final class DiagnosticsService {
 	public const TEST_MAXMIND_MANAGED = 'universal_geo_maxmind_managed';
 
 	/**
+	 * Provider-chain Site Health test id (M12).
+	 */
+	public const TEST_PROVIDER_CHAIN = 'universal_geo_provider_chain';
+
+	/**
+	 * Cache Site Health test id (M12).
+	 */
+	public const TEST_CACHE = 'universal_geo_cache';
+
+	/**
 	 * Build-age thresholds (days) for the MaxMind Site Health test (M3
 	 * architecture report §6 3D).
 	 */
@@ -104,6 +117,9 @@ final class DiagnosticsService {
 	 * @param string              $remote_credential_source One of 'constants', 'legacy_constants', 'settings', 'none' — resolved exactly once by Plugin::build_graph(); this class must not call defined() or re-derive the precedence itself (M4 frozen decision, extended M6).
 	 * @param DatabaseManager     $database_manager         The same instance Plugin::build_graph() constructed (M6) — diagnostics never constructs its own, never triggers a download; status() only.
 	 * @param string              $maxmind_path_source      One of 'constant', 'settings', 'managed', 'woocommerce', 'filter', 'none' — resolved exactly once by Plugin::resolved_maxmind_db_path() (M6); this class must not re-derive the precedence itself, the same frozen-decision shape $remote_credential_source already established.
+	 * @param GeoCache            $cache                    Same GeoCache instance as the resolver (M12) — settings/operational flags only; never mutates.
+	 * @param UpdateScheduler     $update_scheduler         Same scheduler as Plugin (M12) — status() only.
+	 * @param SimulationState     $simulation_state         Request simulation overlay (M12) — read-only.
 	 */
 	public function __construct(
 		private readonly ContextResolver $resolver,
@@ -116,7 +132,10 @@ final class DiagnosticsService {
 		private readonly CircuitBreaker $circuit_breaker,
 		private readonly string $remote_credential_source,
 		private readonly DatabaseManager $database_manager,
-		private readonly string $maxmind_path_source
+		private readonly string $maxmind_path_source,
+		private readonly GeoCache $cache,
+		private readonly UpdateScheduler $update_scheduler,
+		private readonly SimulationState $simulation_state
 	) {
 	}
 
@@ -140,6 +159,7 @@ final class DiagnosticsService {
 			'providers'          => $this->resolver->probe(),
 			'provider_health'    => $this->provider_health_store->read(),
 			'cache'              => $this->cache_section(),
+			'simulation'         => $this->simulation_section(),
 			'environment'        => $this->environment_section(),
 		);
 	}
@@ -155,6 +175,7 @@ final class DiagnosticsService {
 			'trusted_proxies' => $this->trusted_proxies_section(),
 			'remote'          => $this->remote_section(),
 			'cache'           => $this->cache_section(),
+			'simulation'      => $this->simulation_section(),
 			'environment'     => $this->environment_section(),
 			'provider_health' => $this->provider_health_store->read(),
 		);
@@ -188,6 +209,7 @@ final class DiagnosticsService {
 			'remote'             => $this->remote_section(),
 			'maxmind_managed'    => $this->maxmind_managed_section(),
 			'cache'              => $this->cache_section(),
+			'simulation'         => $this->simulation_section(),
 			'environment'        => $this->environment_section(),
 			'provider_health'    => $this->provider_health_store->read(),
 			'default_country'    => $this->settings['default_country'] ?? null,
@@ -208,6 +230,8 @@ final class DiagnosticsService {
 			$this->maxmind_site_status_test()['status'] ?? 'good',
 			$this->remote_site_status_test()['status'] ?? 'good',
 			$this->maxmind_managed_site_status_test()['status'] ?? 'good',
+			$this->provider_chain_site_status_test()['status'] ?? 'good',
+			$this->cache_site_status_test()['status'] ?? 'good',
 		);
 
 		if ( in_array( 'critical', $statuses, true ) ) {
@@ -402,6 +426,16 @@ final class DiagnosticsService {
 			'last_success_at'            => __( 'Last success at (timestamp)', 'universal-geo-context' ),
 			'last_result_code'           => __( 'Last result code', 'universal-geo-context' ),
 			'installed_build_epoch'      => __( 'Installed build epoch', 'universal-geo-context' ),
+			'previous_available'         => __( 'Previous database available', 'universal-geo-context' ),
+			'credentials_configured'     => __( 'Credentials configured', 'universal-geo-context' ),
+			'scheduler_registered'       => __( 'Update scheduler registered', 'universal-geo-context' ),
+			'next_scheduled_at'          => __( 'Next scheduled update (timestamp)', 'universal-geo-context' ),
+			'age_days'                   => __( 'Database age (days)', 'universal-geo-context' ),
+			'update_lock'                => __( 'Update lock', 'universal-geo-context' ),
+			'locked'                     => __( 'Lock held', 'universal-geo-context' ),
+			'owner'                      => __( 'Lock owner', 'universal-geo-context' ),
+			'acquired_at'                => __( 'Lock acquired at (timestamp)', 'universal-geo-context' ),
+			'expires_at'                 => __( 'Lock expires at (timestamp)', 'universal-geo-context' ),
 			'provider'                   => __( 'Provider', 'universal-geo-context' ),
 			'country_code'               => __( 'Country code', 'universal-geo-context' ),
 			'region_code'                => __( 'Region code', 'universal-geo-context' ),
@@ -461,6 +495,16 @@ final class DiagnosticsService {
 		$tests['direct'][ self::TEST_MAXMIND_MANAGED ] = array(
 			'label' => __( 'Universal Geo Context: managed database', 'universal-geo-context' ),
 			'test'  => array( $this, 'maxmind_managed_site_status_test' ),
+		);
+
+		$tests['direct'][ self::TEST_PROVIDER_CHAIN ] = array(
+			'label' => __( 'Universal Geo Context: provider chain', 'universal-geo-context' ),
+			'test'  => array( $this, 'provider_chain_site_status_test' ),
+		);
+
+		$tests['direct'][ self::TEST_CACHE ] = array(
+			'label' => __( 'Universal Geo Context: derived-context cache', 'universal-geo-context' ),
+			'test'  => array( $this, 'cache_site_status_test' ),
 		);
 
 		return $tests;
@@ -756,6 +800,24 @@ final class DiagnosticsService {
 			);
 		}
 
+		$auto_update = ! empty( $this->settings['maxmind_managed_auto_update_enabled'] );
+
+		if ( $auto_update && 'none' === $this->remote_credential_source ) {
+			return $this->maxmind_managed_site_status_result(
+				'recommended',
+				__( 'Managed auto-update is enabled but no MaxMind credentials are configured. Enter an account ID and license key under Settings, or disable automatic updates.', 'universal-geo-context' )
+			);
+		}
+
+		$scheduler = $this->update_scheduler->status();
+
+		if ( $auto_update && empty( $scheduler['scheduler_registered'] ) ) {
+			return $this->maxmind_managed_site_status_result(
+				'recommended',
+				__( 'Managed auto-update is enabled but no update is scheduled. Save Settings to reconcile the schedule, or disable automatic updates.', 'universal-geo-context' )
+			);
+		}
+
 		$status            = $this->database_manager->status();
 		$installed         = '' !== $this->database_manager->installed_path();
 		$overall_available = $this->maxmind_provider->is_available();
@@ -1038,30 +1100,198 @@ final class DiagnosticsService {
 	 * @return array<string, mixed>
 	 */
 	private function maxmind_managed_section(): array {
-		$status = $this->database_manager->status();
+		$status    = $this->database_manager->status();
+		$scheduler = $this->update_scheduler->status();
+		$lock      = $this->database_manager->lock_diagnostics();
+		$build     = $status['installed_build_epoch'];
+		$age_days  = is_int( $build ) && $build > 0
+			? (int) floor( ( time() - $build ) / self::SECONDS_PER_DAY )
+			: null;
 
 		return array(
-			'enabled'               => $this->settings['maxmind_managed_enabled'] ?? false,
-			'installed'             => '' !== $this->database_manager->installed_path(),
-			'auto_update_enabled'   => $this->settings['maxmind_managed_auto_update_enabled'] ?? false,
-			'auto_update_frequency' => $this->settings['maxmind_managed_auto_update_frequency'] ?? 'weekly',
-			'retain_previous'       => $this->settings['maxmind_managed_retain_previous'] ?? true,
-			'last_attempt_at'       => $status['last_attempt_at'],
-			'last_success_at'       => $status['last_success_at'],
-			'last_result_code'      => '' !== $status['last_result_code'] ? $status['last_result_code'] : null,
-			'installed_build_epoch' => $status['installed_build_epoch'],
+			'enabled'                => $this->settings['maxmind_managed_enabled'] ?? false,
+			'installed'              => '' !== $this->database_manager->installed_path(),
+			'auto_update_enabled'    => $this->settings['maxmind_managed_auto_update_enabled'] ?? false,
+			'auto_update_frequency'  => $this->settings['maxmind_managed_auto_update_frequency'] ?? 'weekly',
+			'retain_previous'        => $this->settings['maxmind_managed_retain_previous'] ?? true,
+			'previous_available'     => $this->database_manager->previous_available(),
+			'credentials_configured' => 'none' !== $this->remote_credential_source,
+			'last_attempt_at'        => $status['last_attempt_at'],
+			'last_success_at'        => $status['last_success_at'],
+			'last_result_code'       => '' !== $status['last_result_code'] ? $status['last_result_code'] : null,
+			'installed_build_epoch'  => $status['installed_build_epoch'],
+			'age_days'               => $age_days,
+			'scheduler_registered'   => $scheduler['scheduler_registered'],
+			'next_scheduled_at'      => $scheduler['next_scheduled_at'],
+			'update_lock'            => $lock,
 		);
 	}
 
 	/**
-	 * Builds the "cache" section.
+	 * Builds the "cache" section — settings plus operational flags. Absence of
+	 * a persistent object cache is reported as a fact, never as an error.
 	 *
 	 * @return array<string, mixed>
 	 */
 	private function cache_section(): array {
+		$enabled = (bool) ( $this->settings['derived_cache_enabled'] ?? true );
+		$ttl     = (int) ( $this->settings['derived_cache_ttl'] ?? 900 );
+		$object  = function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache();
+
+		// Touch the injected cache so describe() remains the single operational
+		// shape when a client IP is available — without requiring a probe.
+		$peer  = $this->normalized_peer();
+		$extra = array();
+
+		if ( null !== $peer ) {
+			$described = $this->cache->describe( $peer );
+			$extra     = array(
+				'current_request_hit' => $described['current_request_hit'] ?? false,
+				'cache_epoch'         => $described['cache_epoch'] ?? null,
+			);
+		}
+
+		return array_merge(
+			array(
+				'derived_cache_enabled' => $enabled,
+				'derived_cache_ttl'     => $ttl,
+				'object_cache_active'   => $object,
+				'cache_operational'     => $enabled && $object,
+			),
+			$extra
+		);
+	}
+
+	/**
+	 * Builds the simulation overlay section (M12) — never exposes cookie material.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function simulation_section(): array {
 		return array(
-			'derived_cache_enabled' => $this->settings['derived_cache_enabled'] ?? true,
-			'derived_cache_ttl'     => $this->settings['derived_cache_ttl'] ?? 900,
+			'active'  => $this->simulation_state->is_active(),
+			'country' => $this->simulation_state->active_country(),
+		);
+	}
+
+	/**
+	 * Provider-chain Site Health test (M12).
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function provider_chain_site_status_test(): array {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return $this->provider_chain_site_status_result( 'good', __( 'Not applicable for this user.', 'universal-geo-context' ) );
+		}
+
+		$chain = $this->resolver->provider_chain();
+
+		if ( array() === $chain ) {
+			return $this->provider_chain_site_status_result(
+				'critical',
+				__( 'No providers are registered in the resolution chain. Reinstall or repair Universal Geo Context.', 'universal-geo-context' )
+			);
+		}
+
+		$available = array();
+
+		foreach ( $chain as $provider_id ) {
+			if ( $this->resolver->is_provider_available( $provider_id ) ) {
+				$available[] = $provider_id;
+			}
+		}
+
+		$preferred = array_values( array_filter( $available, static fn ( string $id ): bool => 'default' !== $id ) );
+
+		if ( array() === $preferred ) {
+			return $this->provider_chain_site_status_result(
+				'recommended',
+				__( 'Only the default country fallback is available (or none). Downstream consumers may still call the API; unknown country is a valid outcome. Optionally configure MaxMind, Cloudflare trust, WooCommerce MaxMind, or a default country under Settings.', 'universal-geo-context' )
+			);
+		}
+
+		return $this->provider_chain_site_status_result(
+			'good',
+			__( 'The provider chain has at least one preferred geographic source available.', 'universal-geo-context' )
+		);
+	}
+
+	/**
+	 * Builds one provider-chain Site Health result array.
+	 *
+	 * @param string $status      good|recommended|critical.
+	 * @param string $description Plain text.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function provider_chain_site_status_result( string $status, string $description ): array {
+		if ( 'critical' === $status ) {
+			$color = 'red';
+		} elseif ( 'recommended' === $status ) {
+			$color = 'orange';
+		} else {
+			$color = 'blue';
+		}
+
+		return array(
+			'label'       => __( 'Universal Geo Context: provider chain', 'universal-geo-context' ),
+			'status'      => $status,
+			'badge'       => array(
+				'label' => __( 'Performance', 'universal-geo-context' ),
+				'color' => $color,
+			),
+			'description' => sprintf( '<p>%s</p>', esc_html( $description ) ),
+			'actions'     => '',
+			'test'        => self::TEST_PROVIDER_CHAIN,
+		);
+	}
+
+	/**
+	 * Cache Site Health test (M12). Does not treat missing Redis/Memcached as a problem.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function cache_site_status_test(): array {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return $this->cache_site_status_result( 'good', __( 'Not applicable for this user.', 'universal-geo-context' ) );
+		}
+
+		$ttl = (int) ( $this->settings['derived_cache_ttl'] ?? 900 );
+
+		// Settings::sanitize clamps TTL to [60, 86400]. A value outside that
+		// range indicates an impossible/corrupt option shape.
+		if ( $ttl < 60 || $ttl > 86400 ) {
+			return $this->cache_site_status_result(
+				'recommended',
+				__( 'The derived-context cache TTL is outside the supported range. Open Settings and save to restore a valid TTL.', 'universal-geo-context' )
+			);
+		}
+
+		return $this->cache_site_status_result(
+			'good',
+			__( 'Universal Geo Context cache settings look valid. Persistent object cache is optional; WordPress’s normal object cache is fine.', 'universal-geo-context' )
+		);
+	}
+
+	/**
+	 * Builds one cache Site Health result array.
+	 *
+	 * @param string $status      good|recommended (never critical).
+	 * @param string $description Plain text.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function cache_site_status_result( string $status, string $description ): array {
+		return array(
+			'label'       => __( 'Universal Geo Context: derived-context cache', 'universal-geo-context' ),
+			'status'      => $status,
+			'badge'       => array(
+				'label' => __( 'Performance', 'universal-geo-context' ),
+				'color' => 'recommended' === $status ? 'orange' : 'blue',
+			),
+			'description' => sprintf( '<p>%s</p>', esc_html( $description ) ),
+			'actions'     => '',
+			'test'        => self::TEST_CACHE,
 		);
 	}
 
