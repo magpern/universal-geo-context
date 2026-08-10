@@ -12,7 +12,7 @@ jobs:
   build-release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -35,7 +35,7 @@ jobs:
         run: bash bin/build-zip.sh "${GITHUB_REF_NAME#v}"
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/universal-geo-context-*.zip
           generate_release_notes: true
