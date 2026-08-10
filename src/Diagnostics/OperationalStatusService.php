@@ -413,7 +413,7 @@ final class OperationalStatusService {
 			++$count;
 		}
 
-		if ( class_exists( 'WooCommerce' ) || function_exists( 'WC' ) ) {
+		if ( 'woocommerce' === $this->maxmind_path_source ) {
 			++$count;
 		}
 
