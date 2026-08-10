@@ -132,15 +132,18 @@ final class DetectionInspectorService {
 			$details[ $provider_id ] = array_merge(
 				$this->section_for_provider( $provider_id, $sections ),
 				array(
-					'provider_id'   => $provider_id,
-					'available'     => $this->resolver->is_provider_available( $provider_id ) ? 'yes' : 'no',
-					'confidence'    => $this->resolver->confidence_for_provider( $provider_id ),
-					'probe_reason'  => null !== $explicit_refresh_summary
+					'provider_id'        => $provider_id,
+					'available'          => $this->resolver->is_provider_available( $provider_id ) ? 'yes' : 'no',
+					'confidence'         => $this->resolver->confidence_for_provider( $provider_id ),
+					'probe_reason'       => null !== $explicit_refresh_summary
 						? __( 'Explicit refresh completed — rows reflect current configuration and health.', 'universal-geo-context' )
 						: __( 'Run Refresh now for a live probe.', 'universal-geo-context' ),
-					'probe_country' => null,
-					'last_failure'  => $health_row['last_failure'] ?? null,
-					'failure_count' => $health_row['failure_count'] ?? null,
+					'probe_country'      => null,
+					'last_error_class'   => $health_row['last_error_class'] ?? null,
+					'last_error_message' => $health_row['last_error_message'] ?? null,
+					'approx_count'       => $health_row['approx_count'] ?? null,
+					'last_failure'       => $health_row['last_error_message'] ?? null,
+					'failure_count'      => $health_row['approx_count'] ?? null,
 				)
 			);
 		}

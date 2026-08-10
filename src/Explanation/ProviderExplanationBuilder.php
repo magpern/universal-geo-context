@@ -212,6 +212,12 @@ final class ProviderExplanationBuilder {
 
 		$row = $health_rows[ $provider_id ];
 
+		if ( isset( $row['last_error_message'] ) && is_string( $row['last_error_message'] ) && '' !== $row['last_error_message'] ) {
+			$class = isset( $row['last_error_class'] ) && is_string( $row['last_error_class'] ) ? $row['last_error_class'] : '';
+
+			return '' !== $class ? $class . ': ' . $row['last_error_message'] : $row['last_error_message'];
+		}
+
 		return isset( $row['last_failure'] ) ? (string) $row['last_failure'] : null;
 	}
 }

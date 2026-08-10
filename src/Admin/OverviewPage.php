@@ -10,6 +10,8 @@ declare( strict_types=1 );
 namespace UniversalGeo\Admin;
 
 use UniversalGeo\Diagnostics\DiagnosticsService;
+use UniversalGeo\Diagnostics\OperationalStatus;
+use UniversalGeo\Diagnostics\OperationalStatusService;
 use UniversalGeo\Plugin;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Simulation\SimulationState;
@@ -25,15 +27,16 @@ final class OverviewPage implements Page {
 	/**
 	 * Stores the injected dependencies.
 	 *
-	 * @param DiagnosticsService     $diagnostics   Supplies overview slices and Site Health verdicts.
-	 * @param ContextResolver        $resolver      Used only for explicit Refresh now probe action.
-	 * @param ReportRenderer         $renderer      Renders definition lists inside cards.
-	 * @param AdminNotices           $notices       PRG redirects after refresh.
-	 * @param AdminHeaderRenderer    $header        Shared page header.
-	 * @param QuickActionsRenderer   $quick_actions Quick navigation card.
-	 * @param AdminActionRenderer    $actions       Shared action controls.
-	 * @param AdminComponentRenderer $components    Design-system components.
-	 * @param SimulationState        $simulation    Active simulation state.
+	 * @param DiagnosticsService       $diagnostics         Supplies overview slices and Site Health verdicts.
+	 * @param ContextResolver          $resolver            Used only for explicit Refresh now probe action.
+	 * @param ReportRenderer           $renderer            Renders definition lists inside cards.
+	 * @param AdminNotices             $notices             PRG redirects after refresh.
+	 * @param AdminHeaderRenderer      $header              Shared page header.
+	 * @param QuickActionsRenderer     $quick_actions       Quick navigation card.
+	 * @param AdminActionRenderer      $actions             Shared action controls.
+	 * @param AdminComponentRenderer   $components          Design-system components.
+	 * @param SimulationState          $simulation          Active simulation state.
+	 * @param OperationalStatusService $operational_status  Passiveiness evaluation (passive).
 	 */
 	public function __construct(
 		private readonly DiagnosticsService $diagnostics,
@@ -44,7 +47,8 @@ final class OverviewPage implements Page {
 		private readonly QuickActionsRenderer $quick_actions,
 		private readonly AdminActionRenderer $actions,
 		private readonly AdminComponentRenderer $components,
-		private readonly SimulationState $simulation
+		private readonly SimulationState $simulation,
+		private readonly OperationalStatusService $operational_status
 	) {
 	}
 
@@ -103,11 +107,12 @@ final class OverviewPage implements Page {
 			return;
 		}
 
-		$sections = $this->diagnostics->overview_sections();
-		$context  = Plugin::instance()->context();
-		$probe    = $this->last_refresh_summary_from_request();
-		$status   = $this->diagnostics->worst_site_health_status();
-		$shell    = $this->header->shell();
+		$sections  = $this->diagnostics->overview_sections();
+		$context   = Plugin::instance()->context();
+		$probe     = $this->last_refresh_summary_from_request();
+		$status    = $this->diagnostics->worst_site_health_status();
+		$readiness = $this->operational_status->evaluate();
+		$shell     = $this->header->shell();
 
 		$shell->open_wrap();
 		$shell->open();
@@ -129,9 +134,12 @@ final class OverviewPage implements Page {
 		$shell->open_content( true );
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->readiness_summary_panel( $readiness, AdminPageRegistry::page_url( AdminPageSlugs::DIAGNOSTICS ) );
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
 		echo $this->components->health_summary_panel( $status, AdminPageRegistry::page_url( AdminPageSlugs::DIAGNOSTICS ) );
 
-		$this->render_statistics_grid( $context, $sections, $status, $probe );
+		$this->render_statistics_grid( $context, $sections, $status, $probe, $readiness );
 
 		$this->quick_actions->render();
 
@@ -224,14 +232,15 @@ final class OverviewPage implements Page {
 	/**
 	 * Renders the dashboard statistics grid.
 	 *
-	 * @param \UniversalGeo\Model\VisitorContext    $context  Effective visitor context.
-	 * @param array<string, mixed>                  $sections Overview diagnostic sections.
-	 * @param string                                $status   Site health status.
-	 * @param array{ok_count: int, total: int}|null $probe Last refresh summary.
+	 * @param \UniversalGeo\Model\VisitorContext    $context   Effective visitor context.
+	 * @param array<string, mixed>                  $sections  Overview diagnostic sections.
+	 * @param string                                $status    Site health status.
+	 * @param array{ok_count: int, total: int}|null $probe     Last refresh summary.
+	 * @param OperationalStatus                     $readiness Operational readiness.
 	 *
 	 * @return void
 	 */
-	private function render_statistics_grid( $context, array $sections, string $status, ?array $probe ): void {
+	private function render_statistics_grid( $context, array $sections, string $status, ?array $probe, OperationalStatus $readiness ): void {
 		$country = $context->country_code ?? __( 'Unknown', 'universal-geo-context' );
 		$source  = (string) $context->source;
 		$health  = match ( $status ) {
@@ -239,7 +248,13 @@ final class OverviewPage implements Page {
 			'recommended' => __( 'Needs attention', 'universal-geo-context' ),
 			default       => __( 'Good', 'universal-geo-context' ),
 		};
-		$cache_on = ! empty( $sections['cache']['enabled'] ) ? __( 'Enabled', 'universal-geo-context' ) : __( 'Disabled', 'universal-geo-context' );
+		$ready_label = match ( $readiness->state ) {
+			OperationalStatus::STATE_READY => __( 'Ready', 'universal-geo-context' ),
+			OperationalStatus::STATE_DEGRADED => __( 'Degraded', 'universal-geo-context' ),
+			OperationalStatus::STATE_ACTION_REQUIRED => __( 'Action required', 'universal-geo-context' ),
+			default => __( 'Unavailable', 'universal-geo-context' ),
+		};
+		$cache_on = ! empty( $sections['cache']['derived_cache_enabled'] ) ? __( 'Enabled', 'universal-geo-context' ) : __( 'Disabled', 'universal-geo-context' );
 		$sim      = $this->simulation->is_active()
 			? (string) ( $this->simulation->active_country() ?? __( 'Active', 'universal-geo-context' ) )
 			: __( 'Inactive', 'universal-geo-context' );
@@ -270,11 +285,19 @@ final class OverviewPage implements Page {
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
 		echo $this->components->statistics_card( __( 'Provider Health', 'universal-geo-context' ), $provider_value, $provider_hint );
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
-		echo $this->components->statistics_card( __( 'Cache', 'universal-geo-context' ), $cache_on, (string) ( $sections['cache']['ttl'] ?? '' ) );
+		echo $this->components->statistics_card( __( 'Cache', 'universal-geo-context' ), $cache_on, (string) ( $sections['cache']['derived_cache_ttl'] ?? '' ) );
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
 		echo $this->components->statistics_card( __( 'Simulation', 'universal-geo-context' ), $sim, __( 'Session override', 'universal-geo-context' ) );
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
-		echo $this->components->statistics_card( __( 'Overall Health', 'universal-geo-context' ), $health, __( 'Site Health summary', 'universal-geo-context' ) );
+		echo $this->components->statistics_card(
+			__( 'Visitor Location', 'universal-geo-context' ),
+			$ready_label,
+			$readiness->consumer_usable
+				? __( 'Consumers can rely on the public API', 'universal-geo-context' )
+				: __( 'Consumers should treat results cautiously', 'universal-geo-context' )
+		);
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
+		echo $this->components->statistics_card( __( 'Site Health', 'universal-geo-context' ), $health, __( 'WordPress Site Health summary', 'universal-geo-context' ) );
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.
 		echo $this->components->statistics_grid_close();
 	}
@@ -383,8 +406,8 @@ final class OverviewPage implements Page {
 		$this->render_data_card(
 			__( 'Cache', 'universal-geo-context' ),
 			__( 'Derived context caching configuration.', 'universal-geo-context' ),
-			! empty( $sections['cache']['enabled'] ) ? 'active' : 'disabled',
-			! empty( $sections['cache']['enabled'] ) ? __( 'Enabled', 'universal-geo-context' ) : __( 'Disabled', 'universal-geo-context' ),
+			! empty( $sections['cache']['derived_cache_enabled'] ) ? 'active' : 'disabled',
+			! empty( $sections['cache']['derived_cache_enabled'] ) ? __( 'Enabled', 'universal-geo-context' ) : __( 'Disabled', 'universal-geo-context' ),
 			$sections['cache'],
 			AdminPageRegistry::page_url( AdminPageSlugs::SETTINGS ),
 			__( 'Open Settings', 'universal-geo-context' )
