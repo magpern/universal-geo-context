@@ -13,13 +13,13 @@ jobs:
   phpcs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         id: setup-php
         with:
           php-version: '8.3'
           coverage: none
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/composer
           key: ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-${{ hashFiles('composer.lock') }}
@@ -31,13 +31,13 @@ jobs:
   i18n:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         id: setup-php
         with:
           php-version: '8.3'
           coverage: none
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/composer
           key: ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-${{ hashFiles('composer.lock') }}
@@ -56,13 +56,13 @@ jobs:
         # tests/unit/bootstrap.php), so this is the PHP axis in isolation.
         php: ['8.1', '8.3', '8.4']
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         id: setup-php
         with:
           php-version: ${{ matrix.php }}
           coverage: none
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/composer
           key: ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-${{ hashFiles('composer.lock') }}
@@ -125,20 +125,20 @@ jobs:
       WP_DB_USER: root
       WP_DB_PASS: root
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         id: setup-php
         with:
           php-version: ${{ matrix.php }}
           extensions: mysqli
           coverage: none
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/composer
           key: ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-${{ hashFiles('composer.lock') }}-${{ matrix.wp_phpunit }}
           restore-keys: |
             ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-${{ hashFiles('composer.lock') }}-
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: matrix.wc != 'latest'
         with:
           path: tests/tmp/wordpress
@@ -153,13 +153,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         id: setup-php
         with:
           php-version: '8.1'
           coverage: none
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/composer
           key: ${{ runner.os }}-composer-${{ steps.setup-php.outputs.php-version }}-${{ hashFiles('composer.lock') }}
@@ -168,7 +168,7 @@ jobs:
       - run: composer install --no-dev --prefer-dist --no-progress --optimize-autoloader
       - run: bash bin/build-zip.sh
       - run: bash bin/release-audit.sh
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: universal-geo-context
           path: dist/universal-geo-context-*.zip
