@@ -174,6 +174,20 @@ final class UpdateScheduler {
 	}
 
 	/**
+	 * Passive scheduler snapshot for diagnostics/CLI — never mutates cron state.
+	 *
+	 * @return array{scheduler_registered: bool, next_scheduled_at: int|null}
+	 */
+	public function status(): array {
+		$next = function_exists( 'wp_next_scheduled' ) ? wp_next_scheduled( self::CRON_HOOK ) : false;
+
+		return array(
+			'scheduler_registered' => false !== $next,
+			'next_scheduled_at'    => false !== $next ? (int) $next : null,
+		);
+	}
+
+	/**
 	 * The cron callback: triggers a managed database update. Never surfaces
 	 * a return value — cron has no caller to report to; DatabaseManager's
 	 * own persisted state (`status()`) is the durable record of what

@@ -286,6 +286,33 @@ final class DatabaseManager {
 	}
 
 	/**
+	 * Whether a previous-generation managed database file is retained.
+	 *
+	 * @return bool
+	 */
+	public function previous_available(): bool {
+		$path = $this->previous_path();
+
+		return is_file( $path ) && is_readable( $path );
+	}
+
+	/**
+	 * Sanitized update-lock snapshot for diagnostics — never includes the token.
+	 *
+	 * @return array{locked: bool, owner: string, acquired_at: int|null, expires_at: int|null}
+	 */
+	public function lock_diagnostics(): array {
+		$state = $this->lock->state();
+
+		return array(
+			'locked'      => (bool) ( $state['locked'] ?? false ),
+			'owner'       => is_string( $state['owner'] ?? null ) ? (string) $state['owner'] : '',
+			'acquired_at' => is_int( $state['acquired_at'] ?? null ) ? $state['acquired_at'] : null,
+			'expires_at'  => is_int( $state['expires_at'] ?? null ) ? $state['expires_at'] : null,
+		);
+	}
+
+	/**
 	 * Re-validates the currently installed active database file,
 	 * structurally — no network call, no lock (read-only, never mutates the
 	 * managed directory or the lock's own state). The single method behind
