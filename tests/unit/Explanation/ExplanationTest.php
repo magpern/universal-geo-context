@@ -216,8 +216,11 @@ final class ExplanationTest extends TestCase {
 			new CircuitBreaker(),
 			'none',
 			new DatabaseManager( sys_get_temp_dir(), '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ),
-			'none'
-		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
+			'none',
+			new GeoCache( false, 900, 'sig' ),
+			new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ),
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() )
+		);
 		$cookie      = new SimulationCookie();
 		$simulation  = new SimulationState( $cookie, new SimulationAuthorization() );
 

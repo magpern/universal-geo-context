@@ -97,8 +97,11 @@ final class CommandTest extends TestCase {
 				new ArchiveExtractor(),
 				new UpdateLock()
 			),
-			'none'
-		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
+			'none',
+			new GeoCache( false, 900, 'sig' ),
+			new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ),
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() )
+		);
 
 		$operational = new OperationalStatusService(
 			$resolver,
@@ -116,7 +119,6 @@ final class CommandTest extends TestCase {
 		);
 
 		return new Command( $resolver, $diagnostics, $operational, $trusted_proxies );
-
 	}
 
 	// ---- resolve_format() -------------------------------------------------------------

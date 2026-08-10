@@ -40,11 +40,11 @@ final class OperationalStatusServiceTest extends TestCase {
 
 	protected function setUp(): void {
 		parent::setUp();
-		$GLOBALS['universal_geo_test_options'] = array();
-		$GLOBALS['universal_geo_test_cron']    = array();
-		$GLOBALS['universal_geo_test_filters'] = array();
-		$GLOBALS['universal_geo_test_actions'] = array();
-		$GLOBALS['universal_geo_test_is_logged_in'] = true;
+		$GLOBALS['universal_geo_test_options']          = array();
+		$GLOBALS['universal_geo_test_cron']             = array();
+		$GLOBALS['universal_geo_test_filters']          = array();
+		$GLOBALS['universal_geo_test_actions']          = array();
+		$GLOBALS['universal_geo_test_is_logged_in']     = true;
 		$GLOBALS['universal_geo_test_current_user_can'] = true;
 		unset( $_COOKIE['universal_geo_sim'] );
 	}
@@ -114,13 +114,13 @@ final class OperationalStatusServiceTest extends TestCase {
 	}
 
 	public function test_action_required_trusted_proxy_misconfiguration_not_consumer_usable(): void {
-		$request = ServerRequestFactory::make(
+		$request  = ServerRequestFactory::make(
 			'10.0.0.1',
 			array( 'X-Forwarded-For' => '203.0.113.9' )
 		);
-		$trusted = new TrustedProxies( array(), false );
-		$ip      = new ClientIpResolver( $request, $trusted );
-		$default = new DefaultCountryProvider( 'SE' );
+		$trusted  = new TrustedProxies( array(), false );
+		$ip       = new ClientIpResolver( $request, $trusted );
+		$default  = new DefaultCountryProvider( 'SE' );
 		$resolver = new ContextResolver( $ip, array( $default ), new GeoCache( false, 900, 'sig' ) );
 
 		$service = new OperationalStatusService(
@@ -210,8 +210,8 @@ final class OperationalStatusServiceTest extends TestCase {
 	}
 
 	/**
-	 * @param list<\UniversalGeo\Contracts\GeoProviderInterface> $providers Providers.
-	 * @param array<string, mixed>                               $settings  Settings overrides.
+	 * @param array<\UniversalGeo\Contracts\GeoProviderInterface> $providers Providers.
+	 * @param array<string, mixed>                                $settings  Settings overrides.
 	 */
 	private function evaluate(
 		array $providers,

@@ -139,6 +139,19 @@ if ( ! function_exists( 'esc_html' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_strip_all_tags' ) ) {
+	/**
+	 * Minimal WordPress stub for unit tests.
+	 *
+	 * @param string $text          String containing HTML.
+	 * @param bool   $remove_breaks Optional. Unused here.
+	 * @return string
+	 */
+	function wp_strip_all_tags( $text, $remove_breaks = false ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		return strip_tags( (string) $text ); // phpcs:ignore WordPress.WP.AlternativeFunctions.strip_tags_strip_tags -- Bootstrap stub mirrors WP helper for unit tests without WordPress.
+	}
+}
+
 if ( ! function_exists( 'esc_attr__' ) ) {
 	function esc_attr__( $text, $domain = 'default' ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound, Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 		return $text;

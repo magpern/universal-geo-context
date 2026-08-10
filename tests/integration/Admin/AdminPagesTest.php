@@ -107,8 +107,11 @@ final class AdminPagesTest extends WP_UnitTestCase {
 			new CircuitBreaker(),
 			'none',
 			$database_manager,
-			'none'
-		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
+			'none',
+			new GeoCache( false, 900, 'sig' ),
+			new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ),
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() )
+		);
 
 		return new TrustedProxiesPage(
 			$diagnostics,
@@ -450,8 +453,11 @@ final class AdminPagesTest extends WP_UnitTestCase {
 				new ArchiveExtractor(),
 				new UpdateLock()
 			),
-			'none'
-		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
+			'none',
+			new GeoCache( false, 900, 'sig' ),
+			new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ),
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() )
+		);
 
 		return new FirstRunNotice( $diagnostics );
 	}
@@ -531,8 +537,11 @@ final class AdminPagesTest extends WP_UnitTestCase {
 				new ArchiveExtractor(),
 				new UpdateLock()
 			),
-			'none'
-		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
+			'none',
+			new GeoCache( false, 900, 'sig' ),
+			new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ),
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() )
+		);
 	}
 
 	private function resolver_for_menu(): ContextResolver {

@@ -93,8 +93,11 @@ final class AdminComponentsTest extends TestCase {
 			new CircuitBreaker(),
 			'none',
 			$this->unused_database_manager(),
-			'none'
-		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
+			'none',
+			new GeoCache( false, 900, 'sig' ),
+			new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ),
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() )
+		);
 	}
 
 	private function unused_database_manager(): DatabaseManager {

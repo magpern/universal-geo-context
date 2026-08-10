@@ -117,8 +117,11 @@ final class LiveAcceptanceTest extends WP_UnitTestCase {
 				new ArchiveExtractor(),
 				new UpdateLock()
 			),
-			'none'
-		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
+			'none',
+			new GeoCache( false, 900, 'sig' ),
+			new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ),
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() )
+		);
 		$this->assertSame( 'critical', $diagnostics->maxmind_site_status_test()['status'] );
 
 		// A second identical lookup within the same request reuses the
