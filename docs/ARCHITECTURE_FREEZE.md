@@ -426,7 +426,10 @@ The following are enforced by the guard test `CompositionRootTest`:
 
 - **Test**: `universal_geo_maxmind` (M3) — Warns if the configured database is missing or stale (30/90 day thresholds).
 - **Test**: `universal_geo_remote_provider` (M4) — Warns if the remote provider is enabled but not available, or if recent failures have tripped the circuit breaker.
-- **Test**: `universal_geo_maxmind_managed` (M6+, new in v1.1) — Warns if the managed database is stale or missing (14/30 day thresholds, distinct from custom-path thresholds).
+- **Test**: `universal_geo_maxmind_managed` (M6+, new in v1.1) — Warns if the managed database is stale or missing (14/30 day thresholds, distinct from custom-path thresholds). M12 additionally recommends when auto-update is enabled without credentials or without a registered scheduler.
+- **Test**: `universal_geo_trusted_proxy` (M2) — Critical when forwarding headers are present with a private peer and an empty trusted set.
+- **Test**: `universal_geo_provider_chain` (M12) — Critical when the chain is empty; recommended when only the default fallback is available.
+- **Test**: `universal_geo_cache` (M12) — Flags genuine UGC cache configuration problems only; never treats missing Redis/Memcached as a problem; never critical.
 - **Debug info**: `debug_information` filter (M5) — DiagnosticsService reports full diagnostics data for the Site Health Info screen.
 
 ### 11.2 WP-CLI commands
@@ -435,6 +438,7 @@ The following are enforced by the guard test `CompositionRootTest`:
 - `wp universal-geo diagnostics [--format=<json|yaml>]` — Report full diagnostics.
 - `wp universal-geo cache flush` — Clear the derived-context cache.
 - Additional commands (M6+): `wp universal-geo database status|download|validate|remove|restore`.
+- Additional commands (M12): `wp universal-geo status`, `wp universal-geo providers`, `wp universal-geo trusted-proxies [--test=<ip>]`.
 
 ### 11.3 Redaction principles
 
@@ -442,6 +446,8 @@ The following are enforced by the guard test `CompositionRootTest`:
 - **Masked IPs**: Diagnostic output shows `8.8.8.x`, never `8.8.8.8`.
 - **Generic status codes**: `'HTTP 401'`, not the raw response body or Authorization header.
 - **No presigned URLs**: Redirect targets are redacted to host only (e.g., `r2.cloudflarestorage.com`), never the full signed URL.
+- **No update-lock tokens** (M12): lock diagnostics expose locked/owner/timestamps only.
+- **Trusted-proxy `--test`** (M12): reports matched + matching CIDR without echoing the tested IP.
 
 ---
 

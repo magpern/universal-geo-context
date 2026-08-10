@@ -1,14 +1,12 @@
 # Roadmap
 
-**Status: M1–M11 shipped through v1.6.0. Architecture frozen through M8 — see `docs/ARCHITECTURE_FREEZE.md`.**
+**Status: M1–M12 shipped through v1.7.0. Architecture frozen through M8 — see `docs/ARCHITECTURE_FREEZE.md`.**
 
-**Architecture governance**: See `docs/ARCHITECTURE_FREEZE.md` for the frozen contracts of the v1.x series (including the M8 simulation framework) and guidance on architectural evolution for future milestones.
-
-**Admin UX (v1.x)**: M10 (navigation polish) and M11 (Universal Admin Design System) complete the foundational admin infrastructure. Future milestones should concentrate on functionality — additional providers, testing capabilities, enterprise features, and the deferred items below — rather than further admin shell work unless a concrete gap appears.
+**Admin UX (v1.x)**: M10 (navigation polish) and M11 (Universal Admin Design System) complete the foundational admin infrastructure. M12 adds operational readiness without further shell redesign. Future milestones should concentrate on functionality — additional providers, testing capabilities, enterprise features, and the deferred items below — rather than further admin shell work unless a concrete gap appears.
 
 ## Next milestone
 
-No M12 admin-infrastructure milestone is planned. See **Explicitly deferred to 1.5 or later** below for functionality candidates.
+Region support / GeoLite2 City (M13 candidates). See **Explicitly deferred to 1.5 or later** below for other functionality candidates.
 
 ## Milestone timeline
 
@@ -23,6 +21,7 @@ No M12 admin-infrastructure milestone is planned. See **Explicitly deferred to 1
 - **v1.4.0 (M9)** — Detection Inspector: explanation layer, Detection tab (timeline, real vs effective context, provider/cache/proxy sections), Providers detail page, explicit refresh only probe; no detection, cache, simulation, or public API changes. Shipped.
 - **v1.5.0 (M10)** — Admin UX polish: shared in-plugin navigation on every page, page descriptions, Quick Actions on Overview, actionable dashboard cards, contextual page actions, presentation-only admin stylesheet. Shipped.
 - **v1.6.0 (M11)** — Universal Admin Design System adoption: branded shell, icon navigation, statistics grid, settings cards, provider cards, timeline, sticky save bars, scoped `ugc-ui-*` CSS/JS. Presentation-only — no runtime, API, settings schema, or resolver behaviour changes. Shipped. **M11 complete.**
+- **v1.7.0 (M12)** — Operational Hardening & Consumer Readiness: internal `OperationalStatus` model (ready/degraded/action_required/unavailable + consumer_usable); Site Health provider-chain and cache tests; managed-DB credential/scheduler messaging; `wp universal-geo status|providers|trusted-proxies`; Overview/Diagnostics readiness UX; diagnostics enrichment (simulation, scheduler, lock, previous DB); Settings nested-form fix; Overview cache and Inspector health mapping fixes. No public API change. Shipped. **M12 complete.**
 
 ## Explicitly deferred to 1.5 or later
 
@@ -31,8 +30,6 @@ No M12 admin-infrastructure milestone is planned. See **Explicitly deferred to 1
 - REST API
 - Additional GeoIP data (city, postcode, timezone, ASN)
 - Client-side resolution for page-cached sites
-- Additional Site Health tests (cache health, empty-provider-chain)
-- Additional WP-CLI commands (`providers`, `trusted-proxies --test`, `cloudflare-ranges --update`)
 - Additional hooks
 - Bot classification
 - VPN/proxy detection
@@ -40,3 +37,4 @@ No M12 admin-infrastructure milestone is planned. See **Explicitly deferred to 1
 - Network-wide multisite settings
 - Splitting large services if they outgrow single files
 - ADR-0001/0004 backfill
+- Public readiness API (`universal_geo_get_health` / similar) unless a concrete consumer requires it

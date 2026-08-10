@@ -4,7 +4,7 @@ Tags: geolocation, country, geoip, woocommerce, privacy
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.6.0
+Stable tag: 1.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -108,6 +108,15 @@ No. It detects geographic facts only. Consumers — other plugins reading
 its public functions — decide what those facts mean.
 
 == Changelog ==
+
+= 1.7.0 =
+* Operational readiness: internal ready/degraded/action_required/unavailable status with consumer_usable, Overview and Diagnostics indicators, and `wp universal-geo status`.
+* Site Health: provider-chain and cache tests; managed-database checks for missing credentials/scheduler when auto-update is enabled.
+* CLI: `providers` (explicit probe) and `trusted-proxies [--test=<ip>]` (local membership; no IP echo).
+* Diagnostics: simulation, scheduler, update-lock (token redacted), previous database, and cache operational fields.
+* Fixes Overview cache key mapping and Detection Inspector provider-health field mapping.
+* Settings: managed-database action forms are no longer nested inside the settings save form.
+* No public API, resolver, provider-order, cache-semantics, or settings-schema changes.
 
 = 1.6.0 =
 * Admin design system: Universal Multicurrency–aligned shell, icon navigation, statistics grid, settings cards, provider cards, timeline, sticky save bars, and scoped `ugc-ui-*` CSS.

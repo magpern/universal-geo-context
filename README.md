@@ -2,7 +2,7 @@
 
 **Visitor geolocation detection and country resolution — evidence-based, privacy-respecting, and easily extensible.**
 
-**Status: v1.6.0 (M11) — Universal Admin Design System adoption.** A working WordPress plugin that resolves a
+**Status: v1.7.0 (M12) — Operational Hardening & Consumer Readiness.** A working WordPress plugin that resolves a
 visitor's country from a fixed chain of providers (Cloudflare headers, a
 local MaxMind database, WooCommerce's own geolocation, an optional remote
 MaxMind web service, and a configured default), attributes the answer to a
@@ -96,6 +96,9 @@ Full timeline: [docs/ROADMAP.md](docs/ROADMAP.md).
 ```
 wp universal-geo context [--ip=<ip>] [--format=table|json|yaml] [--allow-full-ip]
 wp universal-geo diagnostics [--format=table|json|yaml] [--allow-full-ip]
+wp universal-geo status [--format=table|json|yaml]
+wp universal-geo providers [--format=table|json|yaml]
+wp universal-geo trusted-proxies [--test=<ip>] [--format=table|json|yaml]
 wp universal-geo cache flush
 wp universal-geo database status|download|validate|remove|restore [--format=table|json|yaml]
 ```

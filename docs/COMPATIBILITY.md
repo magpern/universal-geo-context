@@ -5,7 +5,7 @@ this document, and `readme.txt`'s `Stable tag`) is enforced automatically by
 `tests/unit/VersionParityTest.php`, which runs on every PR/CI build — no
 longer a manual check.
 
-**Current plugin version: `1.6.0`**
+**Current plugin version: `1.7.0`**
 
 ## Version support
 
