@@ -22,6 +22,7 @@ use UniversalGeo\MaxMind\UpdateLock;
 use UniversalGeo\MaxMind\UpdateScheduler;
 use UniversalGeo\Model\GeoCandidate;
 use UniversalGeo\Plugin;
+use UniversalGeo\Providers\DefaultCountryProvider;
 use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
@@ -978,6 +979,135 @@ final class DiagnosticsServiceTest extends TestCase {
 		// Even though this scenario would otherwise be critical, an
 		// unauthorized user must never see that verdict.
 		$this->assertSame( 'good', $service->maxmind_managed_site_status_test()['status'] );
+	}
+
+	// ---- Site Health: provider chain + cache (M12) --------------------------------------
+
+	public function test_add_site_status_tests_registers_provider_chain_and_cache(): void {
+		$tests = $this->service()->add_site_status_tests( array() );
+
+		$this->assertArrayHasKey( DiagnosticsService::TEST_PROVIDER_CHAIN, $tests['direct'] );
+		$this->assertArrayHasKey( DiagnosticsService::TEST_CACHE, $tests['direct'] );
+	}
+
+	public function test_provider_chain_site_status_test_is_good_with_preferred_provider(): void {
+		$service = $this->service(
+			null,
+			null,
+			array(),
+			array( new TrackingGeoProvider( 'cloudflare', true, new GeoCandidate( 'SE', null ) ) )
+		);
+
+		$result = $service->provider_chain_site_status_test();
+
+		$this->assertSame( 'good', $result['status'] );
+		$this->assertSame( DiagnosticsService::TEST_PROVIDER_CHAIN, $result['test'] );
+	}
+
+	public function test_provider_chain_site_status_test_is_recommended_when_only_default_available(): void {
+		$service = $this->service(
+			null,
+			null,
+			array( 'default_country' => 'SE' ),
+			array( new DefaultCountryProvider( 'SE' ) )
+		);
+
+		$result = $service->provider_chain_site_status_test();
+
+		$this->assertSame( 'recommended', $result['status'] );
+		$this->assertStringContainsString( 'default', strtolower( strip_tags( $result['description'] ) ) );
+	}
+
+	public function test_provider_chain_site_status_test_is_critical_when_chain_empty(): void {
+		$service = $this->service( null, null, array(), array() );
+
+		$this->assertSame( 'critical', $service->provider_chain_site_status_test()['status'] );
+	}
+
+	public function test_cache_site_status_test_is_good_without_external_object_cache(): void {
+		$GLOBALS['universal_geo_test_using_ext_object_cache'] = false;
+
+		$result = $this->service(
+			null,
+			null,
+			array(
+				'derived_cache_enabled' => true,
+				'derived_cache_ttl'     => 900,
+			)
+		)->cache_site_status_test();
+
+		$this->assertSame( 'good', $result['status'] );
+		$this->assertSame( DiagnosticsService::TEST_CACHE, $result['test'] );
+		$this->assertStringNotContainsString( 'Redis', $result['description'] );
+		$this->assertStringNotContainsString( 'Memcached', $result['description'] );
+		$this->assertStringContainsString( 'optional', strtolower( strip_tags( $result['description'] ) ) );
+	}
+
+	public function test_cache_site_status_test_never_returns_critical(): void {
+		$result = $this->service(
+			null,
+			null,
+			array(
+				'derived_cache_enabled' => true,
+				'derived_cache_ttl'     => 1, // Impossible post-sanitize shape.
+			)
+		)->cache_site_status_test();
+
+		$this->assertNotSame( 'critical', $result['status'] );
+		$this->assertSame( 'recommended', $result['status'] );
+	}
+
+	public function test_maxmind_managed_site_status_test_is_recommended_when_auto_update_missing_credentials(): void {
+		$service = $this->service(
+			null,
+			null,
+			array(
+				'maxmind_managed_enabled'             => true,
+				'maxmind_managed_auto_update_enabled' => true,
+			),
+			array(),
+			null,
+			new MaxMindProvider( '' ),
+			null,
+			'none',
+			$this->installed_database_manager( 1 )
+		);
+
+		$result = $service->maxmind_managed_site_status_test();
+
+		$this->assertSame( 'recommended', $result['status'] );
+		$this->assertStringContainsString( 'credentials', strtolower( strip_tags( $result['description'] ) ) );
+	}
+
+	public function test_maxmind_managed_site_status_test_is_recommended_when_scheduler_missing(): void {
+		$GLOBALS['universal_geo_test_cron'] = array();
+
+		$service = $this->service(
+			null,
+			null,
+			array(
+				'maxmind_managed_enabled'             => true,
+				'maxmind_managed_auto_update_enabled' => true,
+			),
+			array(),
+			null,
+			new MaxMindProvider( '' ),
+			null,
+			'settings',
+			$this->installed_database_manager( 1 )
+		);
+
+		$result = $service->maxmind_managed_site_status_test();
+
+		$this->assertSame( 'recommended', $result['status'] );
+		$this->assertStringContainsString( 'schedul', strtolower( strip_tags( $result['description'] ) ) );
+	}
+
+	public function test_worst_site_health_status_includes_provider_chain_and_cache(): void {
+		$service = $this->service( null, null, array(), array() );
+
+		// Empty provider chain is critical → worst must surface critical.
+		$this->assertSame( 'critical', $service->worst_site_health_status() );
 	}
 
 	// ---- Class shape --------------------------------------------------------------------
