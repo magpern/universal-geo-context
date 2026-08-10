@@ -31,6 +31,9 @@ use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Settings;
 use UniversalGeo\Tests\Support\FakeHttpTransport;
+use UniversalGeo\Simulation\SimulationAuthorization;
+use UniversalGeo\Simulation\SimulationCookie;
+use UniversalGeo\Simulation\SimulationState;
 use WP_UnitTestCase;
 
 /**
@@ -105,7 +108,7 @@ final class AdminPagesTest extends WP_UnitTestCase {
 			'none',
 			$database_manager,
 			'none'
-		);
+		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
 
 		return new TrustedProxiesPage(
 			$diagnostics,
@@ -448,7 +451,7 @@ final class AdminPagesTest extends WP_UnitTestCase {
 				new UpdateLock()
 			),
 			'none'
-		);
+		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
 
 		return new FirstRunNotice( $diagnostics );
 	}
@@ -529,7 +532,7 @@ final class AdminPagesTest extends WP_UnitTestCase {
 				new UpdateLock()
 			),
 			'none'
-		);
+		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
 	}
 
 	private function resolver_for_menu(): ContextResolver {

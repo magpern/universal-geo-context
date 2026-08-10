@@ -34,6 +34,7 @@ use UniversalGeo\Simulation\SimulationState;
 use UniversalGeo\Tests\Support\FakeHttpTransport;
 use UniversalGeo\Tests\Support\ServerRequestFactory;
 use UniversalGeo\Tests\Unit\Doubles\TrackingGeoProvider;
+use UniversalGeo\MaxMind\UpdateScheduler;
 
 /**
  * @covers \UniversalGeo\Explanation\DetectionInspectorService
@@ -216,7 +217,7 @@ final class ExplanationTest extends TestCase {
 			'none',
 			new DatabaseManager( sys_get_temp_dir(), '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ),
 			'none'
-		);
+		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
 		$cookie      = new SimulationCookie();
 		$simulation  = new SimulationState( $cookie, new SimulationAuthorization() );
 

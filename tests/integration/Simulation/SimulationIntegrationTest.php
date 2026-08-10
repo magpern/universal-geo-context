@@ -41,6 +41,7 @@ use UniversalGeo\Http\TrustedProxies;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Settings;
 use UniversalGeo\Tests\Support\FakeHttpTransport;
+use UniversalGeo\MaxMind\UpdateScheduler;
 use WP_UnitTestCase;
 
 /**
@@ -101,7 +102,7 @@ final class SimulationIntegrationTest extends WP_UnitTestCase {
 			'none',
 			new DatabaseManager( sys_get_temp_dir(), '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ),
 			'none'
-		);
+		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
 		$inspector   = new DetectionInspectorService(
 			$resolver,
 			new ClientIpResolver( $request, $trusted ),

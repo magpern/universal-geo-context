@@ -94,7 +94,7 @@ final class AdminComponentsTest extends TestCase {
 			'none',
 			$this->unused_database_manager(),
 			'none'
-		);
+		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
 	}
 
 	private function unused_database_manager(): DatabaseManager {
@@ -199,11 +199,11 @@ final class AdminComponentsTest extends TestCase {
 		$state            = new SimulationState( new SimulationCookie(), new SimulationAuthorization() );
 
 		return new Menu(
-			new OverviewPage( $diagnostics, $resolver, $renderer, $notices, AdminUxFactory::header(), AdminUxFactory::quick_actions(), AdminUxFactory::actions(), AdminUxFactory::components(), $state ),
+			new OverviewPage( $diagnostics, $resolver, $renderer, $notices, AdminUxFactory::header(), AdminUxFactory::quick_actions(), AdminUxFactory::actions(), AdminUxFactory::components(), $state, AdminUxFactory::operational_status() ),
 			$this->detection_page( $resolver ),
 			new ProvidersPage( $this->inspector_service( $resolver, $diagnostics ), $renderer, AdminUxFactory::header(), AdminUxFactory::actions(), AdminUxFactory::components() ),
 			new TrustedProxiesPage( $diagnostics, ServerRequestFactory::make(), $renderer, $notices, AdminUxFactory::header(), AdminUxFactory::actions(), AdminUxFactory::components() ),
-			new \UniversalGeo\Admin\DiagnosticsPage( $diagnostics, $renderer, AdminUxFactory::header(), AdminUxFactory::actions(), AdminUxFactory::components() ),
+			new \UniversalGeo\Admin\DiagnosticsPage( $diagnostics, $renderer, AdminUxFactory::header(), AdminUxFactory::actions(), AdminUxFactory::components(), AdminUxFactory::operational_status() ),
 			new SettingsPage( new UpdateScheduler( $database_manager ), $database_manager, $notices, AdminUxFactory::header(), AdminUxFactory::actions(), AdminUxFactory::components(), $renderer )
 		);
 	}
@@ -324,7 +324,8 @@ final class AdminComponentsTest extends TestCase {
 			AdminUxFactory::quick_actions(),
 			AdminUxFactory::actions(),
 			AdminUxFactory::components(),
-			new SimulationState( new SimulationCookie(), new SimulationAuthorization() )
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() ),
+			AdminUxFactory::operational_status()
 		);
 
 		ob_start();
@@ -373,7 +374,8 @@ final class AdminComponentsTest extends TestCase {
 			AdminUxFactory::quick_actions(),
 			AdminUxFactory::actions(),
 			AdminUxFactory::components(),
-			new SimulationState( new SimulationCookie(), new SimulationAuthorization() )
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() ),
+			AdminUxFactory::operational_status()
 		);
 
 		$_POST = array(
@@ -430,7 +432,8 @@ final class AdminComponentsTest extends TestCase {
 			AdminUxFactory::quick_actions(),
 			AdminUxFactory::actions(),
 			AdminUxFactory::components(),
-			new SimulationState( new SimulationCookie(), new SimulationAuthorization() )
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() ),
+			AdminUxFactory::operational_status()
 		);
 
 		ob_start();

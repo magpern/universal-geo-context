@@ -25,6 +25,11 @@ use UniversalGeo\Providers\MaxMindProvider;
 use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Tests\Support\FakeHttpTransport;
+use UniversalGeo\MaxMind\UpdateScheduler;
+use UniversalGeo\Simulation\SimulationAuthorization;
+use UniversalGeo\Simulation\SimulationCookie;
+use UniversalGeo\Simulation\SimulationState;
+use UniversalGeo\Diagnostics\OperationalStatusService;
 use WP_UnitTestCase;
 
 /**
@@ -89,9 +94,25 @@ final class CommandTest extends WP_UnitTestCase {
 				new UpdateLock()
 			),
 			'none'
+		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
+
+		$operational = new OperationalStatusService(
+			$resolver,
+			$request,
+			$trusted_proxies,
+			array(),
+			new ProviderHealthStore(),
+			new MaxMindProvider( '' ),
+			new CircuitBreaker(),
+			'none',
+			new DatabaseManager( sys_get_temp_dir() . '/ugeo-cli-ops', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ),
+			new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-cli-ops2', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ),
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() ),
+			'none'
 		);
 
-		return new Command( $resolver, $diagnostics );
+		return new Command( $resolver, $diagnostics, $operational, $trusted_proxies );
+
 	}
 
 	/**

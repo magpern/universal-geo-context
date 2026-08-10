@@ -34,6 +34,10 @@ use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Tests\Support\FakeHttpTransport;
 use UniversalGeo\Tests\Support\ServerRequestFactory;
+use UniversalGeo\Simulation\SimulationAuthorization;
+use UniversalGeo\Simulation\SimulationCookie;
+use UniversalGeo\Simulation\SimulationState;
+use UniversalGeo\Diagnostics\OperationalStatusService;
 
 /**
  * Builds admin presentation helpers for unit/integration tests.
@@ -150,6 +154,45 @@ final class AdminUxFactory {
 			new CircuitBreaker(),
 			'none',
 			$database_manager,
+			'none',
+			new GeoCache( false, 900, 'sig' ),
+			new UpdateScheduler( $database_manager ),
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() )
+		);
+	}
+
+	/**
+	 * Returns a passive operational status service for admin presentation tests.
+	 *
+	 * @return OperationalStatusService
+	 */
+	public static function operational_status(): OperationalStatusService {
+		$database_manager = new DatabaseManager(
+			sys_get_temp_dir() . '/ugeo-admin-ops-unused',
+			'',
+			'',
+			true,
+			new FakeHttpTransport(),
+			new ArchiveExtractor(),
+			new UpdateLock()
+		);
+		$request         = ServerRequestFactory::make();
+		$trusted_proxies = new TrustedProxies( array(), false );
+		$ip_resolver     = new ClientIpResolver( $request, $trusted_proxies );
+		$resolver        = new ContextResolver( $ip_resolver, array(), new GeoCache( false, 900, 'sig' ) );
+
+		return new OperationalStatusService(
+			$resolver,
+			$request,
+			$trusted_proxies,
+			array(),
+			new ProviderHealthStore(),
+			new MaxMindProvider( '' ),
+			new CircuitBreaker(),
+			'none',
+			$database_manager,
+			new UpdateScheduler( $database_manager ),
+			new SimulationState( new SimulationCookie(), new SimulationAuthorization() ),
 			'none'
 		);
 	}

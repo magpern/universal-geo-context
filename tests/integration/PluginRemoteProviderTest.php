@@ -14,6 +14,10 @@ use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Diagnostics\DiagnosticsService;
 use UniversalGeo\Plugin;
 use UniversalGeo\Settings;
+use UniversalGeo\MaxMind\UpdateScheduler;
+use UniversalGeo\Simulation\SimulationAuthorization;
+use UniversalGeo\Simulation\SimulationCookie;
+use UniversalGeo\Simulation\SimulationState;
 use WP_UnitTestCase;
 
 /**
@@ -72,7 +76,7 @@ final class PluginRemoteProviderTest extends WP_UnitTestCase {
 			$graph['remote_credential_source'],
 			$graph['database_manager'],
 			$graph['maxmind_path_source']
-		);
+		, new GeoCache( false, 900, 'sig' ), new UpdateScheduler( new DatabaseManager( sys_get_temp_dir() . '/ugeo-m12-unused', '', '', true, new FakeHttpTransport(), new ArchiveExtractor(), new UpdateLock() ) ), new SimulationState( new SimulationCookie(), new SimulationAuthorization() ));
 	}
 
 	// ---- No-network Site Health assertions (M4) ----------------------------------
