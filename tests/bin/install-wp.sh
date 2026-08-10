@@ -129,36 +129,19 @@ if [ ! -d "$WP_DIR/wp-content/plugins/woocommerce" ]; then
 
 	TMPZIP=$(mktemp)
 
+	# Always install a *built* plugin zip (includes vendor/). GitHub trunk or
+	# tagged *source* archives are the monorepo layout without vendor/ —
+	# WooCommerce then reports "installation incomplete" and never boots.
+	# wordpress.org / GitHub Release assets match what a site operator installs.
 	if [ "$WC_VERSION" = "latest" ]; then
-		# No built release asset exists for an unreleased trunk build —
-		# fall back to the source archive (the whole monorepo: packages/,
-		# plugins/, tools/, ...), then promote the nested plugin directory.
-		curl -sSLo "$TMPZIP" "https://github.com/woocommerce/woocommerce/archive/refs/heads/trunk.zip"
-		unzip -q "$TMPZIP"
-		rm "$TMPZIP"
-
-		if [ -d "woocommerce-trunk" ]; then
-			mv "woocommerce-trunk" woocommerce
-		fi
-
-		if [ -f "woocommerce/plugins/woocommerce/woocommerce.php" ]; then
-			mv "woocommerce/plugins/woocommerce" woocommerce-plugin-only
-			rm -rf woocommerce
-			mv woocommerce-plugin-only woocommerce
-		fi
+		# Same approach as universal-multicurrency / mp-commerce-fulfillment:
+		# the current stable built package from wordpress.org.
+		curl -sSLo "$TMPZIP" "https://downloads.wordpress.org/plugin/woocommerce.zip"
 	else
-		# The tagged source archive is the whole monorepo and, unlike the
-		# release asset below, ships no pre-built vendor/ — WooCommerce
-		# itself then reports "installation incomplete" and never boots.
-		# The GitHub Release's own "woocommerce.zip" asset is the actual
-		# built plugin (already the standard single-plugin zip layout,
-		# top-level directory "woocommerce/", vendor/ included) — the
-		# correct artifact for a runtime install, exactly what a site
-		# operator would download from wordpress.org.
 		curl -sSLo "$TMPZIP" "https://github.com/woocommerce/woocommerce/releases/download/$WC_VERSION/woocommerce.zip"
-		unzip -q "$TMPZIP"
-		rm "$TMPZIP"
 	fi
+	unzip -q "$TMPZIP"
+	rm "$TMPZIP"
 fi
 
 echo "WordPress test environment ready."
