@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (M1), amended (M3, M4)
+Accepted (M1), amended (M3, M4, M13)
 
 ## Context
 
@@ -134,6 +134,15 @@ amendment note with nothing to amend.
     support (ISO 3166-2, GeoLite2-City) is explicitly 1.1, and diagnostics
     surfaces an informational note when a City database is detected rather
     than silently under-using it.
+
+    **Amended M13 (ADR-0010):** `MaxMindProvider::resolve()` now also reads
+    `subdivisions[0].iso_code` when present, defensively, alongside the
+    country it already read. Decision 1's "providers are pure fact
+    carriers" and decision 2's "`ContextResolver` owns every judgment call"
+    are unchanged — validation and normalization of the raw region value
+    remain `GeoValidator::region()`'s job, applied uniformly by the
+    resolver, exactly as they already were for country. See ADR-0010 for
+    the full region contract and provider-capability matrix.
 
 ### M4 amendment — the remote provider
 

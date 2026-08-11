@@ -15,7 +15,7 @@ Six functions and one value object:
 ```php
 universal_geo_get_context(): UniversalGeo\Model\VisitorContext
 universal_geo_get_country_code(): ?string
-universal_geo_get_region_code(): ?string       // always null in v1
+universal_geo_get_region_code(): ?string       // subdivision code when the winning provider supplies one (M13); else null
 universal_geo_get_source(): string
 universal_geo_get_confidence(): float
 universal_geo_api_version(): int

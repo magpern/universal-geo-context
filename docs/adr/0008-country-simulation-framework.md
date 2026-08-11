@@ -141,7 +141,12 @@ Allowed evolution (with ADR if touching frozen semantics):
 - **M9 — Providers detail pages:** Read-only provider inspection; orthogonal
   to simulation.
 - **Region simulation:** Would require new ADR for `region_code` semantics;
-  not in M8 scope.
+  not in M8 scope. **Confirmed still out of scope as of M13** (ADR-0010):
+  M13 activated real region resolution for MaxMind City-edition databases,
+  but deliberately did not touch simulation. `region_code = null` when
+  simulation is active remains exactly as frozen above — a real,
+  region-capable context is never mutated by simulation and is restored
+  unchanged once simulation stops.
 - **Additional simulation metadata in admin UI:** Labels, warnings, audit
   logging — provided they do not change public API or cache behaviour.
 

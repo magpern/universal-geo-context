@@ -100,9 +100,11 @@ function universal_geo_get_context(): UniversalGeo\Model\VisitorContext
 function universal_geo_get_country_code(): ?string
 
 /**
- * Convenience shorthand: the region code from the context (always null in v1).
+ * Convenience shorthand: the region code from the context.
  *
- * @return string|null  ISO 3166-2 code, or null.
+ * @return string|null  Subdivision-only code (e.g. 'CA', never the compound
+ *                       'US-CA' form; M13, GeoValidator::region()), when the
+ *                       winning provider supplied one — else null.
  */
 function universal_geo_get_region_code(): ?string
 
@@ -344,7 +346,12 @@ The following are enforced by the guard test `CompositionRootTest`:
 ## 8. Settings architecture
 
 **Option name**: `universal_geo_settings`  
-**Schema version**: 4 (locked; M5 bumped it from v3)
+**Schema version**: 5 (locked; M6 bumped it from v4 for managed GeoLite2 downloads — this
+line previously read "4", a pre-existing documentation drift never corrected
+in M6–M12; fixed here in M13 as an unrelated, incidental correction, not a
+schema change of its own. M13 does not bump the schema; `Settings::SCHEMA_VERSION`
+in code stays 5, per ADR-0010's NO-GO decision on managed GeoLite2 City
+support.)
 
 ### 8.1 Ownership
 

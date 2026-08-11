@@ -1,11 +1,11 @@
 # Compatibility Matrix
 
-**Status: M9 complete.** Version-header parity (header, `UNIVERSAL_GEO_VERSION`,
+**Status: M13 complete.** Version-header parity (header, `UNIVERSAL_GEO_VERSION`,
 this document, and `readme.txt`'s `Stable tag`) is enforced automatically by
 `tests/unit/VersionParityTest.php`, which runs on every PR/CI build — no
 longer a manual check.
 
-**Current plugin version: `1.7.0`**
+**Current plugin version: `1.8.0`**
 
 ## Version support
 
@@ -90,3 +90,14 @@ See `docs/ARCHITECTURE_FREEZE.md` §21 and ADR-0008 for frozen contracts.
 
 Admin-only diagnostics on the Detection and Providers pages. No public API,
 provider, cache, or simulation contract changes. See ADR-0009.
+
+## Region/subdivision support (M13)
+
+`universal_geo_get_region_code()` (existing since v0.1.0) now returns a real
+subdivision code when the winning provider supplies one — currently only
+`MaxMindProvider` against a City-edition `.mmdb`, manually configured or
+WooCommerce-detected. No API shape, provider interface, cache format, or
+simulation contract change; `Settings::SCHEMA_VERSION` stays `5`. Consumers
+that already ignore `region_code` need no changes. Managed GeoLite2 City
+downloads were investigated and given an explicit NO-GO for this release —
+see ADR-0010.

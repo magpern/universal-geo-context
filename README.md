@@ -2,15 +2,18 @@
 
 **Visitor geolocation detection and country resolution — evidence-based, privacy-respecting, and easily extensible.**
 
-**Status: v1.7.0 (M12) — Operational Hardening & Consumer Readiness.** A working WordPress plugin that resolves a
-visitor's country from a fixed chain of providers (Cloudflare headers, a
-local MaxMind database, WooCommerce's own geolocation, an optional remote
-MaxMind web service, and a configured default), attributes the answer to a
-source, scores its confidence, and hands back one immutable context object.
-It never persists a raw IP address, and never sends one off-server unless
-an administrator explicitly enables and acknowledges the remote provider.
-The local MaxMind database can now be kept up to date automatically,
-opt-in, via managed GeoLite2 Country downloads. Built for WooCommerce but
+**Status: v1.8.0 (M13) — Region & Subdivision Support.** A working WordPress plugin that resolves a
+visitor's country (and, when a City-edition MaxMind database is in use,
+first-level subdivision) from a fixed chain of providers (Cloudflare
+headers, a local MaxMind database, WooCommerce's own geolocation, an
+optional remote MaxMind web service, and a configured default), attributes
+the answer to a source, scores its confidence, and hands back one immutable
+context object. It never persists a raw IP address, and never sends one
+off-server unless an administrator explicitly enables and acknowledges the
+remote provider. The local MaxMind database can now be kept up to date
+automatically, opt-in, via managed GeoLite2 Country downloads (managed City
+downloads were investigated and explicitly deferred — see
+`docs/adr/0010-region-subdivision-support.md`). Built for WooCommerce but
 works standalone.
 
 ## Design principles

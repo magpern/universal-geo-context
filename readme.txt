@@ -4,7 +4,7 @@ Tags: geolocation, country, geoip, woocommerce, privacy
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.7.0
+Stable tag: 1.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -108,6 +108,13 @@ No. It detects geographic facts only. Consumers — other plugins reading
 its public functions — decide what those facts mean.
 
 == Changelog ==
+
+= 1.8.0 =
+* Region/subdivision support: `universal_geo_get_region_code()` (existing since v0.1.0) now returns a subdivision code (e.g. `CA`, `AB`) when a City-edition MaxMind database is in use, manually configured or WooCommerce-detected.
+* No new public function, no API version change, no provider-order/cache/simulation contract changes.
+* Diagnostics: City-database advisory note updated to reflect that region is now read from it.
+* CLI: `wp universal-geo status` now includes `region_code`.
+* Managed GeoLite2 City downloads investigated and explicitly deferred — see the plugin's `docs/adr/0010-region-subdivision-support.md`.
 
 = 1.7.0 =
 * Operational readiness: internal ready/degraded/action_required/unavailable status with consumer_usable, Overview and Diagnostics indicators, and `wp universal-geo status`.

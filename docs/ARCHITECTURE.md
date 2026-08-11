@@ -1,7 +1,11 @@
 # Architecture
 
-**Status: M1 complete (frozen, tag `m1`); M2 complete; M3–M6 complete (see
-"M3–M5" and "M6" at the end of this document).** This document records the M1
+**Status: M1 complete (frozen, tag `m1`); M2 complete; M3–M9 complete (see
+"M3–M5", "M6", "M7", and the M9 notes at the end of this document); M13
+(region/subdivision support, v1.8.0) summarized in a short closing note —
+see ADR-0010 for the full decision record. M10–M12 introduced no changes to
+this document's own narrative (see `docs/ROADMAP.md` and their respective
+ADRs/docs instead).** This document records the M1
 reconciliation history verbatim, below, as the record of how the frozen
 public API and composition patterns were decided. M2 replaced
 `RemoteAddrOnlyResolver` with the full trust-boundary stack (`ServerRequest`,
@@ -1042,3 +1046,19 @@ Downstream Plugins     universal_geo_get_context(), hooks, WooCommerce extension
 | Downstream plugins | Policy and UX | Consume API normally; may inspect `source === 'simulation'` |
 
 **M9 (v1.4.0 — shipped):** The Detection Inspector and Providers page implement read-only admin diagnostics at the **diagnostics/admin layer**. Normal page loads use inference and `inspector_sections()`; live probe runs only in the Refresh now POST handler. Simulation and the inspector coexist on Detection & Testing as separate tabs without modifying M8 contracts.
+
+## M13 — Region/subdivision support (v1.8.0 — shipped)
+
+`region_code` had existed as a frozen `VisitorContext` property and a
+fully-implemented, dormant `GeoValidator::region()` normalizer since M1/M8,
+carried end to end by `ContextResolver`, `GeoCache`, and the public API —
+but no provider had ever populated it. M13 activated exactly that: `MaxMindProvider::resolve()`
+now reads `subdivisions[0].iso_code` from the raw reader record, defensively,
+when a City-edition `.mmdb` is open (manual `maxmind_db_path` or
+WooCommerce auto-detection) — a Country-edition database is unaffected. No
+other provider became region-capable; no resolver, cache, simulation, or
+public API contract changed. See ADR-0010 for the full region contract,
+provider-ownership decision, and the managed-GeoLite2-City feasibility
+investigation and resulting NO-GO decision (deferred to a future
+milestone, pending a deliberate archive-size-cap decision and a
+live-account-tested implementation).
