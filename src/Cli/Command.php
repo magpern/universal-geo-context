@@ -356,6 +356,10 @@ final class Command {
 				'value' => (string) ( $context->country_code ?? '' ),
 			),
 			array(
+				'field' => 'region_code',
+				'value' => (string) ( $context->region_code ?? '' ),
+			),
+			array(
 				'field' => 'source',
 				'value' => $context->source,
 			),

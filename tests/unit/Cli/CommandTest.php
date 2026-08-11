@@ -286,6 +286,51 @@ final class CommandTest extends TestCase {
 		$this->assertSame( '', $rows[0]['value'] );
 	}
 
+	// ---- build_status_rows(): region_code (M13) ------------------------------------
+
+	/**
+	 * Build_status_rows() reads country_code/region_code/source from
+	 * Plugin::instance()->context(), independent of this file's own
+	 * command()-constructed resolver — Plugin must be booted directly, the
+	 * same idiom ApiTest::boot_with_known_country() already uses.
+	 */
+	public function test_build_status_rows_includes_null_region_code_by_default(): void {
+		$GLOBALS['universal_geo_test_options'][ \UniversalGeo\Settings::OPTION_NAME ] = array(
+			'schema_version'  => \UniversalGeo\Settings::SCHEMA_VERSION,
+			'default_country' => 'SE',
+		);
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.1';
+		Plugin::instance()->init();
+
+		$rows   = $this->command()->build_status_rows();
+		$region = array_values( array_filter( $rows, static fn( array $row ) => 'region_code' === $row['field'] ) );
+
+		$this->assertCount( 1, $region );
+		$this->assertSame( '', $region[0]['value'] );
+	}
+
+	public function test_build_status_rows_includes_a_populated_region_code(): void {
+		$path = WP_CONTENT_DIR . '/cli-status-command-test-city.mmdb';
+		copy( dirname( __DIR__, 2 ) . '/fixtures/GeoIP2-City-Test.mmdb', $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_copy
+
+		$GLOBALS['universal_geo_test_options'][ \UniversalGeo\Settings::OPTION_NAME ] = array(
+			'schema_version'  => \UniversalGeo\Settings::SCHEMA_VERSION,
+			'maxmind_db_path' => $path,
+		);
+		$_SERVER['REMOTE_ADDR'] = '214.78.120.1';
+		Plugin::instance()->init();
+
+		try {
+			$rows   = $this->command()->build_status_rows();
+			$region = array_values( array_filter( $rows, static fn( array $row ) => 'region_code' === $row['field'] ) );
+
+			$this->assertCount( 1, $region );
+			$this->assertSame( 'CA', $region[0]['value'] );
+		} finally {
+			unlink( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		}
+	}
+
 	// ---- construction -------------------------------------------------------------
 
 	public function test_class_is_final(): void {

@@ -1054,7 +1054,7 @@ final class DiagnosticsService {
 			'database_type'      => null !== $metadata ? $metadata->database_type : null,
 			'build_age_days'     => null !== $metadata ? $metadata->build_age_days( time() ) : null,
 			'city_database_note' => $is_city
-				? __( 'City database detected; region support is deferred to a future release.', 'universal-geo-context' )
+				? __( 'City database detected; subdivision-level region codes are read from it when available.', 'universal-geo-context' )
 				: '',
 		);
 	}
