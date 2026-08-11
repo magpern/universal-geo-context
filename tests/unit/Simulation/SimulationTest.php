@@ -60,6 +60,31 @@ final class SimulationTest extends TestCase {
 		$this->assertNotSame( $original, $result );
 	}
 
+	/**
+	 * M13: proves the real, region-capable context is never mutated by
+	 * simulation and is restored exactly (identity, not just value-equal)
+	 * once simulation stops — the same filter instance/state, first with an
+	 * active cookie, then without one.
+	 */
+	public function test_stopping_simulation_restores_the_real_non_null_region(): void {
+		$cookie = new SimulationCookie();
+		$cookie->write( 'DE' );
+
+		$real   = new VisitorContext( 'SE', 'AB', 'maxmind', 0.9, true );
+		$filter = new SimulationContextFilter( $this->state( $cookie ) );
+
+		$simulated = $filter->apply( $real );
+		$this->assertSame( 'DE', $simulated->country_code );
+		$this->assertNull( $simulated->region_code );
+
+		$cookie->clear();
+		$restored = ( new SimulationContextFilter( $this->state() ) )->apply( $real );
+
+		$this->assertSame( $real, $restored );
+		$this->assertSame( 'SE', $restored->country_code );
+		$this->assertSame( 'AB', $restored->region_code );
+	}
+
 	public function test_unauthorized_user_ignores_valid_cookie(): void {
 		$cookie = new SimulationCookie();
 		$cookie->write( 'DE' );

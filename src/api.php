@@ -44,7 +44,9 @@ if ( ! function_exists( 'universal_geo_get_country_code' ) ) {
 
 if ( ! function_exists( 'universal_geo_get_region_code' ) ) {
 	/**
-	 * Always null in v1.
+	 * The first-level subdivision code from the context, when the winning
+	 * provider supplied one (M13, MaxMind City-edition databases only); null
+	 * otherwise, including for every country-only provider and database.
 	 *
 	 * @return string|null
 	 */

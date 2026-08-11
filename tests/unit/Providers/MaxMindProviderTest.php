@@ -173,12 +173,78 @@ final class MaxMindProviderTest extends TestCase {
 		$this->assertNull( $provider->resolve( '8.8.8.8' ) );
 	}
 
-	public function test_resolve_region_is_always_null(): void {
+	public function test_resolve_region_is_null_for_a_country_only_database(): void {
 		$provider  = new MaxMindProvider( self::FIXTURE_COUNTRY_DB );
 		$candidate = $provider->resolve( '214.78.120.1' );
 
 		$this->assertNotNull( $candidate );
 		$this->assertNull( $candidate->region_code );
+	}
+
+	// ---- region_from_record(): defensive against every malformed raw shape ----
+
+	/**
+	 * Invokes the private static region_from_record() directly via
+	 * reflection — the City-edition known-answer path is covered by the
+	 * integration suite against a real fixture; this exercises every
+	 * malformed-shape branch that a real MaxMind record can never actually
+	 * produce, without needing a synthetic .mmdb file.
+	 *
+	 * @param array<string, mixed> $record Raw MaxMind\Db\Reader::get()-shaped input.
+	 *
+	 * @return string|null
+	 */
+	private function region_from_record( array $record ): ?string {
+		$reflection = new ReflectionClass( MaxMindProvider::class );
+		$method     = $reflection->getMethod( 'region_from_record' );
+		$method->setAccessible( true );
+
+		return $method->invoke( null, $record );
+	}
+
+	public function test_region_from_record_null_when_subdivisions_missing(): void {
+		$this->assertNull( $this->region_from_record( array( 'country' => array( 'iso_code' => 'US' ) ) ) );
+	}
+
+	public function test_region_from_record_null_when_subdivisions_not_an_array(): void {
+		$this->assertNull( $this->region_from_record( array( 'subdivisions' => 'CA' ) ) );
+	}
+
+	public function test_region_from_record_null_when_subdivisions_empty(): void {
+		$this->assertNull( $this->region_from_record( array( 'subdivisions' => array() ) ) );
+	}
+
+	public function test_region_from_record_null_when_first_element_not_an_array(): void {
+		$this->assertNull( $this->region_from_record( array( 'subdivisions' => array( 'CA' ) ) ) );
+	}
+
+	public function test_region_from_record_null_when_iso_code_missing(): void {
+		$this->assertNull( $this->region_from_record( array( 'subdivisions' => array( array( 'names' => array( 'en' => 'California' ) ) ) ) ) );
+	}
+
+	public function test_region_from_record_null_when_iso_code_not_a_string(): void {
+		$this->assertNull( $this->region_from_record( array( 'subdivisions' => array( array( 'iso_code' => 42 ) ) ) ) );
+	}
+
+	public function test_region_from_record_returns_the_raw_first_subdivision_iso_code(): void {
+		$this->assertSame(
+			'CA',
+			$this->region_from_record( array( 'subdivisions' => array( array( 'iso_code' => 'CA' ) ) ) )
+		);
+	}
+
+	public function test_region_from_record_uses_only_the_first_subdivision(): void {
+		$this->assertSame(
+			'CA',
+			$this->region_from_record(
+				array(
+					'subdivisions' => array(
+						array( 'iso_code' => 'CA' ),
+						array( 'iso_code' => 'ZZ' ),
+					),
+				)
+			)
+		);
 	}
 
 	// ---- metadata() ----------------------------------------------------------

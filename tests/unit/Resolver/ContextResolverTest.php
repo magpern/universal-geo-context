@@ -510,6 +510,27 @@ final class ContextResolverTest extends TestCase {
 		$this->assertSame( 0, $second->resolve_calls );
 	}
 
+	/**
+	 * M13: a winning candidate's null region must never be treated as a
+	 * reason to keep consulting the chain "to fill in region" — the winning
+	 * provider owns the whole context, region included. The second provider
+	 * here would supply both a different country and a region if ever
+	 * called; proving it is never called (and the final region stays null)
+	 * is the direct regression guard against cross-provider region
+	 * enrichment M13 must not introduce.
+	 */
+	public function test_null_region_does_not_trigger_further_resolution(): void {
+		$first  = new TrackingGeoProvider( 'a', true, new GeoCandidate( 'SE', null ) );
+		$second = new TrackingGeoProvider( 'b', true, new GeoCandidate( 'DE', 'BY' ) );
+
+		$context = ( new ContextResolver( new FakeClientIpResolver( $this->resolved_ip() ), array( $first, $second ), $this->cache() ) )->resolve();
+
+		$this->assertSame( 1, $first->resolve_calls );
+		$this->assertSame( 0, $second->resolve_calls );
+		$this->assertSame( 'SE', $context->country_code );
+		$this->assertNull( $context->region_code );
+	}
+
 	public function test_provider_receives_the_resolved_client_ip(): void {
 		$provider = new TrackingGeoProvider( 'default', true, new GeoCandidate( 'SE', null ) );
 		( new ContextResolver( new FakeClientIpResolver( $this->resolved_ip( '198.51.100.7' ) ), array( $provider ), $this->cache() ) )->resolve();

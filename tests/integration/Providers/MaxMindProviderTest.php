@@ -58,16 +58,16 @@ final class MaxMindProviderTest extends WP_UnitTestCase {
 		$this->assertNull( $provider->resolve( '8.8.8.8' ) );
 	}
 
-	public function test_city_database_returns_country_only(): void {
+	public function test_city_database_returns_country_and_region(): void {
 		$provider  = new MaxMindProvider( self::CITY_DB );
 		$candidate = $provider->resolve( '214.78.120.1' );
 
 		$this->assertNotNull( $candidate );
 		$this->assertSame( 'US', $candidate->country_code );
 		// The City fixture carries a California subdivision for this
-		// address (confirmed against source-data/GeoIP2-City-Test.json) —
-		// region must stay null regardless.
-		$this->assertNull( $candidate->region_code );
+		// address (confirmed against source-data/GeoIP2-City-Test.json,
+		// tests/fixtures/README.md) — M13 now reads it through.
+		$this->assertSame( 'CA', $candidate->region_code );
 	}
 
 	// ---- Metadata -----------------------------------------------------------------
@@ -154,6 +154,31 @@ final class MaxMindProviderTest extends WP_UnitTestCase {
 		$this->assertSame( 'maxmind', $rows[0]['provider'] );
 		$this->assertSame( 'ok', $rows[0]['reason'] );
 		$this->assertSame( 'US', $rows[0]['country_code'] );
+		$this->assertNull( $rows[0]['region_code'] );
+	}
+
+	public function test_probe_reports_region_for_a_city_database(): void {
+		$provider = new MaxMindProvider( self::CITY_DB );
+		$resolver = $this->resolver_for( $provider, '214.78.120.1' );
+
+		$rows = $resolver->probe();
+
+		$this->assertCount( 1, $rows );
+		$this->assertSame( 'ok', $rows[0]['reason'] );
+		$this->assertSame( 'US', $rows[0]['country_code'] );
+		$this->assertSame( 'CA', $rows[0]['region_code'] );
+	}
+
+	public function test_resolve_via_city_database_populates_visitor_context_region(): void {
+		$provider = new MaxMindProvider( self::CITY_DB );
+		$resolver = $this->resolver_for( $provider, '214.78.120.1' );
+
+		$context = $resolver->resolve();
+
+		$this->assertSame( 'US', $context->country_code );
+		$this->assertSame( 'CA', $context->region_code );
+		$this->assertSame( 'maxmind', $context->source );
+		$this->assertSame( 0.90, $context->confidence );
 	}
 
 	public function test_probe_reports_miss_for_an_unresolvable_ip(): void {

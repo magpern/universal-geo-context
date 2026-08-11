@@ -21,8 +21,12 @@ use UniversalGeo\Model\GeoCandidate;
  * (`maxmind-db/reader`, dev-only — never bundled at runtime; a reader-
  * bearing plugin such as WooCommerce's own MaxMind integration, or a future
  * companion plugin, is what actually provides the class at runtime).
- * Country only in v1 — region support is deferred to 1.1 even for a City
- * database (M3 architecture report §6 3C).
+ * Reads `country.iso_code` always, and `subdivisions[0].iso_code` when the
+ * open database happens to carry one (City-edition databases only) — this
+ * class never knows or cares which edition is open, it only reads whatever
+ * keys the raw record happens to have (M13). `GeoValidator::region()` —
+ * applied uniformly by `ContextResolver` — is the sole place normalization
+ * and validation happen; this class never uppercases, trims, or validates.
  *
  * Knows nothing about settings, constants, filters, WooCommerce, or admin
  * forms: `Plugin::resolved_maxmind_db_path()` decides the effective path
@@ -114,13 +118,17 @@ final class MaxMindProvider implements GeoProviderInterface {
 	}
 
 	/**
-	 * Looks up $ip's country in the local database.
+	 * Looks up $ip's country (and, when available, first-level subdivision)
+	 * in the local database.
 	 *
 	 * Self-guards against a non-public $ip before ever touching the reader
 	 * (ADR-0002 decision 8, the `WooCommerceProvider` precedent) — a
 	 * private-IP probe never attempts an open, never becomes a "failed"
-	 * result. Reads `country.iso_code` only; region is always null (region
-	 * support, including for a City database, is deferred to 1.1).
+	 * result. Reads `country.iso_code` always; reads `subdivisions[0].iso_code`
+	 * too, when the record happens to carry one (M13) — a Country-edition
+	 * database simply has no `subdivisions` key, so this naturally yields
+	 * `null` there without this method ever needing to know which edition
+	 * is open.
 	 *
 	 * @param string $ip The already-resolved, already-normalized client IP.
 	 *
@@ -149,7 +157,39 @@ final class MaxMindProvider implements GeoProviderInterface {
 			return null;
 		}
 
-		return new GeoCandidate( $record['country']['iso_code'], null );
+		return new GeoCandidate( $record['country']['iso_code'], self::region_from_record( $record ) );
+	}
+
+	/**
+	 * Extracts a raw record's first subdivision code, when present.
+	 *
+	 * Defensive against every malformed shape the raw `MaxMind\Db\Reader::get()`
+	 * record could offer: an absent `subdivisions` key (a Country-edition
+	 * database, the ordinary case today), a non-array value, an empty array,
+	 * a non-array first element, or a missing/non-string `iso_code` all
+	 * resolve identically to `null` — never a warning, never a fatal, and
+	 * never itself a reason to treat the whole candidate as a miss (country
+	 * resolution above this call already succeeded independently). The
+	 * returned value is raw and unvalidated on purpose — normalization and
+	 * validation belong to `GeoValidator::region()` alone, applied uniformly
+	 * by `ContextResolver` regardless of which provider supplied it.
+	 *
+	 * @param array<string, mixed> $record The raw `MaxMind\Db\Reader::get()` record.
+	 *
+	 * @return string|null
+	 */
+	private static function region_from_record( array $record ): ?string {
+		if ( ! isset( $record['subdivisions'] ) || ! is_array( $record['subdivisions'] ) || ! isset( $record['subdivisions'][0] ) ) {
+			return null;
+		}
+
+		$first = $record['subdivisions'][0];
+
+		if ( ! is_array( $first ) || ! isset( $first['iso_code'] ) || ! is_string( $first['iso_code'] ) ) {
+			return null;
+		}
+
+		return $first['iso_code'];
 	}
 
 	/**

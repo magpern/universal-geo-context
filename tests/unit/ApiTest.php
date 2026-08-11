@@ -150,9 +150,41 @@ final class ApiTest extends TestCase {
 		$this->assertSame( 'SE', universal_geo_get_country_code() );
 	}
 
-	public function test_get_region_code_is_always_null(): void {
+	public function test_get_region_code_is_null_when_no_region_capable_provider_is_configured(): void {
 		$this->boot_with_known_country( 'SE' );
 		$this->assertNull( universal_geo_get_region_code() );
+	}
+
+	/**
+	 * M13: universal_geo_get_region_code() is existing, frozen public API —
+	 * no new helper was added — proven here to now return a real value once
+	 * a region-capable context exists (a City-edition MaxMind database),
+	 * end to end through the real public function, not a lower-level stub.
+	 *
+	 * The maxmind_db_path setting must resolve under WP_CONTENT_DIR (Plugin's own
+	 * containment check, `resolved_maxmind_db_path()`) — the fixture is
+	 * copied into the test WP_CONTENT_DIR first, exactly the idiom
+	 * PluginTest.php's own maxmind_db_path tests already use.
+	 */
+	public function test_get_region_code_returns_a_populated_region_when_available(): void {
+		$path = WP_CONTENT_DIR . '/api-test-city.mmdb';
+		copy( __DIR__ . '/../fixtures/GeoIP2-City-Test.mmdb', $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_copy
+
+		$GLOBALS['universal_geo_test_options'][ Settings::OPTION_NAME ] = array(
+			'schema_version'  => Settings::SCHEMA_VERSION,
+			'maxmind_db_path' => $path,
+		);
+		$_SERVER['REMOTE_ADDR'] = '214.78.120.1';
+
+		Plugin::instance()->init();
+
+		try {
+			$this->assertSame( 'US', universal_geo_get_country_code() );
+			$this->assertSame( 'CA', universal_geo_get_region_code() );
+			$this->assertSame( 'maxmind', universal_geo_get_source() );
+		} finally {
+			unlink( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		}
 	}
 
 	public function test_get_source_known(): void {
