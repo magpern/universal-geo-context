@@ -4,7 +4,7 @@ Tags: geolocation, country, geoip, woocommerce, privacy
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.8.0
+Stable tag: 1.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -108,6 +108,15 @@ No. It detects geographic facts only. Consumers — other plugins reading
 its public functions — decide what those facts mean.
 
 == Changelog ==
+
+= 1.8.1 =
+* Diagnostics probe isolation: `DiagnosticsService::report()` is now structurally passive and never triggers `ContextResolver::probe()`.
+* Passive observability surfaces (Diagnostics page GET, Site Health Info/export, `wp universal-geo status`) no longer cause outbound HTTP calls or persistent provider-health writes as side effects of simple observation.
+* Explicit provider probing is confined to explicit admin actions (POST refresh) and explicitly-documented CLI commands (`providers`, `context --ip=`, `diagnostics`).
+* Architecture regression guard: new `PassiveDiagnosticsGuardTest` prevents silent re-introduction of probe() into passive paths.
+* ADR-0001, ADR-0004 (retrospective backfill), and ADR-0011 (passive diagnostics invariant) formally document architectural contracts.
+* No resolver, cache, provider-order, public API, or simulation changes; no new surface area.
+* This is the plugin's first patch-level release. Compatibility and behavior contracts unchanged; existing v1.8.0 users are unaffected in normal operation.
 
 = 1.8.0 =
 * Region/subdivision support: `universal_geo_get_region_code()` (existing since v0.1.0) now returns a subdivision code (e.g. `CA`, `AB`) when a City-edition MaxMind database is in use, manually configured or WooCommerce-detected.

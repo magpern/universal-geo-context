@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Universal Geo Context 1.8.0\n"
+"Project-Id-Version: Universal Geo Context 1.8.1\n"
 "Report-Msgid-Bugs-To: https://github.com/magpern/universal-geo-context/issues\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-11T19:13:29+00:00\n"
+"POT-Creation-Date: 2026-08-15T15:29:15+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: universal-geo-context\n"
@@ -18,7 +18,7 @@ msgstr ""
 #: universal-geo-context.php:3
 #: src/Admin/Menu.php:61
 #: src/Admin/Menu.php:62
-#: src/Diagnostics/DiagnosticsService.php:277
+#: src/Diagnostics/DiagnosticsService.php:307
 #: src/Plugin.php:372
 msgid "Universal Geo Context"
 msgstr ""
@@ -237,7 +237,7 @@ msgid "Detection & Testing"
 msgstr ""
 
 #: src/Admin/AdminPageRegistry.php:41
-#: src/Admin/DiagnosticsPage.php:164
+#: src/Admin/DiagnosticsPage.php:167
 #: src/Admin/OverviewPage.php:368
 #: src/Admin/ProvidersPage.php:55
 #: src/Admin/ProvidersPage.php:64
@@ -285,17 +285,17 @@ msgid "Review system health and troubleshooting information."
 msgstr ""
 
 #: src/Admin/DefinitionListRenderer.php:49
-#: src/Diagnostics/DiagnosticsService.php:354
+#: src/Diagnostics/DiagnosticsService.php:384
 msgid "yes"
 msgstr ""
 
 #: src/Admin/DefinitionListRenderer.php:49
-#: src/Diagnostics/DiagnosticsService.php:354
+#: src/Diagnostics/DiagnosticsService.php:384
 msgid "no"
 msgstr ""
 
 #: src/Admin/DefinitionListRenderer.php:53
-#: src/Diagnostics/DiagnosticsService.php:358
+#: src/Diagnostics/DiagnosticsService.php:388
 msgid "n/a"
 msgstr ""
 
@@ -313,7 +313,7 @@ msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:97
 #: src/Admin/DetectionPage.php:224
-#: src/Diagnostics/DiagnosticsService.php:455
+#: src/Diagnostics/DiagnosticsService.php:485
 msgid "Simulation active"
 msgstr ""
 
@@ -377,7 +377,7 @@ msgid "Winner"
 msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:210
-#: src/Admin/DiagnosticsPage.php:179
+#: src/Admin/DiagnosticsPage.php:182
 #: src/Admin/OverviewPage.php:288
 #: src/Admin/OverviewPage.php:407
 msgid "Cache"
@@ -392,7 +392,7 @@ msgid "Observability"
 msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:227
-#: src/Admin/DiagnosticsPage.php:126
+#: src/Admin/DiagnosticsPage.php:129
 #: src/Admin/TrustedProxiesPage.php:191
 msgid "Trusted proxies"
 msgstr ""
@@ -402,12 +402,12 @@ msgid "How the client address was derived from forwarding headers."
 msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:233
-#: src/Admin/DiagnosticsPage.php:129
+#: src/Admin/DiagnosticsPage.php:132
 msgid "Forwarding headers"
 msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:241
-#: src/Admin/DiagnosticsPage.php:136
+#: src/Admin/DiagnosticsPage.php:139
 #: src/Admin/TrustedProxiesPage.php:151
 msgid "Cloudflare"
 msgstr ""
@@ -428,7 +428,7 @@ msgid "Good"
 msgstr ""
 
 #: src/Admin/DetectionInspectorRenderer.php:265
-#: src/Admin/DiagnosticsPage.php:181
+#: src/Admin/DiagnosticsPage.php:184
 #: src/Admin/OverviewPage.php:159
 #: src/Admin/OverviewPage.php:417
 msgid "Environment"
@@ -457,7 +457,7 @@ msgid "Detection"
 msgstr ""
 
 #: src/Admin/DetectionPage.php:183
-#: src/Admin/DiagnosticsPage.php:180
+#: src/Admin/DiagnosticsPage.php:183
 #: src/Admin/OverviewPage.php:290
 #: src/Explanation/ResolutionTimelineBuilder.php:266
 #: src/Explanation/ResolutionTimelineBuilder.php:274
@@ -517,97 +517,97 @@ msgstr ""
 msgid "Country"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:104
+#: src/Admin/DiagnosticsPage.php:107
 msgid "Refresh Diagnostics"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:123
+#: src/Admin/DiagnosticsPage.php:126
 msgid "Network & client"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:123
+#: src/Admin/DiagnosticsPage.php:126
 msgid "Client address, trusted proxies, and forwarding headers."
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:125
+#: src/Admin/DiagnosticsPage.php:128
 msgid "Client address"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:142
+#: src/Admin/DiagnosticsPage.php:145
 msgid "Providers & data sources"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:142
+#: src/Admin/DiagnosticsPage.php:145
 msgid "MaxMind, remote provider, WooCommerce, and provider health."
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:144
+#: src/Admin/DiagnosticsPage.php:147
 msgid "WooCommerce"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:145
+#: src/Admin/DiagnosticsPage.php:148
 msgid "MaxMind"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:146
+#: src/Admin/DiagnosticsPage.php:149
 msgid "Managed database"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:149
+#: src/Admin/DiagnosticsPage.php:152
 msgid "Remote provider"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:153
-msgid "The remote provider is enabled — viewing this page performs one live request to the configured remote service, as part of the provider probe table below."
+#: src/Admin/DiagnosticsPage.php:156
+msgid "The remote provider is enabled. Click \"Refresh Providers\" above to probe all providers for live results, which may contact this remote service."
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:177
+#: src/Admin/DiagnosticsPage.php:180
 #: src/Admin/OverviewPage.php:420
 msgid "Runtime"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:177
+#: src/Admin/DiagnosticsPage.php:180
 msgid "Cache and environment details."
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:213
+#: src/Admin/DiagnosticsPage.php:216
 msgid "Operational readiness"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:241
+#: src/Admin/DiagnosticsPage.php:244
 #: src/Admin/OverviewPage.php:272
 msgid "No failures"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:241
+#: src/Admin/DiagnosticsPage.php:244
 #: src/Admin/OverviewPage.php:365
 msgid "Issues recorded"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:246
+#: src/Admin/DiagnosticsPage.php:249
 msgid "Provider health"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:247
+#: src/Admin/DiagnosticsPage.php:250
 msgid "Recorded provider failures from recent resolution attempts."
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:258
+#: src/Admin/DiagnosticsPage.php:261
 #: src/Admin/OverviewPage.php:125
 #: src/Admin/ProvidersPage.php:98
 msgid "Refresh Providers"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:263
+#: src/Admin/DiagnosticsPage.php:266
 msgid "Learn more"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:269
+#: src/Admin/DiagnosticsPage.php:272
 #: src/Admin/OverviewPage.php:351
 msgid "No provider failures recorded"
 msgstr ""
 
-#: src/Admin/DiagnosticsPage.php:270
+#: src/Admin/DiagnosticsPage.php:273
 #: src/Admin/OverviewPage.php:352
 msgid "Provider health summaries appear after you refresh diagnostics."
 msgstr ""
@@ -663,7 +663,7 @@ msgstr ""
 #: src/Admin/OverviewPage.php:381
 #: src/Admin/OverviewPage.php:410
 #: src/Admin/SettingsPage.php:509
-#: src/Diagnostics/DiagnosticsService.php:413
+#: src/Diagnostics/DiagnosticsService.php:443
 msgid "Enabled"
 msgstr ""
 
@@ -791,7 +791,7 @@ msgstr ""
 
 #: src/Admin/OverviewPage.php:391
 #: src/Admin/TrustedProxiesPage.php:130
-#: src/Diagnostics/DiagnosticsService.php:390
+#: src/Diagnostics/DiagnosticsService.php:420
 msgid "Peer trusted"
 msgstr ""
 
@@ -818,7 +818,7 @@ msgstr ""
 
 #: src/Admin/ProvidersPage.php:127
 #: src/Admin/ProvidersPage.php:147
-#: src/Diagnostics/DiagnosticsService.php:408
+#: src/Diagnostics/DiagnosticsService.php:438
 msgid "Available"
 msgstr ""
 
@@ -892,7 +892,7 @@ msgid "Default country fallback and derived-context caching."
 msgstr ""
 
 #: src/Admin/SettingsPage.php:395
-#: src/Diagnostics/DiagnosticsService.php:468
+#: src/Diagnostics/DiagnosticsService.php:498
 msgid "Default country"
 msgstr ""
 
@@ -909,7 +909,7 @@ msgid "Requires a persistent object cache; otherwise a safe no-op."
 msgstr ""
 
 #: src/Admin/SettingsPage.php:415
-#: src/Diagnostics/DiagnosticsService.php:447
+#: src/Diagnostics/DiagnosticsService.php:477
 msgid "Cache TTL (seconds)"
 msgstr ""
 
@@ -1047,7 +1047,7 @@ msgid "Twice weekly"
 msgstr ""
 
 #: src/Admin/SettingsPage.php:609
-#: src/Diagnostics/DiagnosticsService.php:423
+#: src/Diagnostics/DiagnosticsService.php:453
 msgid "Update frequency"
 msgstr ""
 
@@ -1056,7 +1056,7 @@ msgid "GeoLite2 Country is published at most twice a week."
 msgstr ""
 
 #: src/Admin/SettingsPage.php:619
-#: src/Diagnostics/DiagnosticsService.php:424
+#: src/Diagnostics/DiagnosticsService.php:454
 msgid "Retain previous version"
 msgstr ""
 
@@ -1163,7 +1163,7 @@ msgid "One CIDR or IP per line. Empty = trust no forwarding header."
 msgstr ""
 
 #: src/Admin/TrustedProxiesPage.php:204
-#: src/Diagnostics/DiagnosticsService.php:389
+#: src/Diagnostics/DiagnosticsService.php:419
 msgid "Trust Cloudflare"
 msgstr ""
 
@@ -1171,11 +1171,11 @@ msgstr ""
 msgid "Trust the CF-Connecting-IP / CF-IPCountry headers once the peer is trusted."
 msgstr ""
 
-#: src/Cli/Command.php:204
+#: src/Cli/Command.php:209
 msgid "The derived-context cache has been flushed."
 msgstr ""
 
-#: src/Cli/Command.php:634
+#: src/Cli/Command.php:639
 #: src/Cli/DatabaseCommand.php:323
 msgid "No data."
 msgstr ""
@@ -1188,499 +1188,499 @@ msgstr ""
 msgid "Restore the previous GeoLite2 Country database version?"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:381
+#: src/Diagnostics/DiagnosticsService.php:411
 msgid "Peer address (masked)"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:382
+#: src/Diagnostics/DiagnosticsService.php:412
 msgid "Peer classification"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:383
+#: src/Diagnostics/DiagnosticsService.php:413
 msgid "Resolved client address (masked)"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:384
+#: src/Diagnostics/DiagnosticsService.php:414
 msgid "Source header"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:385
+#: src/Diagnostics/DiagnosticsService.php:415
 msgid "Public address"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:386
+#: src/Diagnostics/DiagnosticsService.php:416
 msgid "Chain verified"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:387
+#: src/Diagnostics/DiagnosticsService.php:417
 msgid "Server snapshot drift"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:388
+#: src/Diagnostics/DiagnosticsService.php:418
 msgid "Configured trusted proxies"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:391
+#: src/Diagnostics/DiagnosticsService.php:421
 msgid "Matched entry"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:392
+#: src/Diagnostics/DiagnosticsService.php:422
 msgid "Header"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:393
+#: src/Diagnostics/DiagnosticsService.php:423
 msgid "Present"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:394
+#: src/Diagnostics/DiagnosticsService.php:424
 msgid "Trusted"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:395
+#: src/Diagnostics/DiagnosticsService.php:425
 msgid "Reason"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:396
+#: src/Diagnostics/DiagnosticsService.php:426
 msgid "Masked value"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:397
+#: src/Diagnostics/DiagnosticsService.php:427
 msgid "Cloudflare preset enabled"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:398
+#: src/Diagnostics/DiagnosticsService.php:428
 msgid "Peer in Cloudflare ranges"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:399
+#: src/Diagnostics/DiagnosticsService.php:429
 msgid "CF-IPCountry header present"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:400
+#: src/Diagnostics/DiagnosticsService.php:430
 msgid "Cloudflare ranges date"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:401
+#: src/Diagnostics/DiagnosticsService.php:431
 msgid "Cloudflare ranges age (days)"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:402
+#: src/Diagnostics/DiagnosticsService.php:432
 msgid "WooCommerce active"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:403
+#: src/Diagnostics/DiagnosticsService.php:433
 msgid "WooCommerce MaxMind integration active"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:404
+#: src/Diagnostics/DiagnosticsService.php:434
 msgid "WooCommerce MaxMind license key present"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:405
+#: src/Diagnostics/DiagnosticsService.php:435
 msgid "MaxMind database file present"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:406
+#: src/Diagnostics/DiagnosticsService.php:436
 msgid "Effective database path"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:407
+#: src/Diagnostics/DiagnosticsService.php:437
 msgid "Database path source"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:409
+#: src/Diagnostics/DiagnosticsService.php:439
 msgid "Reader class file"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:410
+#: src/Diagnostics/DiagnosticsService.php:440
 msgid "Database type"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:411
-#: src/Diagnostics/DiagnosticsService.php:433
+#: src/Diagnostics/DiagnosticsService.php:441
+#: src/Diagnostics/DiagnosticsService.php:463
 msgid "Database age (days)"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:412
+#: src/Diagnostics/DiagnosticsService.php:442
 msgid "Notes"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:414
+#: src/Diagnostics/DiagnosticsService.php:444
 msgid "Transfer acknowledged"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:415
+#: src/Diagnostics/DiagnosticsService.php:445
 msgid "Credentials present"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:416
+#: src/Diagnostics/DiagnosticsService.php:446
 msgid "Credential source"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:417
+#: src/Diagnostics/DiagnosticsService.php:447
 msgid "Endpoint host"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:418
+#: src/Diagnostics/DiagnosticsService.php:448
 msgid "Timeout (seconds)"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:419
+#: src/Diagnostics/DiagnosticsService.php:449
 msgid "Circuit breaker state"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:420
+#: src/Diagnostics/DiagnosticsService.php:450
 msgid "Recent failure"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:421
+#: src/Diagnostics/DiagnosticsService.php:451
 msgid "Installed"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:422
+#: src/Diagnostics/DiagnosticsService.php:452
 msgid "Automatic updates enabled"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:425
+#: src/Diagnostics/DiagnosticsService.php:455
 msgid "Last attempt at (timestamp)"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:426
+#: src/Diagnostics/DiagnosticsService.php:456
 msgid "Last success at (timestamp)"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:427
+#: src/Diagnostics/DiagnosticsService.php:457
 msgid "Last result code"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:428
+#: src/Diagnostics/DiagnosticsService.php:458
 msgid "Installed build epoch"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:429
+#: src/Diagnostics/DiagnosticsService.php:459
 msgid "Previous database available"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:430
+#: src/Diagnostics/DiagnosticsService.php:460
 msgid "Credentials configured"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:431
+#: src/Diagnostics/DiagnosticsService.php:461
 msgid "Update scheduler registered"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:432
+#: src/Diagnostics/DiagnosticsService.php:462
 msgid "Next scheduled update (timestamp)"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:434
+#: src/Diagnostics/DiagnosticsService.php:464
 msgid "Update lock"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:435
+#: src/Diagnostics/DiagnosticsService.php:465
 msgid "Lock held"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:436
+#: src/Diagnostics/DiagnosticsService.php:466
 msgid "Lock owner"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:437
+#: src/Diagnostics/DiagnosticsService.php:467
 msgid "Lock acquired at (timestamp)"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:438
+#: src/Diagnostics/DiagnosticsService.php:468
 msgid "Lock expires at (timestamp)"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:439
+#: src/Diagnostics/DiagnosticsService.php:469
 msgid "Provider"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:440
+#: src/Diagnostics/DiagnosticsService.php:470
 msgid "Country code"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:441
+#: src/Diagnostics/DiagnosticsService.php:471
 msgid "Region code"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:442
+#: src/Diagnostics/DiagnosticsService.php:472
 msgid "Last error class"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:443
+#: src/Diagnostics/DiagnosticsService.php:473
 msgid "Last error message"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:444
+#: src/Diagnostics/DiagnosticsService.php:474
 msgid "Approximate failure count"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:445
+#: src/Diagnostics/DiagnosticsService.php:475
 msgid "Last seen at (timestamp)"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:446
+#: src/Diagnostics/DiagnosticsService.php:476
 msgid "Derived-context cache enabled"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:448
+#: src/Diagnostics/DiagnosticsService.php:478
 msgid "Persistent object cache active"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:449
+#: src/Diagnostics/DiagnosticsService.php:479
 msgid "PHP version"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:450
+#: src/Diagnostics/DiagnosticsService.php:480
 msgid "WordPress version"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:451
+#: src/Diagnostics/DiagnosticsService.php:481
 msgid "Plugin version"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:452
+#: src/Diagnostics/DiagnosticsService.php:482
 msgid "Confidence"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:453
+#: src/Diagnostics/DiagnosticsService.php:483
 msgid "From cache"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:454
+#: src/Diagnostics/DiagnosticsService.php:484
 msgid "Source"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:456
+#: src/Diagnostics/DiagnosticsService.php:486
 msgid "Cache operational"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:457
+#: src/Diagnostics/DiagnosticsService.php:487
 msgid "Cache entry present for IP"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:458
+#: src/Diagnostics/DiagnosticsService.php:488
 msgid "This request used cache"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:459
+#: src/Diagnostics/DiagnosticsService.php:489
 msgid "Cache epoch"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:460
+#: src/Diagnostics/DiagnosticsService.php:490
 msgid "Configured TTL (seconds)"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:461
+#: src/Diagnostics/DiagnosticsService.php:491
 msgid "TTL remaining (seconds)"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:462
+#: src/Diagnostics/DiagnosticsService.php:492
 msgid "Entry age (seconds)"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:463
+#: src/Diagnostics/DiagnosticsService.php:493
 msgid "Provider id"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:464
+#: src/Diagnostics/DiagnosticsService.php:494
 msgid "Last probe result"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:465
+#: src/Diagnostics/DiagnosticsService.php:495
 msgid "Last probe country"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:466
+#: src/Diagnostics/DiagnosticsService.php:496
 msgid "Last failure"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:467
+#: src/Diagnostics/DiagnosticsService.php:497
 msgid "Failure count"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:481
-#: src/Diagnostics/DiagnosticsService.php:558
+#: src/Diagnostics/DiagnosticsService.php:511
+#: src/Diagnostics/DiagnosticsService.php:588
 msgid "Universal Geo Context: trusted proxy configuration"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:486
-#: src/Diagnostics/DiagnosticsService.php:669
+#: src/Diagnostics/DiagnosticsService.php:516
+#: src/Diagnostics/DiagnosticsService.php:699
 msgid "Universal Geo Context: MaxMind database"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:491
-#: src/Diagnostics/DiagnosticsService.php:755
+#: src/Diagnostics/DiagnosticsService.php:521
+#: src/Diagnostics/DiagnosticsService.php:785
 msgid "Universal Geo Context: remote provider"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:496
-#: src/Diagnostics/DiagnosticsService.php:908
+#: src/Diagnostics/DiagnosticsService.php:526
+#: src/Diagnostics/DiagnosticsService.php:938
 msgid "Universal Geo Context: managed database"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:501
-#: src/Diagnostics/DiagnosticsService.php:1237
+#: src/Diagnostics/DiagnosticsService.php:531
+#: src/Diagnostics/DiagnosticsService.php:1267
 msgid "Universal Geo Context: provider chain"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:506
-#: src/Diagnostics/DiagnosticsService.php:1286
+#: src/Diagnostics/DiagnosticsService.php:536
+#: src/Diagnostics/DiagnosticsService.php:1316
 msgid "Universal Geo Context: derived-context cache"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:524
-#: src/Diagnostics/DiagnosticsService.php:583
-#: src/Diagnostics/DiagnosticsService.php:698
-#: src/Diagnostics/DiagnosticsService.php:793
-#: src/Diagnostics/DiagnosticsService.php:1184
-#: src/Diagnostics/DiagnosticsService.php:1256
+#: src/Diagnostics/DiagnosticsService.php:554
+#: src/Diagnostics/DiagnosticsService.php:613
+#: src/Diagnostics/DiagnosticsService.php:728
+#: src/Diagnostics/DiagnosticsService.php:823
+#: src/Diagnostics/DiagnosticsService.php:1214
+#: src/Diagnostics/DiagnosticsService.php:1286
 msgid "Not applicable for this user."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:535
+#: src/Diagnostics/DiagnosticsService.php:565
 msgid "Forwarding headers are present but no trusted proxies are configured. Universal Geo Context is reporting the reverse proxy's own location to every visitor instead of the real one. Configure Trusted Proxies under Universal Geo Context → Trusted Proxies."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:544
+#: src/Diagnostics/DiagnosticsService.php:574
 msgid "Universal Geo Context's trusted proxy configuration looks correct."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:561
-#: src/Diagnostics/DiagnosticsService.php:672
-#: src/Diagnostics/DiagnosticsService.php:758
-#: src/Diagnostics/DiagnosticsService.php:911
+#: src/Diagnostics/DiagnosticsService.php:591
+#: src/Diagnostics/DiagnosticsService.php:702
+#: src/Diagnostics/DiagnosticsService.php:788
+#: src/Diagnostics/DiagnosticsService.php:941
 msgid "Security"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:591
+#: src/Diagnostics/DiagnosticsService.php:621
 msgid "No MaxMind database is configured — this is an optional feature."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:598
+#: src/Diagnostics/DiagnosticsService.php:628
 msgid "A MaxMind database path is configured, but the MaxMind reader library is not available."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:605
+#: src/Diagnostics/DiagnosticsService.php:635
 msgid "A MaxMind database path is configured, but the file is missing or unreadable."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:614
+#: src/Diagnostics/DiagnosticsService.php:644
 msgid "The configured MaxMind database could not be opened."
 msgstr ""
 
 #. translators: %d: database age in days.
-#: src/Diagnostics/DiagnosticsService.php:625
+#: src/Diagnostics/DiagnosticsService.php:655
 #, php-format
 msgid "The MaxMind database is %d days old (over 90) and should be updated."
 msgstr ""
 
 #. translators: %d: database age in days.
-#: src/Diagnostics/DiagnosticsService.php:636
+#: src/Diagnostics/DiagnosticsService.php:666
 #, php-format
 msgid "The MaxMind database is %d days old (over 30). Consider updating it."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:644
+#: src/Diagnostics/DiagnosticsService.php:674
 msgid "The MaxMind database is present and current."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:704
+#: src/Diagnostics/DiagnosticsService.php:734
 msgid "The remote provider is disabled — this is an optional feature."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:711
+#: src/Diagnostics/DiagnosticsService.php:741
 msgid "The remote provider is enabled but no credentials are configured."
 msgstr ""
 
 #. translators: %s: circuit breaker state, "open" or "half_open".
-#: src/Diagnostics/DiagnosticsService.php:722
+#: src/Diagnostics/DiagnosticsService.php:752
 #, php-format
 msgid "The remote provider's circuit breaker is currently %s after repeated failures."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:733
+#: src/Diagnostics/DiagnosticsService.php:763
 msgid "The remote provider recently failed. Review Diagnostics for details."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:739
+#: src/Diagnostics/DiagnosticsService.php:769
 msgid "The remote provider is enabled and healthy."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:799
+#: src/Diagnostics/DiagnosticsService.php:829
 msgid "Managed database downloads are disabled — this is an optional feature."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:808
+#: src/Diagnostics/DiagnosticsService.php:838
 msgid "Managed auto-update is enabled but no MaxMind credentials are configured. Enter an account ID and license key under Settings, or disable automatic updates."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:817
+#: src/Diagnostics/DiagnosticsService.php:847
 msgid "Managed auto-update is enabled but no update is scheduled. Save Settings to reconcile the schedule, or disable automatic updates."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:829
+#: src/Diagnostics/DiagnosticsService.php:859
 msgid "Managed downloads are enabled but no managed database is installed yet. A higher-precedence MaxMind source is currently covering the gap."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:835
+#: src/Diagnostics/DiagnosticsService.php:865
 msgid "Managed downloads are enabled but no managed database is installed, and no other MaxMind source is currently available."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:845
+#: src/Diagnostics/DiagnosticsService.php:875
 msgid "The managed database is installed."
 msgstr ""
 
 #. translators: %d: database age in days.
-#: src/Diagnostics/DiagnosticsService.php:855
+#: src/Diagnostics/DiagnosticsService.php:885
 #, php-format
 msgid "The managed database is %d days old (30 or more) and should update automatically soon. A higher-precedence MaxMind source is currently covering the gap."
 msgstr ""
 
 #. translators: %d: database age in days.
-#: src/Diagnostics/DiagnosticsService.php:865
+#: src/Diagnostics/DiagnosticsService.php:895
 #, php-format
 msgid "The managed database is %d days old (30 or more) and no other MaxMind source is currently available."
 msgstr ""
 
 #. translators: %d: database age in days.
-#: src/Diagnostics/DiagnosticsService.php:876
+#: src/Diagnostics/DiagnosticsService.php:906
 #, php-format
 msgid "The managed database is %d days old (14 or more). It should update automatically soon."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:884
+#: src/Diagnostics/DiagnosticsService.php:914
 msgid "The managed database is present and current."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:1057
+#: src/Diagnostics/DiagnosticsService.php:1087
 msgid "City database detected; subdivision-level region codes are read from it when available."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:1192
+#: src/Diagnostics/DiagnosticsService.php:1222
 msgid "No providers are registered in the resolution chain. Reinstall or repair Universal Geo Context."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:1209
+#: src/Diagnostics/DiagnosticsService.php:1239
 msgid "Only the default country fallback is available (or none). Downstream consumers may still call the API; unknown country is a valid outcome. Optionally configure MaxMind, Cloudflare trust, WooCommerce MaxMind, or a default country under Settings."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:1215
+#: src/Diagnostics/DiagnosticsService.php:1245
 msgid "The provider chain has at least one preferred geographic source available."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:1240
-#: src/Diagnostics/DiagnosticsService.php:1289
+#: src/Diagnostics/DiagnosticsService.php:1270
+#: src/Diagnostics/DiagnosticsService.php:1319
 msgid "Performance"
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:1266
+#: src/Diagnostics/DiagnosticsService.php:1296
 msgid "The derived-context cache TTL is outside the supported range. Open Settings and save to restore a valid TTL."
 msgstr ""
 
-#: src/Diagnostics/DiagnosticsService.php:1272
+#: src/Diagnostics/DiagnosticsService.php:1302
 msgid "Universal Geo Context cache settings look valid. Persistent object cache is optional; WordPress’s normal object cache is fine."
 msgstr ""
 
