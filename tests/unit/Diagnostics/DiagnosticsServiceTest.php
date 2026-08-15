@@ -1123,8 +1123,8 @@ final class DiagnosticsServiceTest extends TestCase {
 		$providers = array(
 			new DefaultCountryProvider( 'US' ),
 		);
-		$service = $this->service( null, null, array(), $providers );
-		$report  = $service->report();
+		$service   = $this->service( null, null, array(), $providers );
+		$report    = $service->report();
 
 		// The providers section should have passive_snapshot reasons.
 		$this->assertIsArray( $report['providers'] ?? null );
@@ -1139,7 +1139,7 @@ final class DiagnosticsServiceTest extends TestCase {
 		// Now verify that DefinitionListRenderer translates it.
 		// This is the actual acceptance test for the presentation layer fix.
 		$definition_list_renderer = new \UniversalGeo\Admin\DefinitionListRenderer( $service );
-		$renderer                  = new ReportRenderer( $definition_list_renderer );
+		$renderer                 = new ReportRenderer( $definition_list_renderer );
 		foreach ( $report['providers'] as $provider_row ) {
 			$html = $renderer->definition_list_html( $provider_row );
 			// The display should contain 'Not probed', not 'passive_snapshot'.

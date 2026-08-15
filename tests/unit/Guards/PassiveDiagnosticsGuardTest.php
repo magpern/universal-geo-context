@@ -41,12 +41,12 @@ final class PassiveDiagnosticsGuardTest extends TestCase {
 	 * Format: 'filename.php:methodName' for direct method matching.
 	 */
 	private const PROBE_ALLOWLIST = array(
-		'Resolver/ContextResolver.php:probe', // definition site (self-reference)
-		'Admin/OverviewPage.php:handle_refresh_providers', // explicit admin refresh POST
-		'Cli/Command.php:build_context_payload', // helper for context --ip=
-		'Cli/Command.php:providers', // explicit CLI command
-		'Cli/Command.php:context', // explicit CLI command with --ip
-		'Cli/Command.php:diagnostics', // explicit CLI command, documented to probe
+		'Resolver/ContextResolver.php:probe', // Definition site (self-reference).
+		'Admin/OverviewPage.php:handle_refresh_providers', // Explicit admin refresh POST.
+		'Cli/Command.php:build_context_payload', // Helper for context --ip=.
+		'Cli/Command.php:providers', // Explicit CLI command.
+		'Cli/Command.php:context', // Explicit CLI command with --ip.
+		'Cli/Command.php:diagnostics', // Explicit CLI command, documented to probe.
 	);
 
 	/**
