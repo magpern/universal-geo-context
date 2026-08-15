@@ -55,6 +55,11 @@ final class DefinitionListRenderer {
 				$display = (string) $value;
 			}
 
+			// Translate specific field values to user-readable text.
+			if ( 'reason' === (string) $key ) {
+				$display = $this->translate_reason_value( $display );
+			}
+
 			$label = $labels[ (string) $key ] ?? (string) $key;
 
 			$rows .= sprintf(
@@ -65,5 +70,20 @@ final class DefinitionListRenderer {
 		}
 
 		return sprintf( '<dl class="ugc-ui-dl">%s</dl>', $rows );
+	}
+
+	/**
+	 * Translates probe reason values to user-readable text.
+	 *
+	 * @param string $reason Machine-readable reason code.
+	 *
+	 * @return string User-facing display text.
+	 */
+	private function translate_reason_value( string $reason ): string {
+		if ( 'passive_snapshot' === $reason ) {
+			return __( 'Not probed', 'universal-geo-context' );
+		}
+
+		return $reason;
 	}
 }

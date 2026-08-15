@@ -11,6 +11,7 @@ namespace UniversalGeo\Tests\Unit\Diagnostics;
 
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use UniversalGeo\Admin\ReportRenderer;
 use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Diagnostics\DiagnosticsService;
 use UniversalGeo\Diagnostics\ProviderHealthStore;
@@ -1111,6 +1112,48 @@ final class DiagnosticsServiceTest extends TestCase {
 
 		// Empty provider chain is critical → worst must surface critical.
 		$this->assertSame( 'critical', $service->worst_site_health_status() );
+	}
+
+	// ---- Passive snapshot reason rendering ------------------------------------------
+
+	public function test_passive_snapshot_reason_is_rendered_as_not_probed(): void {
+		// Verify that when passive_provider_snapshot() is used in report(),
+		// the 'passive_snapshot' reason value is rendered as 'Not probed'
+		// in the admin UI (DefinitionListRenderer value translation).
+		$providers = array(
+			new DefaultCountryProvider( 'US' ),
+		);
+		$service = $this->service( null, null, array(), $providers );
+		$report  = $service->report();
+
+		// The providers section should have passive_snapshot reasons.
+		$this->assertIsArray( $report['providers'] ?? null );
+		$this->assertNotEmpty( $report['providers'] );
+
+		// Verify reason value is the internal 'passive_snapshot'.
+		foreach ( $report['providers'] as $provider_row ) {
+			$this->assertArrayHasKey( 'reason', $provider_row );
+			$this->assertSame( 'passive_snapshot', $provider_row['reason'] );
+		}
+
+		// Now verify that DefinitionListRenderer translates it.
+		// This is the actual acceptance test for the presentation layer fix.
+		$definition_list_renderer = new \UniversalGeo\Admin\DefinitionListRenderer( $service );
+		$renderer                  = new ReportRenderer( $definition_list_renderer );
+		foreach ( $report['providers'] as $provider_row ) {
+			$html = $renderer->definition_list_html( $provider_row );
+			// The display should contain 'Not probed', not 'passive_snapshot'.
+			$this->assertStringContainsString(
+				'Not probed',
+				$html,
+				'passive_snapshot reason should be rendered as "Not probed"'
+			);
+			$this->assertStringNotContainsString(
+				'passive_snapshot',
+				$html,
+				'Internal passive_snapshot token should not be visible to admins'
+			);
+		}
 	}
 
 	// ---- Class shape --------------------------------------------------------------------
