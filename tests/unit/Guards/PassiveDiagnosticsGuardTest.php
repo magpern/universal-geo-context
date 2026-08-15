@@ -60,7 +60,7 @@ final class PassiveDiagnosticsGuardTest extends TestCase {
 	 * @return void
 	 */
 	public function test_probe_call_sites_are_allowlisted(): void {
-		$root = dirname( __DIR__, 3 ) . '/src';
+		$root       = dirname( __DIR__, 3 ) . '/src';
 		$violations = $this->find_unapproved_probe_calls( $root );
 
 		if ( ! empty( $violations ) ) {
@@ -84,8 +84,8 @@ final class PassiveDiagnosticsGuardTest extends TestCase {
 	 */
 	private function find_unapproved_probe_calls( string $directory ): array {
 		$violations = array();
-		$files = $this->find_php_files( $directory );
-		$root = dirname( __DIR__, 3 ) . '/src/';
+		$files      = $this->find_php_files( $directory );
+		$root       = dirname( __DIR__, 3 ) . '/src/';
 
 		foreach ( $files as $filepath ) {
 			$contents = file_get_contents( $filepath );
@@ -93,7 +93,7 @@ final class PassiveDiagnosticsGuardTest extends TestCase {
 				continue;
 			}
 
-			$lines = explode( "\n", $contents );
+			$lines         = explode( "\n", $contents );
 			$relative_path = str_replace( $root, '', $filepath );
 
 			// Find probe() calls and their enclosing methods.
@@ -163,7 +163,7 @@ final class PassiveDiagnosticsGuardTest extends TestCase {
 			return $files;
 		}
 
-		$iterator = new \RecursiveDirectoryIterator( $directory );
+		$iterator  = new \RecursiveDirectoryIterator( $directory );
 		$recursive = new \RecursiveIteratorIterator( $iterator );
 
 		foreach ( $recursive as $file ) {
