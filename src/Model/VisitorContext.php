@@ -47,7 +47,7 @@ final class VisitorContext {
 	 * Constructs a context, validating structural shape only.
 	 *
 	 * @param string|null $country_code Two-letter country code (any case), or null for unknown.
-	 * @param string|null $region_code  Subdivision code, or null. Always null in v1.
+	 * @param string|null $region_code  Subdivision/region code (from M13 onwards), or null for unknown.
 	 * @param string      $source       Provider id, 'default', or 'unknown'.
 	 * @param float       $confidence   Confidence in the country determination, 0.0 to 1.0 inclusive.
 	 * @param bool        $is_cached    Whether this context came from the derived-context cache.

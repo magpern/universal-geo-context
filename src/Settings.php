@@ -186,7 +186,7 @@ final class Settings {
 	 *
 	 * @param mixed $data Arbitrary input.
 	 *
-	 * @return array<string, mixed> The complete, normalized twelve-key schema.
+	 * @return array<string, mixed> The complete, normalized settings schema.
 	 */
 	public static function sanitize( $data ): array {
 		if ( ! is_array( $data ) ) {

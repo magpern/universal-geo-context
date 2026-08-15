@@ -1,30 +1,28 @@
 # Architectural Decision Records
 
-**Status: M13 — 0002, 0006, 0007, 0008, 0009, and 0010 written and
-accepted; 0003 and 0005 written and amended (M3, M4, and — 0003 again —
-M13).** 0001/0004 remain documented only in the M1 milestone plan and
-`docs/ARCHITECTURE.md` — a pre-existing gap from M1, noted here rather than
-silently left unmentioned; M1 is frozen (tagged `m1`) and this document
-does not retroactively alter it. Nothing in M5–M12 amended 0001 or 0004;
-they remain the recorded 1.1 backfill.
+**Status: v1.8.1 — 0001, 0002, 0003, 0004, 0005, 0006, 0007, 0008, 0009, 0010, 0011
+written and accepted.** ADRs 0001 and 0004 are retrospective documentation of
+existing v1 architectural contracts, backfilled in v1.8.1 governance cleanup.
+ADR-0011 formalizes the passive diagnostics boundary established in v1.8.1.
 
 Six ADRs were written across M1–M3, amended further in M4; ADR-0007 added
 in M7 for admin navigation, ADR-0008 in M8 for simulation, ADR-0009 in M9
 for the Detection Inspector, ADR-0010 in M13 for region/subdivision
-support:
+support, ADR-0011 in v1.8.1 for passive diagnostics boundary:
 
 | ADR | Title | Milestone | File |
 |---|---|---|---|
-| 0001 | Plugin purpose and boundaries | M1 | not yet written |
+| 0001 | Plugin purpose and boundaries | M1, backfilled v1.8.1 | [0001-plugin-purpose-and-boundaries.md](0001-plugin-purpose-and-boundaries.md) |
 | 0002 | Trusted proxy model | M2 | [0002-trusted-proxy-model.md](0002-trusted-proxy-model.md) |
 | 0003 | Provider architecture | M1, amended M3, amended M4, amended M13 | [0003-provider-architecture.md](0003-provider-architecture.md) |
-| 0004 | Public API | M1 | not yet written |
+| 0004 | Public API | M1, backfilled v1.8.1 | [0004-public-api.md](0004-public-api.md) |
 | 0005 | Privacy model | M3, amended M4 | [0005-privacy-model.md](0005-privacy-model.md) |
 | 0006 | Optional WooCommerce integration | M2 | [0006-optional-woocommerce-integration.md](0006-optional-woocommerce-integration.md) |
 | 0007 | Admin navigation restructuring | M7 | [0007-admin-navigation-restructuring.md](0007-admin-navigation-restructuring.md) |
 | 0008 | Country simulation framework | M8 | [0008-country-simulation-framework.md](0008-country-simulation-framework.md) |
 | 0009 | Detection Inspector explanation architecture | M9 | [0009-detection-inspector-explanation-architecture.md](0009-detection-inspector-explanation-architecture.md) |
 | 0010 | Region/subdivision support and provider ownership | M13 | [0010-region-subdivision-support.md](0010-region-subdivision-support.md) |
+| 0011 | Passive diagnostics and explicit probe boundary | v1.8.1 | [0011-passive-diagnostics-invariant.md](0011-passive-diagnostics-invariant.md) |
 
 ## Format
 
