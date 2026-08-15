@@ -143,9 +143,12 @@ final class Command {
 
 	/**
 	 * Prints the same structured diagnostics report the admin Diagnostics
-	 * tab renders — reused verbatim, never re-derived, so the two can never
-	 * drift and every address stays masked exactly as report() already
-	 * guarantees.
+	 * tab renders — reused verbatim after a live provider probe, never
+	 * re-derived, so the two can never drift and every address stays masked
+	 * exactly as report() already guarantees. This command explicitly probes
+	 * the provider chain for a fresh health snapshot.
+	 *
+	 * **Note**: This command may contact remote providers if they are enabled.
 	 *
 	 * ## OPTIONS
 	 *
@@ -179,6 +182,8 @@ final class Command {
 			return;
 		}
 
+		// Explicitly probe the provider chain to produce a fresh health snapshot.
+		$this->resolver->probe();
 		$this->render( $this->flatten_report( $this->diagnostics->report() ), $format );
 	}
 

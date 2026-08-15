@@ -78,7 +78,10 @@ final class DiagnosticsPage implements Page {
 	}
 
 	/**
-	 * Renders the page.
+	 * Renders the page. Uses passive diagnostics (no provider probe on page load).
+	 * Live provider probe results are available through the "Refresh Providers"
+	 * POST action; see handle_refresh_providers() in OverviewPage for the
+	 * canonical admin refresh mechanism.
 	 *
 	 * @return void
 	 */
@@ -148,13 +151,13 @@ final class DiagnosticsPage implements Page {
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
 		echo $this->components->settings_card_open( __( 'Remote provider', 'universal-geo-context' ), '' );
 		if ( $report['remote']['enabled'] ) {
-			$remote_warning = $this->components->warning_panel(
+			$remote_note = $this->components->info_panel(
 				'',
-				__( 'The remote provider is enabled — viewing this page performs one live request to the configured remote service, as part of the provider probe table below.', 'universal-geo-context' )
+				__( 'The remote provider is enabled. Click "Refresh Providers" above to probe all providers for live results, which may contact this remote service.', 'universal-geo-context' )
 			);
 
 			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in component renderer.
-			echo $remote_warning;
+			echo $remote_note;
 		}
 		$this->renderer->render_definition_list( $report['remote'] );
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static close tag.

@@ -143,6 +143,8 @@ final class DiagnosticsService {
 	 * Builds the full structured report (Revision 3 §12's M2 sections, plus
 	 * M3's maxmind and provider_health sections).
 	 *
+	 * Never calls ContextResolver::probe() — passive reporting only.
+	 *
 	 * @return array<string, mixed>
 	 */
 	public function report(): array {
@@ -156,12 +158,40 @@ final class DiagnosticsService {
 			'maxmind'            => $this->maxmind_section(),
 			'remote'             => $this->remote_section(),
 			'maxmind_managed'    => $this->maxmind_managed_section(),
-			'providers'          => $this->resolver->probe(),
+			'providers'          => $this->passive_provider_snapshot(),
 			'provider_health'    => $this->provider_health_store->read(),
 			'cache'              => $this->cache_section(),
 			'simulation'         => $this->simulation_section(),
 			'environment'        => $this->environment_section(),
 		);
+	}
+
+	/**
+	 * Builds a passive snapshot of provider availability without probing.
+	 * Used by report() and Site Health — never initiates a live provider probe.
+	 *
+	 * Returns an array of provider snapshots, one per provider in the chain,
+	 * with the same structure as ContextResolver::probe() but with country_code
+	 * and region_code always null (since no probe occurred) and reason set to
+	 * 'passive_snapshot' to clearly distinguish from live probe results.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function passive_provider_snapshot(): array {
+		$snapshot = array();
+		$chain    = $this->resolver->provider_chain();
+
+		foreach ( $chain as $provider_id ) {
+			$snapshot[] = array(
+				'provider'     => $provider_id,
+				'available'    => $this->resolver->is_provider_available( $provider_id ),
+				'country_code' => null,
+				'region_code'  => null,
+				'reason'       => 'passive_snapshot',
+			);
+		}
+
+		return $snapshot;
 	}
 
 	/**

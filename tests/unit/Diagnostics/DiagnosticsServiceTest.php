@@ -559,15 +559,18 @@ final class DiagnosticsServiceTest extends TestCase {
 		$this->assertContains( $result['status'], array( 'good', 'recommended' ) );
 	}
 
-	// ---- providers section (probe() passthrough) ----------------------------------------
+	// ---- providers section (passive snapshot) ----------------------------------------
 
-	public function test_providers_section_reflects_probe(): void {
+	public function test_providers_section_shows_passive_snapshot(): void {
 		$provider = new TrackingGeoProvider( 'a', true, new GeoCandidate( 'SE', null ) );
 		$report   = $this->service( null, null, array(), array( $provider ) )->report();
 
 		$this->assertCount( 1, $report['providers'] );
 		$this->assertSame( 'a', $report['providers'][0]['provider'] );
-		$this->assertSame( 'ok', $report['providers'][0]['reason'] );
+		$this->assertSame( true, $report['providers'][0]['available'] );
+		$this->assertSame( null, $report['providers'][0]['country_code'] );
+		$this->assertSame( null, $report['providers'][0]['region_code'] );
+		$this->assertSame( 'passive_snapshot', $report['providers'][0]['reason'] );
 	}
 
 	// ---- provider_health section (M3) ------------------------------------------------------
