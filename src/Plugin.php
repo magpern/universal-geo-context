@@ -59,6 +59,7 @@ use UniversalGeo\Providers\Remote\CircuitBreaker;
 use UniversalGeo\Providers\Remote\ReferenceRemoteProvider;
 use UniversalGeo\Providers\Remote\WordPressHttpTransport;
 use UniversalGeo\Providers\WooCommerceProvider;
+use UniversalGeo\Rest\ContextController;
 use UniversalGeo\Resolver\ContextResolver;
 use UniversalGeo\Resolver\GeoValidator;
 use UniversalGeo\Settings;
@@ -213,6 +214,14 @@ final class Plugin {
 			$graph['settings']['maxmind_managed_auto_update_enabled'],
 			$graph['settings']['maxmind_managed_auto_update_frequency']
 		);
+
+		// Unconditional (M14): a REST request satisfies neither
+		// should_register_admin()'s is_admin() gate nor should_register_cli(),
+		// so this cannot live inside either gated branch below either. The
+		// callable is this instance's own context() method — the composition
+		// root is the only place allowed to reference Plugin concretely;
+		// ContextController itself never does (see src/Rest/ContextController.php).
+		( new ContextController( array( $this, 'context' ) ) )->register();
 
 		$register_admin = $this->should_register_admin();
 		$register_cli   = $this->should_register_cli();
