@@ -43,11 +43,17 @@ public function __construct( callable $context_provider ) {
 }
 ```
 
-Composition root (`Plugin::init()`) supplies `array( $this, 'context' )`. This mirrors the
+Composition root (`Plugin::init()`) supplies a callable bound to `$this`. This mirrors the
 existing `ContextResolver::$on_provider_failed` callable-injection precedent
 (`src/Resolver/ContextResolver.php`) rather than inventing a new `Contracts/` interface
 implemented by the composition root itself. `ContextController` must not import `Plugin`,
 type-hint `Plugin`, or call `Plugin::instance()`.
+
+**Amended by Amendment 1** (see below Section 0): the callable is
+`array( $this, 'effective_context' )`, not `array( $this, 'context' )` as originally
+written here — `context()`'s request-level memoization was found unsafe for this specific
+REST use case. `ContextController`'s own design above (opaque callable, no method name
+assumed) required zero changes to accommodate this.
 
 ### C. REST v1 response contract — frozen key set, not additive
 
@@ -102,7 +108,13 @@ features are added to make a test possible.
 
 ---
 
-## Section 0 — REST auth timing vs. context memoization (resolved by investigation, verified by test)
+## Section 0 — REST auth timing vs. context memoization (SUPERSEDED — see Amendment 1)
+
+**This section's central claim — "for a stock UGC installation, the ordering guarantee
+holds" — was empirically disproven during implementation.** It is left in place, unedited,
+for governance history; do not act on it. See **Amendment 1**, immediately below the
+original text, for the corrected finding, the fix, and why `Plugin::context()` itself was
+deliberately left unchanged rather than repaired directly.
 
 `Plugin::context()` (`src/Plugin.php`) memoizes once per request. WordPress's REST cookie
 authentication (`rest_cookie_check_errors()`/`rest_cookie_collect_status()`, WP core
@@ -138,6 +150,123 @@ that deliberately triggers `is_user_logged_in()`/`Plugin::context()` before disp
 REST request, for both the valid-nonce and no-nonce cases, and asserts the final response
 matches what the ordering guarantee above predicts. If that test contradicts this section,
 implementation stops and the conflict is reported rather than forced through.
+
+---
+
+## Amendment 1 — REST auth-timing correction (post-freeze)
+
+**Status at time of writing**: implemented and test-verified; M14 resumed from this point.
+
+### What the verification actually found
+
+Running the exact test Section 0 promised (`test_early_context_access_can_leak_simulation_without_nonce`,
+now superseded by the tests listed below) proved the opposite of Section 0's prediction.
+Two facts, both confirmed directly against the bundled WordPress core source
+(`wp-includes/rest-api.php`, `wp-includes/rest-api/class-wp-rest-server.php`), not assumed:
+
+1. **The REST nonce downgrade is not a general property of `is_user_logged_in()`.** It
+   lives entirely inside `rest_cookie_check_errors()`, which is only ever invoked as a side
+   effect of `WP_REST_Server::check_authentication()` — itself only called from
+   `serve_request()`, immediately before `dispatch()`. A bare call to
+   `is_user_logged_in()`/`Plugin::context()` from anywhere else in the same request resolves
+   the *true* cookie identity, completely unaffected by whether a nonce was ever sent for
+   *this* request.
+2. **This is exactly the situation `docs/API.md`'s own documented consumer pattern
+   creates.** A consumer plugin calling `universal_geo_get_country_code()` on
+   `woocommerce_init`/`init` — hooks that fire on every request type, including REST
+   requests, well before `check_authentication()` runs — legitimately (and correctly, in
+   isolation) observes an authenticated admin's active simulation, and
+   `Plugin::context()`'s per-instance memo then serves that same, now-stale result to
+   every later caller in the same request/process, including our REST route's own
+   `get_context()` callback — even though `check_authentication()` had separately, and
+   correctly, decided *this specific request* had no valid nonce and should be anonymous.
+
+This is a real, reproducible leak of simulated data into a request WordPress's own REST
+layer had already decided to anonymize. Not a theoretical edge case: it is the documented,
+designed multi-plugin usage pattern this milestone exists to serve.
+
+### Why `Plugin::context()` was left unchanged
+
+`Plugin::context()`'s memoization is the frozen, six-function PHP API's own behavior,
+documented and relied upon since M1 (`ARCHITECTURE_FREEZE.md` §14.2/§16). Changing its
+memoization semantics globally would:
+- change observable behavior for every existing PHP consumer (Universal Multicurrency-style
+  plugins), not just the new REST surface;
+- require touching `src/api.php`'s implicit contract even though no function signature
+  changes;
+- conflate two genuinely different needs — "one consistent value for the whole
+  request, for direct PHP callers" (correct and wanted) and "a value that reflects
+  *this specific caller's own* authorization state at the moment it asks" (what REST
+  needs) — inside one memoization flag.
+
+The instruction was explicit: do not weaken memoization or change `Plugin::context()`
+semantics. The fix instead adds a second, narrow, `@internal` read path.
+
+### The fix
+
+`src/Plugin.php`:
+- Extracted the shared filter pipeline (resolve → `apply_filters('universal_geo_context', ...)`
+  → validate → `do_action('universal_geo_context_resolved', ...)`) into one private method,
+  `resolve_and_filter_context()` — the single implementation both paths below use, so they
+  cannot become two subtly different effective-context algorithms.
+- `context()` is unchanged in every externally observable way: still memoized on
+  `$this->public_context`/`$this->context_resolved`, still returns the identical instance
+  on a second call, still the six PHP functions' only path. Internally it now just calls
+  `resolve_and_filter_context()` once and caches the result — same behavior, extracted
+  implementation.
+- New `public function effective_context(): VisitorContext` — `@internal`, never added to
+  `src/api.php`, never bumps `universal_geo_api_version()`, no new hook. Calls
+  `resolve_and_filter_context()` fresh on every call, never reading or writing
+  `$public_context`/`context_resolved`. Public PHP visibility only because a callable array
+  invoked from `ContextController` (a different class) requires it — this is not a new
+  public *contract*, only a composition-root wiring necessity, exactly like `context()`
+  itself already was for the six PHP functions.
+
+`src/Plugin.php`'s composition-root wiring (`Plugin::init()`'s unconditional block) now
+passes `array( $this, 'effective_context' )` to `ContextController`, not
+`array( $this, 'context' )`. `ContextController` itself required zero changes — it was
+already designed (§B) to depend on an opaque `callable`, never on `Plugin` or on any
+particular method name.
+
+### Why the expensive path is not duplicated
+
+`resolve_and_filter_context()` calls `$this->resolver->resolve()` — `ContextResolver`'s own
+existing per-instance memo (`private ?VisitorContext $memo`, unchanged, `src/Resolver/ContextResolver.php`)
+already short-circuits every call after the first, regardless of which of `context()` or
+`effective_context()` is calling it. Only the filter/action re-application repeats on each
+`effective_context()` call — cheap, no I/O: `SimulationContextFilter::apply()` reads a
+signed cookie and a capability check, nothing else. Verified directly (not assumed): calling
+`effective_context()` three times against a live-provider-configured graph produces exactly
+one outbound provider call.
+
+### Hook-frequency note (documented, not a semantic change)
+
+`universal_geo_context`/`universal_geo_context_resolved` can now fire more than once per
+request in total (once per `context()` call — still at most once, memoized — plus once per
+`effective_context()` call, e.g. once per REST dispatch). The filter/action's own contract
+(input/output shape, purpose, "runs first and gets the last word") is unchanged; only the
+number of independent evaluations per request can now exceed one. `SimulationContextFilter`
+was already idempotent and side-effect-free, so this is safe for the plugin's own callback;
+`docs/HOOKS.md`'s "Fires" column is updated accordingly under WP6.
+
+### Acceptance criteria (all met, verified — see `tests/integration/Rest/ContextControllerTest.php`)
+
+- A. `Plugin::context()`'s memoization and simulation-awareness: byte-for-byte unchanged
+  (`test_plugin_context_memoization_is_unchanged`).
+- B–D. Normal REST behavior (anonymous, valid-nonce+simulation, no-nonce+no-early-access):
+  unchanged, still passing.
+- E. Early `Plugin::context()` access + no REST nonce → REST response now returns **real**
+  context, not the leaked simulated value
+  (`test_early_context_access_no_nonce_returns_real_context_not_leaked_simulation`).
+- F. Early `Plugin::context()` access + valid REST nonce → REST response still correctly
+  returns the **simulated** country (`test_early_context_access_with_valid_nonce_still_sees_simulated_country`)
+  — proves `effective_context()` is independently authorization-sensitive in both
+  directions, not merely hardcoded to ignore prior state.
+- G. Three `effective_context()` calls against a live-provider-configured graph produce
+  exactly one outbound provider call (`test_effective_context_does_not_repeat_provider_resolution`).
+
+All 12 tests in that file pass; the full unit suite (2208 tests) and full integration
+suite (128 tests) pass; PHPCS is clean repo-wide.
 
 ---
 
