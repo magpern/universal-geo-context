@@ -4,7 +4,7 @@ Tags: geolocation, country, geoip, woocommerce, privacy
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.8.1
+Stable tag: 1.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -108,6 +108,15 @@ No. It detects geographic facts only. Consumers — other plugins reading
 its public functions — decide what those facts mean.
 
 == Changelog ==
+
+= 1.9.0 =
+* Cache-safe visitor context: new, read-only, anonymous REST endpoint `GET /wp-json/universal-geo-context/v1/context`, so a consumer's own JavaScript can fetch the current visitor's context after full-page/CDN-cached HTML has already loaded. See ADR-0012.
+* Response is a frozen, non-additive two-key contract (`country_code`, `region_code`) — independently versioned by its own `/v1` URL segment, never coupled to the internal `VisitorContext::to_array()`/`SCHEMA_VERSION` shape.
+* `ContextController` depends on a plain callable, never on `Plugin` directly — no service locator.
+* New internal `Plugin::effective_context()` provides a non-memoized effective-context read for this route, distinct from the frozen `Plugin::context()` the six public PHP functions use — closes a REST-authentication-timing/simulation-leak finding found and fixed during implementation (see `docs/PLAN-v1.9.0.md`).
+* No new hook, no CORS change, no `ip=` parameter, no rate limiter, no policy logic. Every response carries `Cache-Control: no-store`.
+* Admin simulation (M8) is reflected through this endpoint only when the request carries a valid `X-WP-Nonce` — standard WordPress REST cookie-authentication behavior.
+* No public PHP API, `VisitorContext`, `ContextResolver`, provider-order, `GeoCache`, or simulation-control-surface changes; `universal_geo_api_version()` stays `1`. Managed GeoLite2 City remains separately deferred (ADR-0010), untouched by this release.
 
 = 1.8.1 =
 * Diagnostics probe isolation: `DiagnosticsService::report()` is now structurally passive and never triggers `ContextResolver::probe()`.

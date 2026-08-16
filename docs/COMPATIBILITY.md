@@ -1,11 +1,11 @@
 # Compatibility Matrix
 
-**Status: M13 complete.** Version-header parity (header, `UNIVERSAL_GEO_VERSION`,
+**Status: M14 complete.** Version-header parity (header, `UNIVERSAL_GEO_VERSION`,
 this document, and `readme.txt`'s `Stable tag`) is enforced automatically by
 `tests/unit/VersionParityTest.php`, which runs on every PR/CI build — no
 longer a manual check.
 
-**Current plugin version: `1.8.1`**
+**Current plugin version: `1.9.0`**
 
 ## Version support
 
@@ -101,3 +101,13 @@ simulation contract change; `Settings::SCHEMA_VERSION` stays `5`. Consumers
 that already ignore `region_code` need no changes. Managed GeoLite2 City
 downloads were investigated and given an explicit NO-GO for this release —
 see ADR-0010.
+
+## Cache-safe visitor context REST endpoint (M14)
+
+`GET /wp-json/universal-geo-context/v1/context` is a new, independent public
+surface — see `docs/API.md` and ADR-0012. No public PHP API, provider,
+resolver, cache, or simulation contract change; `universal_geo_api_version()`
+stays `1`. Downstream plugins that never call this new REST route are
+entirely unaffected; those that do get a frozen two-key JSON contract
+(`country_code`, `region_code`), versioned independently of the PHP API by
+its own `/v1` URL segment.
