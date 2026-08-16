@@ -10,8 +10,10 @@ declare( strict_types=1 );
 namespace UniversalGeo\Tests\Integration\Rest;
 
 use ReflectionClass;
+use UniversalGeo\Cache\GeoCache;
 use UniversalGeo\Diagnostics\ProviderHealthStore;
 use UniversalGeo\Plugin;
+use UniversalGeo\Settings;
 use UniversalGeo\Simulation\SimulationCookie;
 use WP_REST_Request;
 use WP_UnitTestCase;
@@ -298,7 +300,28 @@ final class ContextControllerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Scenario D (Section 0) — the authoritative, empirical answer.
+	 * Requirement A: Plugin::context()'s own PHP-consumer-facing behavior —
+	 * request-level memoization and simulation-awareness — is byte-for-byte
+	 * unchanged by the effective_context() correction. Both methods now
+	 * share resolve_and_filter_context() internally, so this also guards
+	 * against that extraction accidentally diverging the two algorithms.
+	 */
+	public function test_plugin_context_memoization_is_unchanged(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$this->authenticate_via_real_cookie( $admin_id );
+		$this->activate_simulation( 'NO' );
+		$this->boot();
+
+		$first  = Plugin::instance()->context();
+		$second = Plugin::instance()->context();
+
+		$this->assertSame( 'NO', $first->country_code, 'Plugin::context() must still reflect an authorized, active simulation exactly as before M14.' );
+		$this->assertSame( $first, $second, 'Plugin::context() must still return the IDENTICAL memoized instance on a second call in the same request — memoization itself is untouched.' );
+	}
+
+	/**
+	 * Regression E (Section 0 correction) — the authoritative, empirical
+	 * proof the leak is fixed.
 	 *
 	 * WordPress's REST nonce downgrade (wp_set_current_user(0) when no
 	 * nonce is present) lives entirely inside rest_cookie_check_errors(),
@@ -310,29 +333,15 @@ final class ContextControllerTest extends WP_UnitTestCase {
 	 * resolves the CURRENT USER correctly (a real, valid auth cookie really
 	 * does mean they are logged in) but is NEVER subject to the REST-specific
 	 * nonce downgrade, because that downgrade is not a property of
-	 * is_user_logged_in() itself.
+	 * is_user_logged_in() itself. Plugin::context()'s own memoization used
+	 * to make that early, un-downgraded result "stick" for every later
+	 * caller in the same request/process — including this REST route.
 	 *
-	 * Because Plugin::context() memoizes once per Plugin instance
-	 * (src/Plugin.php), and a Plugin instance is a singleton spanning the
-	 * whole request/process, this means: if ANYTHING calls
-	 * Plugin::context() before our own REST route's check_authentication()
-	 * runs, that early result — legitimately reflecting simulation, since
-	 * outside of REST's own nonce gate the admin really is authenticated —
-	 * is what a LATER, no-nonce REST dispatch of this same route will also
-	 * return, even though check_authentication() would, on its own,
-	 * correctly have anonymized this specific dispatch.
-	 *
-	 * This test proves that leak exists. It is not introduced by M14 —
-	 * Plugin::context()'s single-memoization-per-request design has shipped
-	 * since M1, and ContextController adds no new call to it beyond the one
-	 * every other consumer already makes. It is a genuine, pre-existing
-	 * architectural property surfaced by this milestone being the first
-	 * consumer reachable over an unauthenticated network request, for a
-	 * request shape (a plugin calling the public API before this route's
-	 * own callback runs) that was already possible for any two PHP
-	 * consumers on the same page today.
+	 * ContextController now depends on Plugin::effective_context(), which
+	 * never reads or writes that memo, so the early call above and this
+	 * REST dispatch are independently evaluated — proven here.
 	 */
-	public function test_early_context_access_can_leak_simulation_without_nonce(): void {
+	public function test_early_context_access_no_nonce_returns_real_context_not_leaked_simulation(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->authenticate_via_real_cookie( $admin_id );
 		$this->activate_simulation( 'NO' );
@@ -342,19 +351,95 @@ final class ContextControllerTest extends WP_UnitTestCase {
 		// (or any code touching is_user_logged_in()) earlier in the same
 		// request, before this route's own check_authentication() has run.
 		$early = Plugin::instance()->context();
-		$this->assertSame( 'NO', $early->country_code, 'Outside of REST\'s own nonce gate, a genuinely cookie-authenticated admin with active simulation legitimately sees the simulated country — this call is correct in isolation.' );
+		$this->assertSame( 'NO', $early->country_code, 'Outside of REST\'s own nonce gate, a genuinely cookie-authenticated admin with active simulation legitimately sees the simulated country via Plugin::context() — this call is correct in isolation and must remain correct (requirement A).' );
 
 		// The SAME Plugin instance (matching production's one-instance-per-
-		// request reality) now serves a REST request with NO nonce. If
-		// Plugin::context()'s memo from the early call above is what
-		// ContextController ends up returning, simulated data has leaked
-		// into a request check_authentication() would otherwise have
-		// anonymized.
+		// request reality) now serves a REST request with NO nonce. Before
+		// the fix, Plugin::context()'s memo from the early call above leaked
+		// through. effective_context() must not be affected by it.
 		$data = $this->dispatch()->get_data();
+		$this->assertNull(
+			$data['country_code'],
+			'An earlier Plugin::context() call in the same request must NOT be reflected by this REST route when the REST request itself has no valid nonce — effective_context() re-evaluates independently of Plugin::context()\'s memo.'
+		);
+	}
+
+	/**
+	 * Regression F: the mirror-image case — an early Plugin::context() call
+	 * must not prevent effective_context() from correctly reflecting
+	 * simulation either, when this specific REST dispatch DOES carry a
+	 * valid nonce. Proves effective_context() is independently authorization-
+	 * sensitive in both directions, not merely hardcoded to ignore the
+	 * early call.
+	 */
+	public function test_early_context_access_with_valid_nonce_still_sees_simulated_country(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$this->authenticate_via_real_cookie( $admin_id );
+		$this->activate_simulation( 'NO' );
+		$this->boot();
+
+		$early = Plugin::instance()->context();
+		$this->assertSame( 'NO', $early->country_code );
+
+		$data = $this->dispatch_with_nonce( $admin_id )->get_data();
 		$this->assertSame(
 			'NO',
 			$data['country_code'],
-			'Documents the actual, empirically-verified behavior: an earlier Plugin::context() call in the same request is reflected by this REST route even without a nonce, because Plugin::context() memoizes per-instance and does not re-run per REST dispatch.'
+			'A REST dispatch with a valid nonce must still correctly reflect active simulation, even after an earlier Plugin::context() call in the same request.'
 		);
+		$this->assertNull( $data['region_code'] );
+	}
+
+	/**
+	 * Requirement G: effective_context() must not repeat expensive provider
+	 * resolution. Enables the remote provider with a counted pre_http_request
+	 * filter (the same technique DiagnosticsProbeExactOnceTest uses for an
+	 * identical class of claim) and calls effective_context() three times —
+	 * the outbound call count must be exactly one, proving
+	 * ContextResolver::resolve()'s own memo is what effective_context()
+	 * relies on, not a new cache of its own.
+	 */
+	public function test_effective_context_does_not_repeat_provider_resolution(): void {
+		Plugin::activate();
+
+		Settings::save(
+			array(
+				'remote_enabled'               => true,
+				'remote_transfer_acknowledged' => true,
+				'remote_account_id'            => 'test-account',
+				'remote_license_key'           => 'test-license',
+			)
+		);
+		GeoCache::bump_epoch();
+
+		$call_count = 0;
+		add_filter(
+			'pre_http_request',
+			static function () use ( &$call_count ) {
+				++$call_count;
+
+				return array(
+					'response' => array( 'code' => 200 ),
+					'body'     => '{"country":{"iso_code":"DE"}}',
+				);
+			},
+			10,
+			3
+		);
+
+		$_SERVER['REMOTE_ADDR'] = '8.8.8.8';
+		$this->boot();
+
+		$first  = Plugin::instance()->effective_context();
+		$second = Plugin::instance()->effective_context();
+		$third  = Plugin::instance()->effective_context();
+
+		$this->assertSame( 'DE', $first->country_code );
+		$this->assertSame( 'DE', $second->country_code );
+		$this->assertSame( 'DE', $third->country_code );
+		$this->assertSame( 1, $call_count, 'effective_context() must reuse ContextResolver\'s own memo — three calls must not make three outbound provider requests.' );
+
+		remove_all_filters( 'pre_http_request' );
+		unset( $_SERVER['REMOTE_ADDR'] );
 	}
 }

@@ -218,10 +218,13 @@ final class Plugin {
 		// Unconditional (M14): a REST request satisfies neither
 		// should_register_admin()'s is_admin() gate nor should_register_cli(),
 		// so this cannot live inside either gated branch below either. The
-		// callable is this instance's own context() method — the composition
+		// callable is this instance's own effective_context() method — NOT
+		// context(), whose request-level memoization is unsafe for a REST
+		// route (see effective_context()'s own docblock and
+		// docs/adr/0012-cache-safe-visitor-context.md). The composition
 		// root is the only place allowed to reference Plugin concretely;
 		// ContextController itself never does (see src/Rest/ContextController.php).
-		( new ContextController( array( $this, 'context' ) ) )->register();
+		( new ContextController( array( $this, 'effective_context' ) ) )->register();
 
 		$register_admin = $this->should_register_admin();
 		$register_cli   = $this->should_register_cli();
@@ -422,7 +425,9 @@ final class Plugin {
 	 * Memoized: the filter and action run at most once per request, on the
 	 * first call. Every later call in the same request — including from
 	 * the five convenience wrapper functions in src/api.php — returns the
-	 * identical, already-filtered instance.
+	 * identical, already-filtered instance. This method's behavior and
+	 * memoization are unchanged by M14 — see effective_context() below for
+	 * the narrow, unmemoized seam M14 actually uses.
 	 *
 	 * Never throws, never fatals: called before init() (a programmer
 	 * error — consumers must call at or after plugins_loaded priority 20)
@@ -448,12 +453,88 @@ final class Plugin {
 			return $this->public_context;
 		}
 
+		$this->public_context   = $this->resolve_and_filter_context();
+		$this->context_resolved = true;
+
+		return $this->public_context;
+	}
+
+	/**
+	 * Returns the effective visitor context for the current call, WITHOUT
+	 * Plugin's own request-level memoization — every call re-applies the
+	 * universal_geo_context filter (and fires universal_geo_context_resolved)
+	 * fresh, so an authorization-sensitive filter (SimulationContextFilter)
+	 * always reflects the current-user/nonce state at the moment of THIS
+	 * call, never a value cached from an earlier, differently-authenticated
+	 * point in the same request.
+	 *
+	 * Added for M14 (docs/adr/0012-cache-safe-visitor-context.md): a REST
+	 * request's own authentication state is only finalized inside
+	 * WP_REST_Server::check_authentication(), which runs after plugins_loaded/
+	 * init — so if any earlier code in the same request already called
+	 * context() (e.g. a consumer plugin's own universal_geo_get_context()
+	 * call on an early, unconditional hook, per docs/API.md's own documented
+	 * usage pattern), context()'s memo would reflect that earlier,
+	 * un-downgraded authentication state, and every later caller in the
+	 * request — including this route — would incorrectly see it too.
+	 * effective_context() sidesteps that by never writing or reading
+	 * $public_context/$context_resolved at all.
+	 *
+	 * Cheap to call repeatedly: the expensive part — provider resolution and
+	 * GeoCache — stays fully memoized, unchanged, inside ContextResolver
+	 * itself (resolve_and_filter_context() calls $this->resolver->resolve(),
+	 * which returns its own already-computed $memo on every call after the
+	 * first). Only the filter/action re-application is repeated, and
+	 * SimulationContextFilter::apply() does no I/O — it reads a signed
+	 * cookie and a capability check, nothing else.
+	 *
+	 * Uses the exact same universal_geo_context filter and
+	 * universal_geo_context_resolved action context() uses — see
+	 * resolve_and_filter_context() — never a second, parallel filtering
+	 * implementation. Not part of the public API: never exposed via
+	 * src/api.php, never bumps universal_geo_api_version(), and is wired
+	 * only from the composition root (Plugin::init(), as
+	 * array( $this, 'effective_context' ) into ContextController). Marked
+	 * internal below despite its necessary public PHP visibility — a
+	 * callable array invoked from ContextController, a different class,
+	 * requires a public method.
+	 *
+	 * @internal
+	 *
+	 * @return VisitorContext
+	 */
+	public function effective_context(): VisitorContext {
+		if ( null === $this->resolver ) {
+			return VisitorContext::unknown();
+		}
+
+		return $this->resolve_and_filter_context();
+	}
+
+	/**
+	 * The one shared implementation of the universal_geo_context filter
+	 * pipeline: resolve, filter, validate, fire the resolved action. Both
+	 * context() (memoized) and effective_context() (not memoized) call this
+	 * — the only difference between them is whether the result is cached on
+	 * $public_context afterward. Extracted specifically so the two never
+	 * risk becoming two subtly different effective-context algorithms.
+	 *
+	 * @return VisitorContext
+	 */
+	private function resolve_and_filter_context(): VisitorContext {
 		$context = $this->resolver->resolve();
 
 		/**
 		 * Filters the resolved visitor context. Runs first and gets the
 		 * last word on the value (Revision 3 §14); the returned value is
 		 * re-validated below before use.
+		 *
+		 * As of M14, this filter may be applied more than once per request:
+		 * once per context() call (memoized after the first) and once per
+		 * effective_context() call (never memoized, see its own docblock).
+		 * Callbacks must be idempotent pure functions of the input
+		 * VisitorContext plus current request state — exactly what the
+		 * plugin's own SimulationContextFilter already is.
 		 *
 		 * @since 0.1.0
 		 *
@@ -474,7 +555,9 @@ final class Plugin {
 		/**
 		 * Fires after the visitor context has been resolved and filtered.
 		 * Receives the already-filtered context and cannot change it
-		 * (Revision 3 §14).
+		 * (Revision 3 §14). See the universal_geo_context filter's own
+		 * docblock above for the M14 firing-frequency note that applies
+		 * identically here.
 		 *
 		 * @since 0.1.0
 		 *
@@ -482,10 +565,7 @@ final class Plugin {
 		 */
 		do_action( 'universal_geo_context_resolved', $filtered );
 
-		$this->public_context   = $filtered;
-		$this->context_resolved = true;
-
-		return $this->public_context;
+		return $filtered;
 	}
 
 	/**
