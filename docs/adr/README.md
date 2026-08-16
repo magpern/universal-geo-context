@@ -1,14 +1,15 @@
 # Architectural Decision Records
 
-**Status: v1.8.1 — 0001, 0002, 0003, 0004, 0005, 0006, 0007, 0008, 0009, 0010, 0011
-written and accepted.** ADRs 0001 and 0004 are retrospective documentation of
-existing v1 architectural contracts, backfilled in v1.8.1 governance cleanup.
-ADR-0011 formalizes the passive diagnostics boundary established in v1.8.1.
+**Status: v1.9.0 — 0001 through 0012 written and accepted.** ADRs 0001 and 0004 are
+retrospective documentation of existing v1 architectural contracts, backfilled in v1.8.1
+governance cleanup. ADR-0011 formalizes the passive diagnostics boundary established in
+v1.8.1. ADR-0012 formalizes the cache-safe visitor context REST surface added in M14/v1.9.0.
 
 Six ADRs were written across M1–M3, amended further in M4; ADR-0007 added
 in M7 for admin navigation, ADR-0008 in M8 for simulation, ADR-0009 in M9
 for the Detection Inspector, ADR-0010 in M13 for region/subdivision
-support, ADR-0011 in v1.8.1 for passive diagnostics boundary:
+support, ADR-0011 in v1.8.1 for passive diagnostics boundary, ADR-0012 in
+M14/v1.9.0 for the cache-safe visitor context REST surface:
 
 | ADR | Title | Milestone | File |
 |---|---|---|---|
@@ -23,6 +24,7 @@ support, ADR-0011 in v1.8.1 for passive diagnostics boundary:
 | 0009 | Detection Inspector explanation architecture | M9 | [0009-detection-inspector-explanation-architecture.md](0009-detection-inspector-explanation-architecture.md) |
 | 0010 | Region/subdivision support and provider ownership | M13 | [0010-region-subdivision-support.md](0010-region-subdivision-support.md) |
 | 0011 | Passive diagnostics and explicit probe boundary | v1.8.1 | [0011-passive-diagnostics-invariant.md](0011-passive-diagnostics-invariant.md) |
+| 0012 | Cache-safe visitor context (REST v1) | M14 / v1.9.0 | [0012-cache-safe-visitor-context.md](0012-cache-safe-visitor-context.md) |
 
 ## Format
 

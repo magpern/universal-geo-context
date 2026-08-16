@@ -387,8 +387,8 @@ support.)
 
 | Hook | Type | Fires | Purpose |
 |---|---|---|---|
-| `universal_geo_context` | Filter | Once per request, at Plugin::context() | Modify the final VisitorContext before consumers see it |
-| `universal_geo_context_resolved` | Action | Immediately after the filter | React to resolution (read-only) |
+| `universal_geo_context` | Filter | At `Plugin::context()` (once per request, memoized) **and**, as of M14, at `Plugin::effective_context()` (once per call, never memoized — e.g. once per REST dispatch of `GET /wp-json/universal-geo-context/v1/context`) | Modify the final VisitorContext before consumers see it |
+| `universal_geo_context_resolved` | Action | Immediately after the filter, at either call site above | React to resolution (read-only) |
 | `universal_geo_providers` | Filter | At graph build, plugins_loaded 10 | Reorder/add/remove providers |
 | `universal_geo_default_country` | Filter | At graph build, plugins_loaded 10 | Override fallback country |
 | `universal_geo_trusted_proxies` | Filter | At first trust-gate eval, lazily | Extend trusted-proxy CIDR set (additive only) |
@@ -400,6 +400,7 @@ support.)
 - **No raw IP crosses a hook.** All hook arguments are `VisitorContext`, provider ID strings, country codes, or CIDR strings — never a raw client IP.
 - **Hooks validate filter returns.** Invalid return values (wrong type, malformed data) are discarded with `_doing_it_wrong()` and the pre-filter value is kept.
 - **Additive hooks only.** `universal_geo_trusted_proxies` cannot shrink the trust set; it can only extend it.
+- **`universal_geo_context`/`universal_geo_context_resolved` may fire more than once per request as of M14** (previously: at most once). The filter/action's own contract — input/output shape, purpose, "runs first and gets the last word" — is unchanged; only the number of independent evaluations per request can now exceed one, since `Plugin::effective_context()` (§15, `@internal`, used only by the M14 REST route) deliberately does not memoize. Callbacks must be idempotent pure functions of the input `VisitorContext` plus current request state — exactly what the plugin's own `SimulationContextFilter` already is.
 
 ---
 
@@ -575,6 +576,7 @@ The following changes are **not** breaking and are fully compatible with v1.0.0 
 - **Cache improvements**: Changing cache eviction strategy, TTL defaults, or memoization details is an internal optimization if it preserves determinism.
 - **Region support** (M6+): Adding `region_code` support via GeoLite2-City without removing the Country provider.
 - **Translation additions**: More strings translated, more languages supported — always backwards-compatible.
+- **New, independently-versioned public surfaces** (M14): Adding a new network-facing surface (e.g. a REST route) alongside the frozen six-function PHP API, versioned and evolved on its own terms (its own namespace, its own contract), provided it introduces no policy, no new IP-resolution path, and no change to the PHP API's own six functions or `universal_geo_api_version()`. M14's `GET /wp-json/universal-geo-context/v1/context` (ADR-0012) is the first example. A new `@internal` composition-root method used only to wire such a surface (e.g. `Plugin::effective_context()`) is likewise non-breaking provided it does not alter `context()`'s own existing behavior for PHP consumers.
 
 ---
 

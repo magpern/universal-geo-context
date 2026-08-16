@@ -44,7 +44,7 @@ No `Requires Plugins` header. WooCommerce is optional — one provider, guarded 
 
 ## Multisite
 
-Per-site operation, no network-wide settings. Network activation is supported but untested in v1 (stated in docs).
+Per-site operation, no network-wide settings. Network activation is supported but untested in v1 (stated in docs). This framing is unchanged by M14/v1.9.0's REST route (`GET /wp-json/universal-geo-context/v1/context`): it inherits the exact same per-site, untested-under-network-activation status as the rest of the plugin — no stronger multisite claim is made for it, and no multisite-specific code was added.
 
 ## Credential-field compatibility period (M6)
 

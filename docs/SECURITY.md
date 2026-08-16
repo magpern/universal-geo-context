@@ -39,6 +39,7 @@ addressed below.
 | **Chained Cloudflare mode is spoofable when the origin is directly reachable** | Documented, not silently mitigated: if a site's origin answers HTTPS directly (bypassing the CDN/proxy), an attacker who discovers that origin IP can forge `CF-*` headers through the trusted inner proxy. The chained-mode toggle is always an explicit admin assertion, never a default; the recipe in `docs/TRUSTED_PROXIES.md` recommends locking the edge to proxy-only ingress. |
 | **Forged or stolen simulation cookie (M8)** | Mitigated as shipped. The cookie payload is HMAC-signed with `wp_salt('auth')` and verified with `hash_equals()`; only a validated ISO country code is accepted. Authorization is re-checked on every read (`is_user_logged_in()` + `manage_options`) — a copied cookie does nothing for logged-out users, subscribers, or administrators who have lost the capability. Simulation is applied only as a post-resolution `universal_geo_context` filter and never writes to `GeoCache` or provider-health state. State changes require nonce-protected POST actions (`admin_post_universal_geo_simulation_*`); no public REST/AJAX control surface exists. |
 | **Simulation mistaken for production visitor geo (M8)** | Documented prohibition: simulation is an administrator testing affordance only. The effective context uses `source = simulation` and `is_cached = false`; downstream plugins must not treat it as evidence of the visitor's real location. The admin UI and admin-bar indicator label simulation explicitly. |
+| **Cache-safe visitor context REST endpoint (M14)** | `GET /wp-json/universal-geo-context/v1/context` is deliberately public/anonymous (no privileged data is returned) and read-only (`permission_callback => __return_true`, GET only, no mutation, no CSRF-sensitive operation). Response is a frozen two-key contract (`country_code`, `region_code` only) — no `source`, `is_cached`, `confidence`, or `schema_version`, so no provider/infrastructure fingerprinting and no cache/diagnostic detail leaks. No `ip=` parameter — the route resolves only the current requester's own client IP via the unmodified trust boundary, never an anonymous caller's choice of target (an open geo-IP oracle would be a real abuse vector this design avoids by construction). Every response carries `Cache-Control: no-store`; UGC cannot guarantee every intermediary honors it, only that it emits the correct signal (see `docs/adr/0012-cache-safe-visitor-context.md`). No UGC-built rate limiting — host/CDN/WAF responsibility, as for any public route. An authorized admin's active simulation is reflected only when the request carries a valid `X-WP-Nonce` — WordPress's own REST cookie authentication anonymizes the request otherwise, before the route's callback ever runs. |
 
 ## Provider hardening, stated as invariants
 
@@ -62,21 +63,33 @@ addressed below.
 
 The plugin resolves per-request in PHP. If cached HTML is varied by
 geography, every visitor sees the first visitor's country baked into the
-cache. **The plugin does not solve this and does not claim to.** Three
-strategies exist, and each belongs to the site operator or the consuming
-plugin, not to Universal Geo Context itself: restrict geo-dependent output
-to never-cached surfaces (admin-ajax, a logged-in-only area); vary the edge
-cache key on the resolved country (an operator-level CDN configuration);
-resolve client-side via a REST endpoint (sketched for a future release, not
-shipped in v1).
+cache. **The plugin does not solve this at the HTML layer and does not
+claim to.** As of M14/v1.9.0, one of the three previously-sketched
+strategies is now shipped as UGC's own code: `GET /wp-json/universal-geo-context/v1/context`
+lets a consumer's own client-side JS fetch the *current* visitor's context
+after cached HTML has already loaded — see `docs/API.md`'s REST v1 section
+and `docs/adr/0012-cache-safe-visitor-context.md`. The other two strategies
+remain entirely operator/consumer-owned, not implemented by UGC: restrict
+geo-dependent output to never-cached surfaces (admin-ajax, a logged-in-only
+area); vary the edge cache key on the resolved country (an operator-level
+CDN configuration, e.g. Cloudflare Workers/Transform Rules — deliberately
+not built into UGC itself, since it cannot be implemented generically
+across every hosting stack this plugin supports).
 
-## Zero front-end footprint
+## Zero front-end footprint (for **ordinary, non-simulating** visitors)
 
-No cookies, sessions, JavaScript, or CSS for **visitor** geolocation on the
-front end. Resolution happens entirely server-side, on demand. M8 adds an
-admin-bar indicator (and a signed simulation cookie) **only** for logged-in
-administrators with an active simulation session — ordinary visitors see
-neither.
+No cookies, sessions, or CSS for visitor geolocation on the front end for
+any request UGC does not explicitly serve. Resolution happens entirely
+server-side, on demand. M8 adds an admin-bar indicator (and a signed
+simulation cookie) **only** for logged-in administrators with an active
+simulation session — ordinary visitors see neither.
+
+M14 adds one narrow exception, opt-in by construction: the REST endpoint
+above is a passive JSON API UGC itself never calls or enqueues any script
+for — it exists, and is reachable, but produces zero front-end footprint
+unless a *consumer plugin* chooses to fetch it. UGC ships no bundled
+JavaScript of its own; any front-end footprint from this endpoint is
+entirely the calling consumer's own choice and own code.
 
 See `docs/PRIVACY.md` for the full persisted-data inventory and GDPR framing,
 and `docs/TRUSTED_PROXIES.md` for the trust-boundary deployment recipes this

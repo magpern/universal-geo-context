@@ -90,3 +90,70 @@ add_action( 'init', function () {
 	}
 } );
 ```
+
+## REST v1 (M14 / v1.9.0) — cache-safe visitor context
+
+A second, **independent** public surface, added to close the one gap the six PHP
+functions above cannot: full-page/CDN-cached HTML never re-runs PHP, so a browser needs
+a way to ask for the *current* visitor's context after such a page has already loaded.
+See `docs/adr/0012-cache-safe-visitor-context.md` for the full design record.
+
+```
+GET /wp-json/universal-geo-context/v1/context
+```
+
+- Public, anonymous — no authentication required, no `permission_callback` restriction.
+- GET only. No parameters accepted (no `ip=` override).
+- Response, always exactly these two keys, both always present:
+
+  ```json
+  { "country_code": "SE", "region_code": null }
+  ```
+
+  `country_code`: uppercase ISO 3166-1 alpha-2 string, or `null` when unknown.
+  `region_code`: uppercase subdivision code string, or `null` when not resolved, unknown,
+  or when simulation is active (region is always `null` under simulation, same as the PHP
+  API).
+
+### Versioning — independent from `universal_geo_api_version()`
+
+This contract's versioning is carried entirely by the `/v1` URL segment, not by
+`universal_geo_api_version()` (which governs the six-function PHP contract only and is
+unaffected by this surface). **The `v1` key set is frozen, not additive** — no third key
+will ever be added under `v1`; any change (add, remove, rename, retype) ships as `/v2`,
+with `v1` continuing to be served unchanged for at least one minor release, mirroring the
+PHP API's own deprecation-path discipline.
+
+Deliberately not `VisitorContext::to_array()`: that method's shape (which includes
+`source`, `is_cached`, `confidence`, `schema_version`) serves a different consumer
+(`GeoCache`'s own round-trip). None of those fields are exposed here — see ADR-0012 for
+the full field-by-field rationale.
+
+### Simulation and the `X-WP-Nonce` requirement
+
+An authorized administrator's active simulation (M8) is reflected through this endpoint —
+but only when the request includes a valid `X-WP-Nonce` header
+(`wp_create_nonce( 'wp_rest' )`). This is standard WordPress REST cookie-authentication
+behavior, not UGC-specific: without a nonce, WordPress anonymizes the request before this
+route's callback ever runs, so simulation will not appear. If you are building an
+admin-facing testing tool that calls this endpoint, localize a nonce
+(`wp_localize_script()` + `wp_create_nonce( 'wp_rest' )`) and send it as `X-WP-Nonce`.
+
+### Caching
+
+Every response carries `Cache-Control: no-store`. If your site uses a full-page cache or
+CDN, confirm `/wp-json/universal-geo-context/v1/context` is excluded from HTML
+page-caching rules — most WP cache plugins and CDNs already exclude all of `/wp-json/*`
+by default; verify rather than assume.
+
+### Disabling the route
+
+There is no UGC-specific filter to disable this route. WordPress's own core `rest_endpoints`
+filter already covers this need generically:
+
+```php
+add_filter( 'rest_endpoints', function ( $endpoints ) {
+	unset( $endpoints['/universal-geo-context/v1/context'] );
+	return $endpoints;
+} );
+```

@@ -148,6 +148,17 @@ can never be reached by a partial or accidental configuration. This plugin
 surfaces the decision; it never makes it silently, and the resulting
 privacy-policy update remains the site operator's own responsibility.
 
+## Cache-safe visitor context REST endpoint (M14)
+
+`GET /wp-json/universal-geo-context/v1/context` (`docs/API.md`, `docs/adr/0012-cache-safe-visitor-context.md`)
+discloses a **strict subset** of what `universal_geo_get_context()` already
+exposes server-side to any active plugin — `country_code` and `region_code`
+only, the same two facts already implicit in any geography-dependent HTML a
+site renders for that visitor. It introduces no new category of data and no
+new persisted state (the endpoint itself writes nothing beyond the same
+`GeoCache` entry a normal page view would already create). The change is
+transport only: JSON-over-HTTP instead of a same-process PHP function call.
+
 ## What is masked, and how
 
 `IpUtils::mask()`: IPv4 → last octet replaced with `x` (e.g. `203.0.113.x`);

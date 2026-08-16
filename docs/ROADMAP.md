@@ -1,8 +1,8 @@
 # Roadmap
 
-**Status: M1–M13 shipped through v1.8.0. Architecture frozen through M8 — see `docs/ARCHITECTURE_FREEZE.md`.**
+**Status: M1–M14 shipped through v1.9.0. Architecture frozen through M8 — see `docs/ARCHITECTURE_FREEZE.md`.**
 
-**Admin UX (v1.x)**: M10 (navigation polish) and M11 (Universal Admin Design System) complete the foundational admin infrastructure. M12 adds operational readiness without further shell redesign. M13 adds region/subdivision support without any admin shell change. Future milestones should concentrate on functionality — additional providers, testing capabilities, enterprise features, and the deferred items below — rather than further admin shell work unless a concrete gap appears.
+**Admin UX (v1.x)**: M10 (navigation polish) and M11 (Universal Admin Design System) complete the foundational admin infrastructure. M12 adds operational readiness without further shell redesign. M13 adds region/subdivision support without any admin shell change. M14 adds the cache-safe visitor context REST surface without any admin shell change. Future milestones should concentrate on functionality — additional providers, testing capabilities, enterprise features, and the deferred items below — rather than further admin shell work unless a concrete gap appears.
 
 ## Next milestone
 
@@ -23,15 +23,14 @@ None currently approved (house rule: one milestone at a time). Managed GeoLite2 
 - **v1.6.0 (M11)** — Universal Admin Design System adoption: branded shell, icon navigation, statistics grid, settings cards, provider cards, timeline, sticky save bars, scoped `ugc-ui-*` CSS/JS. Presentation-only — no runtime, API, settings schema, or resolver behaviour changes. Shipped. **M11 complete.**
 - **v1.7.0 (M12)** — Operational Hardening & Consumer Readiness: internal `OperationalStatus` model (ready/degraded/action_required/unavailable + consumer_usable); Site Health provider-chain and cache tests; managed-DB credential/scheduler messaging; `wp universal-geo status|providers|trusted-proxies`; Overview/Diagnostics readiness UX; diagnostics enrichment (simulation, scheduler, lock, previous DB); Settings nested-form fix; Overview cache and Inspector health mapping fixes. No public API change. Shipped. **M12 complete.**
 - **v1.8.0 (M13)** — Region/subdivision support: `MaxMindProvider` now reads `subdivisions[0].iso_code` from City-edition `.mmdb` records (manual `maxmind_db_path` or WooCommerce auto-detection), activating the `region_code` pipeline that already existed end to end (`GeoValidator::region()`, `ContextResolver`, `GeoCache`, `universal_geo_get_region_code()`, admin/CLI surfaces). Subdivision-only contract (e.g. `CA`, never `US-CA`); no ISO 3166-2 membership table; no cross-provider region enrichment; simulation and cache format unchanged; missing region never affects readiness. Managed GeoLite2 City downloads investigated (13B0) and explicitly deferred (NO-GO) — see ADR-0010. No public API, resolver, or cache contract change. Shipped. **M13 complete.**
+- **v1.9.0 (M14)** — Cache-safe visitor context: `GET /wp-json/universal-geo-context/v1/context`, a minimal, read-only, anonymous REST endpoint returning a frozen two-key contract (`country_code`, `region_code`) so a consumer's own JS can get the current visitor's context after full-page/CDN-cached HTML has already loaded — see ADR-0012. `ContextController` depends on a plain `callable`, never `Plugin`; new `Plugin::effective_context()` (`@internal`) provides a non-memoized read path distinct from the frozen `context()` the six PHP functions use, closing a REST-auth-timing/simulation-leak finding surfaced during implementation (`docs/PLAN-v1.9.0.md` Amendment 1). No new UGC hook, no CORS change, no `ip=` parameter, no policy. Six-function PHP API, `ContextResolver`, `GeoCache`, provider chain, and simulation semantics all unchanged. Shipped. **M14 complete.**
 
 ## Explicitly deferred to a future milestone
 
 - **Logs admin page** — slug `universal-geo-context-logs` reserved in documentation; not registered until a future milestone defines log storage and retention
 - **Managed GeoLite2 City downloads** — investigated in M13 (ADR-0010, 13B0) and given an explicit NO-GO: the extracted-database size left only ~2.3% headroom under the existing archive-safety cap, and several install/rollback/uninstall safety guarantees can only be proven by implementing and live-account-testing 13B1 itself. A future milestone may revisit this once a deliberate cap decision is made.
 - ISO 3166-2 subdivision membership table (region validation stays syntactic-only)
-- REST API
 - Additional GeoIP data (city, postcode, timezone, ASN)
-- Client-side resolution for page-cached sites
 - Additional hooks
 - Bot classification
 - VPN/proxy detection
