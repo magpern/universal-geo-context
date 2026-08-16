@@ -13,20 +13,21 @@ The plugin's public surface is intentionally minimal and frozen as of v1.0. All 
 The public API consists of exactly six functions and one value object, all defined in `src/api.php`:
 
 ```php
-function universal_geo_context(): VisitorContext
-function universal_geo_context_cached(): VisitorContext
-function universal_geo_detect_country(): string|null
-function universal_geo_detect_region(): string|null
-function universal_geo_was_cached(): bool
-function universal_geo_has_default_country(): bool
+function universal_geo_get_context(): VisitorContext
+function universal_geo_get_country_code(): ?string
+function universal_geo_get_region_code(): ?string
+function universal_geo_get_source(): string
+function universal_geo_get_confidence(): float
+function universal_geo_api_version(): int
 
 class VisitorContext
-  - $country_code: string|null
-  - $region_code: string|null
-  - $source: string
-  - $confidence: float
-  - $is_cached: bool
-  - public function to_json_schema(): string
+  - public readonly ?string $country_code
+  - public readonly ?string $region_code
+  - public readonly string $source
+  - public readonly float $confidence
+  - public readonly bool $is_cached
+  - public function to_array(): array
+  - public static function from_array( array $data ): self
 ```
 
 ### Characteristics
