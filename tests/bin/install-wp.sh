@@ -117,6 +117,9 @@ define( 'ABSPATH', __DIR__ . '/tmp/wordpress/' );
 // Suppress core error handling in tests.
 define( 'WP_DEBUG_DISPLAY', false );
 
+// Set table prefix. Can be overridden via WP_PHPUNIT__TABLE_PREFIX environment variable.
+$table_prefix = getenv( 'WP_PHPUNIT__TABLE_PREFIX' ) ?: 'wptests_';
+
 require_once ABSPATH . 'wp-settings.php';
 EOF
 fi
