@@ -483,3 +483,5 @@ if ( ! function_exists( 'wp_die' ) ) {
 require_once __DIR__ . '/Doubles/FakeGeoProvider.php';
 require_once __DIR__ . '/Doubles/TrackingGeoProvider.php';
 require_once __DIR__ . '/Doubles/FakeClientIpResolver.php';
+require_once __DIR__ . '/Doubles/WpRestRequestStub.php';
+require_once __DIR__ . '/Doubles/WpRestResponseStub.php';
