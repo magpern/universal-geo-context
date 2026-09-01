@@ -3,7 +3,7 @@
  * Plugin Name: Universal Geo Context
  * Plugin URI: https://github.com/magpern/universal-geo-context
  * Description: Visitor geolocation detection and country resolution. Evidence-based, privacy-respecting, and easily extensible.
- * Version: 1.9.0
+ * Version: 1.9.1
  * Author: magpern
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'UNIVERSAL_GEO_VERSION', '1.9.0' );
+define( 'UNIVERSAL_GEO_VERSION', '1.9.1' );
 define( 'UNIVERSAL_GEO_PLUGIN_FILE', __FILE__ );
 
 // Loaded unconditionally, before the PHP-version guard below (M5): this
@@ -54,6 +54,19 @@ if ( version_compare( PHP_VERSION, '8.1', '<' ) ) {
 $universal_geo_autoload = __DIR__ . '/vendor/autoload.php';
 if ( is_readable( $universal_geo_autoload ) ) {
 	require_once $universal_geo_autoload;
+}
+
+/**
+ * Automatic updates via the private update server. Define PRIVATE_UPDATE_SERVER
+ * (scheme + host, no trailing slash) in wp-config.php to enable; when it is not
+ * defined the plugin does not check for updates.
+ */
+if ( defined( 'PRIVATE_UPDATE_SERVER' ) && PRIVATE_UPDATE_SERVER && class_exists( \YahnisElsts\PluginUpdateChecker\v5\PucFactory::class ) ) {
+	\YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+		rtrim( (string) PRIVATE_UPDATE_SERVER, '/' ) . '/?action=get_metadata&slug=universal-geo-context',
+		__FILE__,
+		'universal-geo-context'
+	);
 }
 
 // HPOS and blocks compatibility declarations. These are honest: the plugin

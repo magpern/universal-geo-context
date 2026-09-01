@@ -4,7 +4,7 @@ Tags: geolocation, country, geoip, woocommerce, privacy
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.9.0
+Stable tag: 1.9.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -108,6 +108,9 @@ No. It detects geographic facts only. Consumers — other plugins reading
 its public functions — decide what those facts mean.
 
 == Changelog ==
+
+= 1.9.1 =
+* Automatic updates from a private update server (bundled Plugin Update Checker v5); base URL read from the PRIVATE_UPDATE_SERVER constant, inert when it is not defined.
 
 = 1.9.0 =
 * Cache-safe visitor context: new, read-only, anonymous REST endpoint `GET /wp-json/universal-geo-context/v1/context`, so a consumer's own JavaScript can fetch the current visitor's context after full-page/CDN-cached HTML has already loaded. See ADR-0012.
